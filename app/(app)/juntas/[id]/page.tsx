@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,23 +11,31 @@ import { validarActivacionJunta } from '@/services/junta.service';
 
 export default function JuntaDetailPage({ params }: { params: { id: string } }) {
   const { juntas, members, setData } = useAppStore();
-  const junta = juntas.find((j) => j.id === params.id);
-  if (!junta) return notFound();
+  const junta = juntas.find((j) => j.id === params.id) ?? null;
 
-  const [groupSize, setGroupSize] = useState(junta.participantes_max);
-  const [aporte, setAporte] = useState(junta.monto_cuota);
-  const [premioPrimero, setPremioPrimero] = useState(junta.premio_primero_pct ?? 3);
-  const [descuentoUltimo, setDescuentoUltimo] = useState(junta.descuento_ultimo_pct ?? 3);
-  const [feePct, setFeePct] = useState(junta.fee_plataforma_pct ?? 2);
+  const [groupSize, setGroupSize] = useState(0);
+  const [aporte, setAporte] = useState(0);
+  const [premioPrimero, setPremioPrimero] = useState(3);
+  const [descuentoUltimo, setDescuentoUltimo] = useState(3);
+  const [feePct, setFeePct] = useState(2);
 
-  const miembros = members.filter((m) => m.junta_id === junta.id);
+  useEffect(() => {
+    if (!junta) return;
+    setGroupSize(junta.participantes_max);
+    setAporte(junta.monto_cuota);
+    setPremioPrimero(junta.premio_primero_pct ?? 3);
+    setDescuentoUltimo(junta.descuento_ultimo_pct ?? 3);
+    setFeePct(junta.fee_plataforma_pct ?? 2);
+  }, [junta]);
+
+  const miembros = junta ? members.filter((m) => m.junta_id === junta.id) : [];
   const bolsaSemanal = groupSize * aporte;
   const feeCiclo = (bolsaSemanal * feePct * groupSize) / 100;
   const ingresoCiclo = bolsaSemanal * groupSize - feeCiclo;
 
   const rows = useMemo(
     () =>
-      Array.from({ length: groupSize }).map((_, index) => {
+      Array.from({ length: Math.max(groupSize, 0) }).map((_, index) => {
         const turn = index + 1;
         const extra =
           turn === 1
@@ -48,10 +55,22 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           perfil
         };
       }),
-    [groupSize, aporte, bolsaSemanal, premioPrimero, descuentoUltimo]
+    [groupSize, bolsaSemanal, premioPrimero, descuentoUltimo]
   );
 
-  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/junta/${junta.slug}` : `/junta/${junta.slug}`;
+  const shareUrl = junta
+    ? typeof window !== 'undefined'
+      ? `${window.location.origin}/junta/${junta.slug}`
+      : `/junta/${junta.slug}`
+    : '';
+
+  if (!junta) {
+    return (
+      <Card>
+        <p className="text-sm text-slate-600">Junta no encontrada.</p>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">
