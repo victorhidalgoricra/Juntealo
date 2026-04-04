@@ -2,12 +2,19 @@ import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
 import { Junta } from '@/types/domain';
 
+function mapSupabaseErrorMessage(message: string) {
+  if (message.includes("Could not find the table 'public.juntas'")) {
+    return 'La tabla public.juntas no existe en Supabase. Ejecuta las migraciones SQL del proyecto.';
+  }
+  return message;
+}
+
 export async function createJuntaRecord(junta: Junta) {
   if (!hasSupabase || !supabase) {
     return { ok: true as const, source: 'mock' as const };
   }
 
-  const { error } = await supabase.from('juntas').insert({
+  const { error } = await supabase.schema('public').from('juntas').insert({
     id: junta.id,
     admin_id: junta.admin_id,
     slug: junta.slug,
@@ -29,9 +36,9 @@ export async function createJuntaRecord(junta: Junta) {
     estado: junta.estado
   });
 
-  if (error) return { ok: false as const, message: error.message };
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
 
-  await supabase.from('junta_members').upsert({
+  const { error: memberError } = await supabase.schema('public').from('junta_members').upsert({
     junta_id: junta.id,
     profile_id: junta.admin_id,
     estado: 'activo',
@@ -39,14 +46,16 @@ export async function createJuntaRecord(junta: Junta) {
     orden_turno: 1
   });
 
+  if (memberError) return { ok: false as const, message: mapSupabaseErrorMessage(memberError.message) };
+
   return { ok: true as const, source: 'supabase' as const };
 }
 
 export async function fetchMyJuntas(adminId: string) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Junta[] };
 
-  const { data, error } = await supabase.from('juntas').select('*').eq('admin_id', adminId).order('created_at', { ascending: false });
-  if (error) return { ok: false as const, message: error.message };
+  const { data, error } = await supabase.schema('public').from('juntas').select('*').eq('admin_id', adminId).order('created_at', { ascending: false });
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
 
   return { ok: true as const, data: (data ?? []) as Junta[] };
 }
@@ -54,23 +63,23 @@ export async function fetchMyJuntas(adminId: string) {
 export async function fetchJuntaById(id: string) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: null as Junta | null };
 
-  const { data, error } = await supabase.from('juntas').select('*').eq('id', id).maybeSingle();
-  if (error) return { ok: false as const, message: error.message };
+  const { data, error } = await supabase.schema('public').from('juntas').select('*').eq('id', id).maybeSingle();
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
 
   return { ok: true as const, data: (data as Junta | null) ?? null };
 }
-
 
 export async function fetchPublicJuntas() {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Junta[] };
 
   const { data, error } = await supabase
+    .schema('public')
     .from('juntas')
     .select('*')
     .eq('visibilidad', 'publica')
     .in('estado', ['borrador', 'activa'])
     .order('created_at', { ascending: false });
 
-  if (error) return { ok: false as const, message: error.message };
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
   return { ok: true as const, data: (data ?? []) as Junta[] };
 }
