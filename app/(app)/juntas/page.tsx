@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/store/auth-store';
 import { useAppStore } from '@/store/app-store';
-import { fetchAvailableJuntas, fetchMembersByJuntaIds, findJuntaByAccessCode, joinJuntaAsParticipant } from '@/services/juntas.repository';
+import { fetchAvailableJuntas, findJuntaByAccessCode, joinJuntaAsParticipant } from '@/services/juntas.repository';
 
 const filters = [
   { id: 'todas', label: 'Todas' },
@@ -42,15 +42,14 @@ export default function JuntasDisponiblesPage() {
 
       const result = await fetchAvailableJuntas(user.id);
       if (!result.ok) {
-        setError(result.message);
+        console.error('[Juntas disponibles] error loading catalog', result.message);
+        setError('No pudimos cargar las juntas disponibles. Intenta nuevamente.');
         setLoading(false);
         return;
       }
 
       if (result.data.length > 0) {
         setData({ juntas: result.data });
-        const membersResult = await fetchMembersByJuntaIds(result.data.map((j) => j.id));
-        if (membersResult.ok) setData({ members: membersResult.data });
       }
 
       setLoading(false);
@@ -59,14 +58,10 @@ export default function JuntasDisponiblesPage() {
     load();
   }, [user, setData]);
 
-  const countByJunta = useMemo(() => {
-    const map = new Map<string, number>();
-    allMembers.forEach((member) => {
-      if (member.estado !== 'activo') return;
-      map.set(member.junta_id, (map.get(member.junta_id) ?? 0) + 1);
-    });
-    return map;
-  }, [allMembers]);
+  const countByJunta = useMemo(
+    () => new Map(allJuntas.map((junta) => [junta.id, Number(junta.integrantes_actuales ?? 0)])),
+    [allJuntas]
+  );
 
   const membershipMap = useMemo(() => new Set(allMembers.filter((m) => m.profile_id === user?.id).map((m) => m.junta_id)), [allMembers, user?.id]);
 
@@ -123,8 +118,6 @@ export default function JuntasDisponiblesPage() {
 
     const foundJunta = result.data;
     setData({ juntas: [foundJunta, ...allJuntas.filter((j) => j.id !== foundJunta.id)] });
-    const membersResult = await fetchMembersByJuntaIds([foundJunta.id]);
-    if (membersResult.ok) setData({ members: [...allMembers.filter((m) => m.junta_id !== foundJunta.id), ...membersResult.data] });
     window.location.href = `/juntas/${foundJunta.id}`;
   };
 
@@ -139,7 +132,10 @@ export default function JuntasDisponiblesPage() {
       return;
     }
 
-    setData({ members: [...allMembers, result.data] });
+    setData({
+      members: [...allMembers, result.data],
+      juntas: allJuntas.map((j) => (j.id === juntaId ? { ...j, integrantes_actuales: Number(j.integrantes_actuales ?? 0) + 1 } : j))
+    });
     setJoiningId(null);
   };
 

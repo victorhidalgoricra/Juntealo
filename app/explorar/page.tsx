@@ -6,7 +6,7 @@ import { PublicNav } from '@/components/marketing/public-nav';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { fetchPublicJuntas, fetchMembersByJuntaIds } from '@/services/juntas.repository';
+import { fetchPublicJuntas } from '@/services/juntas.repository';
 import { Junta } from '@/types/domain';
 import { useAuthStore } from '@/store/auth-store';
 
@@ -15,7 +15,6 @@ export default function ExplorarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [juntas, setJuntas] = useState<Junta[]>([]);
-  const [membersCount, setMembersCount] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let mounted = true;
@@ -27,24 +26,14 @@ export default function ExplorarPage() {
         const result = await fetchPublicJuntas();
         if (!mounted) return;
         if (!result.ok) {
-          setError(result.message);
+          console.error('[Explorar] error loading public catalog', result.message);
+          setError('No pudimos cargar las juntas disponibles. Intenta nuevamente.');
           return;
         }
 
         setJuntas(result.data);
-        if (result.data.length > 0) {
-          const membersResult = await fetchMembersByJuntaIds(result.data.map((j) => j.id));
-          if (mounted && membersResult.ok) {
-            const count = membersResult.data.reduce<Record<string, number>>((acc, member) => {
-              if (member.estado !== 'activo') return acc;
-              acc[member.junta_id] = (acc[member.junta_id] ?? 0) + 1;
-              return acc;
-            }, {});
-            setMembersCount(count);
-          }
-        }
-      } catch (loadError) {
-        if (mounted) setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar el catálogo público.');
+      } catch {
+        if (mounted) setError('No pudimos cargar las juntas disponibles. Intenta nuevamente.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -73,7 +62,7 @@ export default function ExplorarPage() {
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {juntas.map((j) => {
-              const integrantes = membersCount[j.id] ?? 0;
+              const integrantes = Number(j.integrantes_actuales ?? 0);
               const cupoCompleto = integrantes >= j.participantes_max;
               return (
                 <Card key={j.id} className="space-y-2">

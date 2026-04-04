@@ -23,6 +23,7 @@ export interface Junta {
   slug: string;
   invite_token: string;
   access_code?: string;
+  integrantes_actuales?: number;
   tipo_junta?: TipoJunta;
   incentivo_porcentaje?: number;
   incentivo_regla?: IncentivoRegla;

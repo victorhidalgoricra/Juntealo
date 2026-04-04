@@ -88,29 +88,41 @@ export async function fetchJuntaById(id: string) {
 export async function fetchPublicJuntas() {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Junta[] };
 
-  const { data, error } = await supabase
-    .schema('public')
-    .from('juntas')
-    .select('*')
-    .eq('visibilidad', 'publica')
-    .in('estado', ['borrador', 'activa'])
-    .order('created_at', { ascending: false });
+  const { data, error } = await supabase.schema('public').rpc('catalog_juntas', { p_include_private: false });
 
-  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  if (error) {
+    const fallback = await supabase
+      .schema('public')
+      .from('juntas')
+      .select('id,nombre,descripcion,visibilidad,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,access_code,slug,created_at')
+      .eq('visibilidad', 'publica')
+      .in('estado', ['borrador', 'activa'])
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (fallback.error) return { ok: false as const, message: mapSupabaseErrorMessage(fallback.error.message) };
+    return { ok: true as const, data: (fallback.data ?? []) as Junta[] };
+  }
+
   return { ok: true as const, data: (data ?? []) as Junta[] };
 }
 
 export async function fetchAvailableJuntas(_userId: string) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Junta[] };
 
-  const { data, error } = await supabase
-    .schema('public')
-    .from('juntas')
-    .select('*')
-    .in('estado', ['borrador', 'activa'])
-    .order('created_at', { ascending: false });
+  const { data, error } = await supabase.schema('public').rpc('catalog_juntas', { p_include_private: true });
 
-  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  if (error) {
+    const fallback = await supabase
+      .schema('public')
+      .from('juntas')
+      .select('id,nombre,descripcion,visibilidad,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,access_code,slug,created_at')
+      .in('estado', ['borrador', 'activa'])
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (fallback.error) return { ok: false as const, message: mapSupabaseErrorMessage(fallback.error.message) };
+    return { ok: true as const, data: (fallback.data ?? []) as Junta[] };
+  }
+
   return { ok: true as const, data: (data ?? []) as Junta[] };
 }
 
