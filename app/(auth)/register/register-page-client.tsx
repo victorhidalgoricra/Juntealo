@@ -12,6 +12,8 @@ import { useAuthStore } from '@/store/auth-store';
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
 import { ensureProfileExists } from '@/services/profile.service';
+import { mapAuthErrorMessage } from '@/services/auth.service';
+import { useState } from 'react';
 
 export function RegisterPageClient() {
   const router = useRouter();
@@ -19,13 +21,21 @@ export function RegisterPageClient() {
   const redirect = searchParams.get('redirect') || '/dashboard';
   const setUser = useAuthStore((s) => s.setUser);
   const { register, handleSubmit, setError, formState } = useForm<z.infer<typeof registerSchema>>();
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   return (
     <Card className="w-full space-y-4">
-      <h1 className="text-xl font-semibold">Registro</h1>
+      <div>
+        <h1 className="text-xl font-semibold">Crea tu cuenta</h1>
+        <p className="text-sm text-slate-500">Regístrate para crear y unirte a juntas digitales.</p>
+      </div>
       <form
         className="space-y-3"
         onSubmit={handleSubmit(async (values) => {
+          setAuthError(null);
+          setSuccessMsg(null);
           const parsed = registerSchema.safeParse(values);
           if (!parsed.success) {
             const issue = parsed.error.issues[0];
@@ -34,37 +44,59 @@ export function RegisterPageClient() {
           }
 
           try {
+            setLoading(true);
             if (hasSupabase && supabase) {
+              const emailRedirectTo = `${window.location.origin}/login?confirmed=1`;
               const { data, error } = await supabase.auth.signUp({
                 email: values.email,
                 password: values.password,
-                options: { data: { full_name: values.nombre } }
+                options: {
+                  data: { full_name: values.nombre, phone: values.celular },
+                  emailRedirectTo
+                }
               });
               if (error) throw error;
+
               const user = data.user;
-              if (!user) throw new Error('No se pudo crear usuario.');
+              if (!user) throw new Error('No se pudo crear la cuenta.');
+
+              if ((user.identities ?? []).length === 0) {
+                setAuthError('Este correo ya está registrado. Intenta iniciar sesión o recuperar tu contraseña.');
+                return;
+              }
 
               const profileResult = await ensureProfileExists({ id: user.id, nombre: values.nombre, celular: values.celular, email: values.email });
               if (!profileResult.ok) throw new Error(profileResult.message);
-              setUser({ id: user.id, email: values.email, nombre: values.nombre, celular: values.celular, global_role: 'user' });
-              router.push(redirect);
+
+              setSuccessMsg('Te enviamos un correo para confirmar tu cuenta. Revisa tu bandeja de entrada y spam.');
               return;
             }
 
             setUser({ id: crypto.randomUUID(), ...values, global_role: 'user' });
             router.push(redirect);
           } catch (error) {
-            setError('email', { message: error instanceof Error ? error.message : 'No se pudo registrar.' });
+            setAuthError(error instanceof Error ? mapAuthErrorMessage(error.message) : 'No pudimos completar tu registro.');
+          } finally {
+            setLoading(false);
           }
         })}
       >
-        <Input placeholder="Nombre completo" {...register('nombre')} />
-        <Input placeholder="Celular" {...register('celular')} />
-        <Input placeholder="Correo" {...register('email')} />
-        <Input placeholder="Contraseña" type="password" {...register('password')} />
-        <Button className="w-full">Crear cuenta</Button>
+        <label className="text-sm font-medium">Nombre completo</label>
+        <Input placeholder="Nombre y apellido" {...register('nombre')} />
+        <label className="text-sm font-medium">Celular</label>
+        <Input placeholder="987654321" {...register('celular')} />
+        <label className="text-sm font-medium">Correo</label>
+        <Input placeholder="correo@ejemplo.com" {...register('email')} />
+        <label className="text-sm font-medium">Contraseña</label>
+        <Input placeholder="Mínimo 8 caracteres" type="password" {...register('password')} />
+        <Button className="w-full" disabled={loading}>{loading ? 'Creando cuenta...' : 'Crear cuenta'}</Button>
       </form>
+      {formState.errors.nombre && <p className="text-xs text-red-500">{formState.errors.nombre.message}</p>}
+      {formState.errors.celular && <p className="text-xs text-red-500">{formState.errors.celular.message}</p>}
       {formState.errors.email && <p className="text-xs text-red-500">{formState.errors.email.message}</p>}
+      {formState.errors.password && <p className="text-xs text-red-500">{formState.errors.password.message}</p>}
+      {authError && <p className="text-xs text-red-500">{authError}</p>}
+      {successMsg && <p className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-700">{successMsg}</p>}
       <Link className="text-sm" href={`/login?redirect=${encodeURIComponent(redirect)}`}>
         Ya tengo cuenta
       </Link>
