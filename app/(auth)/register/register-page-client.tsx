@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth-store';
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
+import { ensureProfileExists } from '@/services/profile.service';
 
 export function RegisterPageClient() {
   const router = useRouter();
@@ -43,7 +44,8 @@ export function RegisterPageClient() {
               const user = data.user;
               if (!user) throw new Error('No se pudo crear usuario.');
 
-              await supabase.from('profiles').upsert({ id: user.id, nombre: values.nombre, celular: values.celular, email: values.email });
+              const profileResult = await ensureProfileExists({ id: user.id, nombre: values.nombre, celular: values.celular, email: values.email });
+              if (!profileResult.ok) throw new Error(profileResult.message);
               setUser({ id: user.id, email: values.email, nombre: values.nombre, celular: values.celular, global_role: 'user' });
               router.push(redirect);
               return;

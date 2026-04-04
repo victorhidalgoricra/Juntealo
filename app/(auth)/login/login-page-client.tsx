@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth-store';
 import { resolveGlobalRole } from '@/services/auth-role.service';
 import { useState } from 'react';
+import { ensureProfileExists } from '@/services/profile.service';
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
 
@@ -43,8 +44,15 @@ export function LoginPageClient() {
               const user = data.user;
               if (!user) throw new Error('No se pudo obtener sesión.');
 
+              const profileResult = await ensureProfileExists({
+                id: user.id,
+                email: values.email,
+                nombre: user.user_metadata?.full_name ?? values.email.split('@')[0]
+              });
+              if (!profileResult.ok) throw new Error(profileResult.message);
+
               const globalRole = await resolveGlobalRole(values.email);
-              setUser({ id: user.id, email: values.email, nombre: user.user_metadata?.full_name ?? values.email.split('@')[0], celular: '', global_role: globalRole });
+              setUser({ id: user.id, email: values.email, nombre: user.user_metadata?.full_name ?? values.email.split('@')[0], celular: '000000000', global_role: globalRole });
               router.push(redirect);
               return;
             }
