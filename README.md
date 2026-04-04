@@ -1,7 +1,7 @@
-# Juntas Digitales (MVP Web Comercial)
+# Juntas Digitales
 
-## Variables de entorno esperadas
-Prioridad principal (Vercel Integration):
+## Variables de entorno
+Principales (Vercel integration):
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
@@ -14,39 +14,30 @@ Opcionales:
 - `NEXT_PUBLIC_ENABLE_MOCKS=false`
 - `NEXT_PUBLIC_ADMIN_EMAILS=`
 
-## Ejecutar local
+## Setup
 ```bash
 cp .env.example .env.local
 npm install
 npm run dev
 ```
 
-## Build
-```bash
-npm run build
-```
-
 ## Migraciones SQL
-Ejecuta en orden:
+Ejecutar en orden:
 1. `supabase/migrations/001_init.sql`
 2. `supabase/migrations/002_public_links_and_global_roles.sql`
 3. `supabase/migrations/003_junta_simulator_fields.sql`
+4. `supabase/migrations/004_public_visibility.sql`
 
-Seeds:
-- `supabase/seed/seed.sql`
-- `supabase/seed/seed_admin.sql`
+## Qué incluye ahora
+- Formulario **simplificado** de crear junta con 7 campos esenciales.
+- Guardado real en Supabase + asociación admin en `junta_members`.
+- `/juntas` (mis juntas) estable con loading/empty/error.
+- `/explorar` con listado de juntas públicas.
+- Enlace de invitación para juntas privadas desde detalle.
 
-## Asignar rol admin global
+## Rol admin global
 ```sql
 insert into public.user_global_roles (profile_id, role)
 values ('TU_PROFILE_ID_UUID', 'admin')
 on conflict do nothing;
 ```
-
-## Qué quedó corregido
-- Conexión Supabase centralizada con fallback de variables (incluye publishable key de Vercel).
-- Login/registro conectados a Supabase Auth (signIn/signUp).
-- Crear junta inserta en Supabase real y crea relación admin en `junta_members`.
-- `/juntas` lee juntas reales desde Supabase (loading, empty, error).
-- `/juntas/[id]` busca en Supabase cuando no está en store.
-- Admin global mantenido sin exponer credenciales en UI.

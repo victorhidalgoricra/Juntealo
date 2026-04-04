@@ -88,7 +88,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-2xl font-semibold">{junta.nombre}</h1>
-            <p className="text-sm text-slate-500">Simulador y configuración de ciclo</p>
+            <p className="text-sm text-slate-500">Simulador y configuración de ciclo · Visibilidad: {junta.visibilidad}</p>
           </div>
           <div className="flex items-center gap-2">
             <Badge>{junta.estado}</Badge>
@@ -108,6 +108,13 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
         </div>
       </Card>
 
+
+      {junta.visibilidad === 'privada' && (
+        <Card className="space-y-1">
+          <p className="text-sm font-medium">Enlace de invitación privada</p>
+          <p className="text-xs text-slate-500">{shareUrl}</p>
+        </Card>
+      )}
       <Card className="space-y-3">
         <h2 className="font-semibold">Configuración financiera</h2>
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">

@@ -59,3 +59,18 @@ export async function fetchJuntaById(id: string) {
 
   return { ok: true as const, data: (data as Junta | null) ?? null };
 }
+
+
+export async function fetchPublicJuntas() {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Junta[] };
+
+  const { data, error } = await supabase
+    .from('juntas')
+    .select('*')
+    .eq('visibilidad', 'publica')
+    .in('estado', ['borrador', 'activa'])
+    .order('created_at', { ascending: false });
+
+  if (error) return { ok: false as const, message: error.message };
+  return { ok: true as const, data: (data ?? []) as Junta[] };
+}

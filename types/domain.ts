@@ -32,7 +32,7 @@ export interface Junta {
   fecha_inicio: string;
   dia_limite_pago: number;
   penalidad_mora?: number;
-  visibilidad: 'privada' | 'invitacion';
+  visibilidad: 'publica' | 'privada';
   cerrar_inscripciones: boolean;
   estado: EstadoJunta;
   created_at: string;

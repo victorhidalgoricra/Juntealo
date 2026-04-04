@@ -10,6 +10,7 @@ export function PublicNav() {
           <Link href="/">Inicio</Link>
           <Link href="/como-funciona">Cómo funciona</Link>
           <Link href="/demo">Demo</Link>
+          <Link href="/explorar">Explorar juntas</Link>
         </nav>
         <div className="flex gap-2">
           <Link href="/login"><Button variant="ghost">Iniciar sesión</Button></Link>

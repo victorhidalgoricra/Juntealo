@@ -25,42 +25,26 @@ export default function NewJuntaPage() {
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const { register, handleSubmit, setError, formState } = useForm<z.infer<typeof createJuntaSchema>>({
-    defaultValues: {
-      moneda: 'PEN',
-      frecuencia_pago: 'semanal',
-      visibilidad: 'privada',
-      cerrar_inscripciones: false,
-      premio_primero_pct: 3,
-      descuento_ultimo_pct: 3,
-      fee_plataforma_pct: 2
-    }
+    defaultValues: { frecuencia_pago: 'semanal', visibilidad: 'privada' }
   });
 
   useEffect(() => {
     if (!user) router.replace('/login?redirect=/juntas/new');
   }, [user, router]);
 
-  if (!user) {
-    return (
-      <Card>
-        <p className="text-sm text-slate-600">Necesitas iniciar sesión para crear una junta. Redirigiendo...</p>
-      </Card>
-    );
-  }
+  if (!user) return <Card>Redirigiendo a login...</Card>;
 
   return (
-    <Card className="space-y-4">
-      <h1 className="text-xl font-semibold">Crear junta</h1>
-      <p className="text-sm text-slate-600">Define reglas financieras y estructura del grupo para simular tu ciclo.</p>
+    <Card className="mx-auto max-w-2xl space-y-4">
+      <h1 className="text-2xl font-semibold">Crear junta</h1>
+      <p className="text-sm text-slate-600">Configura solo lo esencial para validar rápido tu junta.</p>
 
       <form
-        className="grid gap-3 md:grid-cols-2"
+        className="grid gap-3"
         onSubmit={handleSubmit(async (values) => {
           setErrorMsg(null);
-          setSuccessMsg(null);
           const parsed = createJuntaSchema.safeParse(values);
           if (!parsed.success) {
             const issue = parsed.error.issues[0];
@@ -71,22 +55,31 @@ export default function NewJuntaPage() {
           try {
             setLoading(true);
             const juntaId = crypto.randomUUID();
-            const slugBase = makeSlug(values.nombre);
-            const slug = `${slugBase}-${juntaId.slice(0, 6)}`;
+            const slug = `${makeSlug(values.nombre)}-${juntaId.slice(0, 6)}`;
             const created = {
-              ...values,
               id: juntaId,
+              admin_id: user.id,
               slug,
               invite_token: crypto.randomUUID(),
-              admin_id: user.id,
+              nombre: values.nombre,
+              descripcion: values.descripcion,
+              moneda: 'PEN' as const,
+              participantes_max: values.participantes_max,
+              monto_cuota: values.monto_cuota,
+              premio_primero_pct: 0,
+              descuento_ultimo_pct: 0,
+              fee_plataforma_pct: 0,
+              frecuencia_pago: values.frecuencia_pago,
+              fecha_inicio: values.fecha_inicio,
+              dia_limite_pago: 1,
+              visibilidad: values.visibilidad,
+              cerrar_inscripciones: false,
               estado: 'borrador' as const,
               created_at: new Date().toISOString()
             };
 
-            const persistResult = await createJuntaRecord(created);
-            if (!persistResult.ok) {
-              throw new Error(`Error al guardar en Supabase: ${persistResult.message}`);
-            }
+            const persist = await createJuntaRecord(created);
+            if (!persist.ok) throw new Error(persist.message);
 
             const schedule = generarCronograma({
               juntaId,
@@ -102,36 +95,45 @@ export default function NewJuntaPage() {
               members: [...allMembers, { id: crypto.randomUUID(), junta_id: juntaId, profile_id: user.id, estado: 'activo', orden_turno: 1 }]
             });
 
-            setSuccessMsg('Junta creada con éxito. Redirigiendo al simulador...');
-            setTimeout(() => router.push(`/juntas/${juntaId}`), 450);
+            router.push(`/juntas/${juntaId}`);
           } catch (error) {
-            setErrorMsg(error instanceof Error ? error.message : 'No se pudo crear la junta. Intenta nuevamente.');
+            setErrorMsg(error instanceof Error ? error.message : 'No se pudo crear la junta.');
           } finally {
             setLoading(false);
           }
         })}
       >
-        <Input placeholder="Nombre de la junta" {...register('nombre')} />
-        <Input placeholder="Descripción (opcional)" {...register('descripcion')} />
-        <Input type="number" placeholder="Tamaño del grupo" {...register('participantes_max')} />
-        <Input type="number" placeholder="Aporte por periodo" {...register('monto_cuota')} />
-        <Select {...register('frecuencia_pago')}><option value="semanal">Semanal</option><option value="quincenal">Quincenal</option><option value="mensual">Mensual</option></Select>
+        <label className="text-sm font-medium">Nombre de la junta</label>
+        <Input placeholder="Ej: Junta Emprendedores" {...register('nombre')} />
+
+        <label className="text-sm font-medium">Descripción (opcional)</label>
+        <textarea className="min-h-24 rounded-md border border-slate-300 p-3 text-sm" placeholder="Describe el objetivo de la junta" {...register('descripcion')} />
+
+        <label className="text-sm font-medium">Tamaño del grupo</label>
+        <Input type="number" {...register('participantes_max')} />
+
+        <label className="text-sm font-medium">Aporte por turno/período</label>
+        <Input type="number" {...register('monto_cuota')} />
+
+        <label className="text-sm font-medium">Frecuencia de turnos</label>
+        <Select {...register('frecuencia_pago')}>
+          <option value="semanal">Semanal</option>
+          <option value="quincenal">Quincenal</option>
+          <option value="mensual">Mensual</option>
+        </Select>
+
+        <label className="text-sm font-medium">Fecha de inicio</label>
         <Input type="date" {...register('fecha_inicio')} />
-        <Input type="number" placeholder="Premio primero (%)" {...register('premio_primero_pct')} />
-        <Input type="number" placeholder="Descuento último (%)" {...register('descuento_ultimo_pct')} />
-        <Input type="number" placeholder="Fee plataforma (%)" {...register('fee_plataforma_pct')} />
-        <Input type="number" placeholder="Día límite pago" {...register('dia_limite_pago')} />
-        <Select {...register('moneda')}><option value="PEN">PEN</option><option value="USD">USD</option></Select>
-        <Select {...register('visibilidad')}><option value="privada">Privada</option><option value="invitacion">Invitación</option></Select>
 
-        <label className="col-span-full flex items-center gap-2 text-sm">
-          <input type="checkbox" {...register('cerrar_inscripciones')} /> Cerrar inscripciones al completar
-        </label>
+        <label className="text-sm font-medium">Visibilidad</label>
+        <Select {...register('visibilidad')}>
+          <option value="publica">Pública</option>
+          <option value="privada">Privada</option>
+        </Select>
 
-        {formState.errors.nombre && <p className="col-span-full text-xs text-red-500">{formState.errors.nombre.message}</p>}
-        {errorMsg && <p className="col-span-full text-xs text-red-500">{errorMsg}</p>}
-        {successMsg && <p className="col-span-full text-xs text-emerald-600">{successMsg}</p>}
-        <Button className="col-span-full" disabled={loading}>{loading ? 'Guardando...' : 'Guardar junta'}</Button>
+        {formState.errors.nombre && <p className="text-xs text-red-500">{formState.errors.nombre.message}</p>}
+        {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}
+        <Button disabled={loading}>{loading ? 'Creando...' : 'Crear junta'}</Button>
       </form>
     </Card>
   );
