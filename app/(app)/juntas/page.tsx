@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/store/auth-store';
 import { useAppStore } from '@/store/app-store';
-import { fetchAvailableJuntas, findJuntaByAccessCode } from '@/services/juntas.repository';
+import { fetchAvailableJuntas, fetchMembersByJuntaIds, findJuntaByAccessCode, joinJuntaAsParticipant } from '@/services/juntas.repository';
 
 const filters = [
   { id: 'todas', label: 'Todas' },
@@ -30,6 +30,8 @@ export default function JuntasDisponiblesPage() {
   const [query, setQuery] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [codeError, setCodeError] = useState<string | null>(null);
+  const [joinErrorByJunta, setJoinErrorByJunta] = useState<Record<string, string>>({});
+  const [joiningId, setJoiningId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterId>('todas');
 
   useEffect(() => {
@@ -37,17 +39,34 @@ export default function JuntasDisponiblesPage() {
       if (!user) return;
       setLoading(true);
       setError(null);
+
       const result = await fetchAvailableJuntas(user.id);
-      if (result.ok) {
-        if (result.data.length > 0) setData({ juntas: result.data });
-      } else {
+      if (!result.ok) {
         setError(result.message);
+        setLoading(false);
+        return;
       }
+
+      if (result.data.length > 0) {
+        setData({ juntas: result.data });
+        const membersResult = await fetchMembersByJuntaIds(result.data.map((j) => j.id));
+        if (membersResult.ok) setData({ members: membersResult.data });
+      }
+
       setLoading(false);
     };
 
     load();
   }, [user, setData]);
+
+  const countByJunta = useMemo(() => {
+    const map = new Map<string, number>();
+    allMembers.forEach((member) => {
+      if (member.estado !== 'activo') return;
+      map.set(member.junta_id, (map.get(member.junta_id) ?? 0) + 1);
+    });
+    return map;
+  }, [allMembers]);
 
   const membershipMap = useMemo(() => new Set(allMembers.filter((m) => m.profile_id === user?.id).map((m) => m.junta_id)), [allMembers, user?.id]);
 
@@ -102,8 +121,26 @@ export default function JuntasDisponiblesPage() {
       return;
     }
 
-    setData({ juntas: [result.data, ...allJuntas.filter((j) => j.id !== result.data?.id)] });
-    window.location.href = `/juntas/${result.data.id}`;
+    const foundJunta = result.data;
+    setData({ juntas: [foundJunta, ...allJuntas.filter((j) => j.id !== foundJunta.id)] });
+    const membersResult = await fetchMembersByJuntaIds([foundJunta.id]);
+    if (membersResult.ok) setData({ members: [...allMembers.filter((m) => m.junta_id !== foundJunta.id), ...membersResult.data] });
+    window.location.href = `/juntas/${foundJunta.id}`;
+  };
+
+  const handleJoin = async (juntaId: string, accessCode?: string) => {
+    setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: '' }));
+    setJoiningId(juntaId);
+
+    const result = await joinJuntaAsParticipant({ juntaId, profileId: user.id, accessCode });
+    if (!result.ok) {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: result.message }));
+      setJoiningId(null);
+      return;
+    }
+
+    setData({ members: [...allMembers, result.data] });
+    setJoiningId(null);
   };
 
   return (
@@ -167,6 +204,10 @@ export default function JuntasDisponiblesPage() {
           {visibleJuntas.map((j) => {
             const isMine = j.admin_id === user.id || membershipMap.has(j.id);
             const description = j.descripcion?.trim() || 'Junta sin descripción aún.';
+            const miembrosActuales = countByJunta.get(j.id) ?? 0;
+            const cupoCompleto = miembrosActuales >= j.participantes_max;
+            const estadoVisual = j.estado === 'activa' ? 'activa' : cupoCompleto ? 'completa' : 'borrador';
+            const canJoin = !isMine && !cupoCompleto;
 
             return (
               <Card key={j.id} className="flex h-full flex-col justify-between gap-4 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
@@ -178,30 +219,23 @@ export default function JuntasDisponiblesPage() {
                   <p className="text-sm text-slate-600">{description}</p>
 
                   <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
-                    <p><span className="font-medium">Grupo:</span> {j.participantes_max}</p>
-                    <p><span className="font-medium">Aporte:</span> S/ {j.monto_cuota}</p>
-                    <p><span className="font-medium">Tipo:</span> {j.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</p>
-                    <p><span className="font-medium">Incentivo:</span> {Number(j.incentivo_porcentaje ?? 0)}%</p>
                     <p><span className="font-medium">Frecuencia:</span> {j.frecuencia_pago}</p>
-                    <p><span className="font-medium">Estado:</span> {j.estado}</p>
-                    <p className="col-span-2"><span className="font-medium">Inicio:</span> {j.fecha_inicio}</p>
+                    <p><span className="font-medium">Cuota base:</span> S/ {j.cuota_base ?? j.monto_cuota}</p>
+                    <p><span className="font-medium">Inicio:</span> {j.fecha_inicio}</p>
+                    <p><span className="font-medium">Tipo:</span> {j.tipo_junta === 'incentivo' ? 'Incentivos' : 'Normal'}</p>
+                    <p><span className="font-medium">Integrantes:</span> {miembrosActuales}/{j.participantes_max}</p>
+                    <p><span className="font-medium">Estado:</span> {estadoVisual}</p>
                   </div>
 
-                  {j.visibilidad === 'privada' && !isMine && (
-                    <div className="rounded-md bg-amber-50 p-2 text-xs text-amber-700">Acceso privado: requiere enlace o código válido.</div>
-                  )}
-                  {j.visibilidad === 'publica' && (
-                    <div className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-700">Visible para usuarios autenticados en el catálogo.</div>
-                  )}
+                  {cupoCompleto && <div className="rounded-md bg-amber-50 p-2 text-xs text-amber-700">Cupo completo</div>}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <Link href={`/juntas/${j.id}`}><Button variant="outline">Ver detalle</Button></Link>
-                  {j.visibilidad === 'publica' ? (
-                    <Button>Unirme</Button>
-                  ) : (
-                    <Button variant="ghost">Acceso privado</Button>
-                  )}
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    <Link href={`/juntas/${j.id}`}><Button variant="outline">Ver detalle</Button></Link>
+                    <Button disabled={!canJoin || joiningId === j.id} onClick={() => handleJoin(j.id, j.access_code)}>{joiningId === j.id ? 'Uniéndome...' : 'Unirme'}</Button>
+                  </div>
+                  {joinErrorByJunta[j.id] && <p className="text-xs text-red-600">{joinErrorByJunta[j.id]}</p>}
                 </div>
               </Card>
             );

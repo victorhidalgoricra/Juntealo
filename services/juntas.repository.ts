@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { Junta } from '@/types/domain';
+import { Junta, JuntaMember } from '@/types/domain';
 import { ensureProfileExists } from './profile.service';
 
 function mapSupabaseErrorMessage(message: string) {
@@ -123,4 +123,48 @@ export async function findJuntaByAccessCode(accessCode: string) {
 
   const junta = Array.isArray(data) ? (data[0] as Junta | undefined) : (data as Junta | null);
   return { ok: true as const, data: junta ?? null };
+}
+
+export async function fetchMembersByJuntaIds(juntaIds: string[]) {
+  if (juntaIds.length === 0) return { ok: true as const, data: [] as JuntaMember[] };
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as JuntaMember[] };
+
+  const { data, error } = await supabase
+    .schema('public')
+    .from('junta_members')
+    .select('*')
+    .in('junta_id', juntaIds)
+    .order('created_at', { ascending: true });
+
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  return { ok: true as const, data: (data ?? []) as JuntaMember[] };
+}
+
+export async function joinJuntaAsParticipant(params: { juntaId: string; profileId: string; accessCode?: string }) {
+  if (!hasSupabase || !supabase) {
+    return {
+      ok: true as const,
+      data: {
+        id: crypto.randomUUID(),
+        junta_id: params.juntaId,
+        profile_id: params.profileId,
+        estado: 'activo' as const,
+        rol: 'participante' as const,
+        orden_turno: 1
+      }
+    };
+  }
+
+  const { data, error } = await supabase.schema('public').rpc('join_junta_with_access_code', {
+    p_junta_id: params.juntaId,
+    p_access_code: params.accessCode ?? ''
+  });
+
+  if (error) {
+    if (error.code === '23505') return { ok: false as const, message: 'Ya formas parte de esta junta.' };
+    return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  }
+
+  const member = Array.isArray(data) ? (data[0] as JuntaMember | undefined) : (data as JuntaMember | null);
+  return { ok: true as const, data: member as JuntaMember };
 }

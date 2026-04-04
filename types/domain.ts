@@ -51,6 +51,7 @@ export interface JuntaMember {
   junta_id: string;
   profile_id: string;
   estado: EstadoMiembro;
+  rol?: 'admin' | 'participante';
   orden_turno: number;
 }
 

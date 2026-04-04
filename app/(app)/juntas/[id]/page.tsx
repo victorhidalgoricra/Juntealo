@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { validarActivacionJunta } from '@/services/junta.service';
-import { fetchJuntaById } from '@/services/juntas.repository';
+import { fetchJuntaById, fetchMembersByJuntaIds } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 
@@ -21,21 +21,28 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     const load = async () => {
       if (storeJunta) {
         setJunta(storeJunta);
-        setLoadingJunta(false);
-        return;
+      } else {
+        setLoadingJunta(true);
+        const result = await fetchJuntaById(params.id);
+        if (result.ok && result.data) {
+          setJunta(result.data);
+          setData({ juntas: [result.data, ...juntas.filter((j) => j.id !== result.data!.id)] });
+        }
       }
-      setLoadingJunta(true);
-      const result = await fetchJuntaById(params.id);
-      if (result.ok && result.data) {
-        setJunta(result.data);
-        setData({ juntas: [result.data, ...juntas.filter((j) => j.id !== result.data!.id)] });
+
+      const membersResult = await fetchMembersByJuntaIds([params.id]);
+      if (membersResult.ok) {
+        setData({ members: membersResult.data });
       }
+
       setLoadingJunta(false);
     };
     load();
   }, [storeJunta, params.id, setData, juntas]);
 
-  const miembros = junta ? members.filter((m) => m.junta_id === junta.id) : [];
+  const miembros = useMemo(() => members.filter((m) => m.junta_id === params.id), [members, params.id]);
+  const miembrosActivos = miembros.filter((member) => member.estado === 'activo');
+  const miembrosActuales = miembrosActivos.length;
 
   const simulacion = useMemo(() => {
     if (!junta) return null;
@@ -59,26 +66,35 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   if (loadingJunta) return <Card>Cargando junta...</Card>;
   if (!junta || !simulacion) return <Card><p className="text-sm text-slate-600">Junta no encontrada.</p></Card>;
 
+  const faltantes = Math.max(junta.participantes_max - miembrosActuales, 0);
+  const progreso = Math.min((miembrosActuales / junta.participantes_max) * 100, 100);
+  const activable = miembrosActuales >= junta.participantes_max;
+
   return (
     <div className="space-y-4">
       <Card className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
+          <div className="space-y-1">
             <h1 className="text-2xl font-semibold">{junta.nombre}</h1>
-            <p className="text-sm text-slate-500">Simulación financiera sin retención de plataforma</p>
+            <div className="flex flex-wrap gap-2 text-xs text-slate-600">
+              <Badge>{junta.estado}</Badge>
+              <Badge>{junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</Badge>
+              <Badge>{junta.visibilidad}</Badge>
+              <span className="rounded-full bg-slate-100 px-2 py-1 font-medium">Integrantes {miembrosActuales}/{junta.participantes_max}</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge>{junta.estado}</Badge>
-            <Badge>{junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</Badge>
             <Button variant="outline" onClick={() => { try { navigator.clipboard.writeText(shareUrl); alert('Enlace copiado'); } catch { alert(shareUrl); } }}>Copiar enlace</Button>
             {junta.visibilidad === 'privada' && junta.access_code && (
               <Button variant="outline" onClick={() => { try { navigator.clipboard.writeText(junta.access_code ?? ''); alert('Código copiado'); } catch { alert(junta.access_code); } }}>Copiar código</Button>
             )}
             <Button
               variant="ghost"
+              disabled={!activable}
+              title={activable ? 'Lista para activar' : 'Completa todos los integrantes para activar la junta'}
               onClick={() => {
                 try {
-                  validarActivacionJunta(miembros.length);
+                  validarActivacionJunta(miembrosActuales, junta.participantes_max);
                   setData({ juntas: juntas.map((j) => (j.id === junta.id ? { ...j, estado: 'activa' } : j)) });
                 } catch (error) {
                   alert((error as Error).message);
@@ -89,28 +105,38 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             </Button>
           </div>
         </div>
+        {!activable && <p className="text-xs text-amber-700">Completa todos los integrantes para activar la junta.</p>}
       </Card>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <Card><p className="text-xs text-slate-500">Bolsa base por ronda</p><p className="text-2xl font-bold">S/ {simulacion.bolsaBase.toFixed(2)}</p></Card>
         <Card><p className="text-xs text-slate-500">Cuota base por ronda</p><p className="text-2xl font-bold">S/ {simulacion.cuotaBase.toFixed(2)}</p></Card>
         <Card><p className="text-xs text-slate-500">Incentivo</p><p className="text-2xl font-bold">{simulacion.incentivoPorcentaje.toFixed(2)}%</p></Card>
-        <Card><p className="text-xs text-slate-500">Plataforma</p><p className="text-2xl font-bold">No retiene</p></Card>
+        <Card className="space-y-2">
+          <p className="text-xs text-slate-500">Integrantes</p>
+          <p className="text-2xl font-bold">{miembrosActuales}/{junta.participantes_max}</p>
+          <div className="h-2 rounded-full bg-slate-200">
+            <div className="h-full rounded-full bg-slate-900" style={{ width: `${progreso}%` }} />
+          </div>
+          <p className="text-xs text-slate-600">{faltantes === 0 ? 'Junta completa' : `Faltan ${faltantes} integrantes`}</p>
+        </Card>
       </div>
 
-      {junta.visibilidad === 'privada' ? (
-        <Card className="space-y-2">
-          <p className="text-sm font-medium">Acceso privado</p>
-          <p className="text-xs text-slate-500">Enlace: {shareUrl}</p>
-          <p className="text-xs text-slate-500">Código: <span className="font-semibold text-slate-700">{junta.access_code ?? 'Sin código'}</span></p>
-        </Card>
-      ) : (
-        <Card className="space-y-2">
-          <p className="text-sm font-medium">Junta pública</p>
-          <p className="text-xs text-slate-500">Visible en el catálogo de Juntas disponibles.</p>
-          <Button variant="outline">Ver como usuario</Button>
-        </Card>
-      )}
+      <Card>
+        <h2 className="mb-2 font-semibold">Integrantes unidos</h2>
+        {miembros.length === 0 ? (
+          <p className="text-sm text-slate-600">Aún no hay integrantes registrados.</p>
+        ) : (
+          <div className="space-y-2">
+            {miembros.map((member) => (
+              <div key={member.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                <p className="font-medium">{member.profile_id}</p>
+                <p className="text-slate-600">Estado: {member.estado} · Turno: {member.orden_turno}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       <Card>
         <h2 className="mb-3 font-semibold">Cronograma y simulación</h2>
@@ -144,12 +170,6 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             </tbody>
           </table>
         </div>
-      </Card>
-
-      <Card className="grid gap-2 text-sm text-slate-600 md:grid-cols-3">
-        <p>Total aportado por el grupo: <span className="font-semibold text-slate-800">S/ {simulacion.totalAportes.toFixed(2)}</span></p>
-        <p>Total recibido por el grupo: <span className="font-semibold text-slate-800">S/ {simulacion.totalRecibido.toFixed(2)}</span></p>
-        <p>Balance neto del sistema: <span className="font-semibold text-slate-800">S/ {simulacion.balance.toFixed(2)}</span></p>
       </Card>
 
       <div className="flex flex-wrap gap-2">
