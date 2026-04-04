@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -26,11 +26,11 @@ export default function NewJuntaPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { register, watch, handleSubmit, setError, formState } = useForm<z.infer<typeof createJuntaSchema>>({
+  const { control, register, handleSubmit, setError, formState } = useForm<z.infer<typeof createJuntaSchema>>({
     defaultValues: { frecuencia_pago: 'semanal', visibilidad: 'privada' }
   });
 
-  const preview = watch();
+  const form = useWatch({ control });
 
   useEffect(() => {
     if (!user) router.replace('/login?redirect=/juntas/new');
@@ -59,6 +59,7 @@ export default function NewJuntaPage() {
 
             try {
               setLoading(true);
+              console.log('[Crear Junta] submit values', values);
               const juntaId = crypto.randomUUID();
               const slug = `${makeSlug(values.nombre)}-${juntaId.slice(0, 6)}`;
               const created = {
@@ -131,10 +132,25 @@ export default function NewJuntaPage() {
           <Input type="date" {...register('fecha_inicio')} />
 
           <label className="text-sm font-medium">Visibilidad</label>
-          <Select {...register('visibilidad')}>
-            <option value="publica">Pública</option>
-            <option value="privada">Privada</option>
-          </Select>
+          <Controller
+            control={control}
+            name="visibilidad"
+            render={({ field }) => (
+              <Select
+                name={field.name}
+                value={field.value ?? 'privada'}
+                onChange={(event) => {
+                  const nextValue = event.target.value as 'publica' | 'privada';
+                  console.log('[Crear Junta] visibilidad change', nextValue);
+                  field.onChange(nextValue);
+                }}
+                onBlur={field.onBlur}
+              >
+                <option value="publica">Pública</option>
+                <option value="privada">Privada</option>
+              </Select>
+            )}
+          />
 
           {formState.errors.nombre && <p className="text-xs text-red-500">{formState.errors.nombre.message}</p>}
           {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}
@@ -144,12 +160,12 @@ export default function NewJuntaPage() {
 
       <Card className="space-y-3 p-5">
         <h2 className="text-lg font-semibold">Resumen en vivo</h2>
-        <p className="text-sm text-slate-600">Grupo: <span className="font-medium">{preview.participantes_max || 0}</span> personas</p>
-        <p className="text-sm text-slate-600">Aporte: <span className="font-medium">S/ {preview.monto_cuota || 0}</span></p>
-        <p className="text-sm text-slate-600">Frecuencia: <span className="font-medium capitalize">{preview.frecuencia_pago || '—'}</span></p>
-        <p className="text-sm text-slate-600">Visibilidad: <span className="font-medium capitalize">{preview.visibilidad || '—'}</span></p>
+        <p className="text-sm text-slate-600">Grupo: <span className="font-medium">{form.participantes_max || 0}</span> personas</p>
+        <p className="text-sm text-slate-600">Aporte: <span className="font-medium">S/ {form.monto_cuota || 0}</span></p>
+        <p className="text-sm text-slate-600">Frecuencia: <span className="font-medium capitalize">{form.frecuencia_pago || '—'}</span></p>
+        <p className="text-sm text-slate-600">Visibilidad: <span className="font-medium capitalize">{form.visibilidad || '—'}</span></p>
         <div className="rounded-md bg-slate-100 p-3 text-xs text-slate-600">
-          {preview.visibilidad === 'publica'
+          {form.visibilidad === 'publica'
             ? 'Esta junta aparecerá en juntas disponibles para unirse.'
             : 'Esta junta será privada y se generará un enlace para compartir.'}
         </div>
