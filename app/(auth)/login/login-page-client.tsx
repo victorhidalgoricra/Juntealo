@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth-store';
 import { resolveGlobalRole } from '@/services/auth-role.service';
 import { useMemo, useState } from 'react';
-import { ensureProfileExists } from '@/services/profile.service';
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
 import { mapAuthErrorMessage } from '@/services/auth.service';
@@ -22,14 +21,11 @@ export function LoginPageClient() {
   const redirect = searchParams.get('redirect') || '/dashboard';
   const confirmedParam = searchParams.get('confirmed');
   const setUser = useAuthStore((s) => s.setUser);
-  const { register, handleSubmit, formState, setError, watch } = useForm<z.infer<typeof loginSchema>>();
+  const { register, handleSubmit, formState, setError } = useForm<z.infer<typeof loginSchema>>();
   const [authError, setAuthError] = useState<string | null>(null);
-  const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [resending, setResending] = useState(false);
 
   const confirmedMsg = useMemo(() => (confirmedParam ? 'Tu correo fue confirmado. Ya puedes iniciar sesión.' : null), [confirmedParam]);
-  const emailValue = watch('email');
 
   return (
     <Card className="w-full space-y-4">
@@ -41,7 +37,6 @@ export function LoginPageClient() {
         className="space-y-3"
         onSubmit={handleSubmit(async (values) => {
           setAuthError(null);
-          setInfoMsg(null);
           const parsed = loginSchema.safeParse(values);
           if (!parsed.success) {
             const issue = parsed.error.issues[0];
@@ -57,14 +52,6 @@ export function LoginPageClient() {
               const user = data.user;
               if (!user) throw new Error('No se pudo obtener sesión.');
 
-              const profileResult = await ensureProfileExists({
-                id: user.id,
-                email: values.email,
-                nombre: user.user_metadata?.full_name ?? values.email.split('@')[0],
-                celular: user.user_metadata?.phone
-              });
-              if (!profileResult.ok) throw new Error(profileResult.message);
-
               const globalRole = await resolveGlobalRole(values.email);
               setUser({ id: user.id, email: values.email, nombre: user.user_metadata?.full_name ?? values.email.split('@')[0], celular: user.user_metadata?.phone ?? '000000000', global_role: globalRole });
               router.push(redirect);
@@ -75,6 +62,7 @@ export function LoginPageClient() {
             setUser({ id: crypto.randomUUID(), email: values.email, nombre: values.email.split('@')[0], celular: '', global_role: globalRole });
             router.push(redirect);
           } catch (error) {
+            console.error('[Login] auth error', error);
             setAuthError(error instanceof Error ? mapAuthErrorMessage(error.message) : 'No se pudo iniciar sesión en este momento.');
           } finally {
             setLoading(false);
@@ -91,42 +79,11 @@ export function LoginPageClient() {
         {formState.errors.email && <p className="text-xs text-red-500">{formState.errors.email.message}</p>}
         {formState.errors.password && <p className="text-xs text-red-500">{formState.errors.password.message}</p>}
         {authError && <p className="text-xs text-red-500">{authError}</p>}
-        {infoMsg && <p className="text-xs text-emerald-700">{infoMsg}</p>}
         {confirmedMsg && <p className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-700">{confirmedMsg}</p>}
       </form>
       <div className="flex flex-col gap-2 text-sm">
         <Link href={`/register?redirect=${encodeURIComponent(redirect)}`}>Crear cuenta</Link>
         <Link href="/forgot-password">Olvidé mi contraseña</Link>
-        <button
-          type="button"
-          className="text-left text-slate-700 underline"
-          onClick={async () => {
-            if (!emailValue) {
-              setInfoMsg('Ingresa tu correo arriba para reenviar la confirmación.');
-              return;
-            }
-
-            try {
-              setResending(true);
-              if (hasSupabase && supabase) {
-                const { error } = await supabase.auth.resend({
-                  type: 'signup',
-                  email: emailValue,
-                  options: { emailRedirectTo: `${window.location.origin}/login?confirmed=1` }
-                });
-                if (error) throw error;
-              }
-              setInfoMsg('Si el correo existe, reenviamos el mensaje de confirmación.');
-            } catch (error) {
-              setAuthError(error instanceof Error ? mapAuthErrorMessage(error.message) : 'No pudimos reenviar el correo de confirmación.');
-            } finally {
-              setResending(false);
-            }
-          }}
-          disabled={resending}
-        >
-          {resending ? 'Reenviando...' : 'Reenviar correo de confirmación'}
-        </button>
       </div>
     </Card>
   );

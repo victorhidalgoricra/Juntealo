@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth-store';
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { ensureProfileExists } from '@/services/profile.service';
 import { mapAuthErrorMessage } from '@/services/auth.service';
 import { useState } from 'react';
 
@@ -58,15 +57,11 @@ export function RegisterPageClient() {
               if (error) throw error;
 
               const user = data.user;
-              if (!user) throw new Error('No se pudo crear la cuenta.');
 
-              if ((user.identities ?? []).length === 0) {
+              if (user && (user.identities ?? []).length === 0) {
                 setAuthError('Este correo ya está registrado. Intenta iniciar sesión o recuperar tu contraseña.');
                 return;
               }
-
-              const profileResult = await ensureProfileExists({ id: user.id, nombre: values.nombre, celular: values.celular, email: values.email });
-              if (!profileResult.ok) throw new Error(profileResult.message);
 
               setSuccessMsg('Te enviamos un correo para confirmar tu cuenta. Revisa tu bandeja de entrada y spam.');
               return;
@@ -75,6 +70,7 @@ export function RegisterPageClient() {
             setUser({ id: crypto.randomUUID(), ...values, global_role: 'user' });
             router.push(redirect);
           } catch (error) {
+            console.error('[Register] auth error', error);
             setAuthError(error instanceof Error ? mapAuthErrorMessage(error.message) : 'No pudimos completar tu registro.');
           } finally {
             setLoading(false);

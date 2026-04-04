@@ -45,9 +45,10 @@ export default function ResetPasswordPage() {
               const { error } = await supabase.auth.updateUser({ password: values.password });
               if (error) throw error;
             }
-            setMessage('Tu contraseña fue actualizada correctamente. Ahora puedes iniciar sesión.');
+            setMessage('Tu contraseña fue actualizada correctamente.');
             setTimeout(() => router.push('/login'), 1200);
           } catch (error) {
+            console.error('[ResetPassword] update error', error);
             setErrorMessage(error instanceof Error ? mapAuthErrorMessage(error.message) : 'No se pudo actualizar la contraseña.');
           } finally {
             setLoading(false);
