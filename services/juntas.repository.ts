@@ -100,14 +100,13 @@ export async function fetchPublicJuntas() {
   return { ok: true as const, data: (data ?? []) as Junta[] };
 }
 
-export async function fetchAvailableJuntas(userId: string) {
+export async function fetchAvailableJuntas(_userId: string) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Junta[] };
 
   const { data, error } = await supabase
     .schema('public')
     .from('juntas')
     .select('*')
-    .or(`visibilidad.eq.publica,admin_id.eq.${userId}`)
     .in('estado', ['borrador', 'activa'])
     .order('created_at', { ascending: false });
 

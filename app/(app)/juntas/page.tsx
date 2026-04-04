@@ -228,6 +228,7 @@ export default function JuntasDisponiblesPage() {
                   </div>
 
                   {cupoCompleto && <div className="rounded-md bg-amber-50 p-2 text-xs text-amber-700">Cupo completo</div>}
+                  {j.visibilidad === 'privada' && <div className="rounded-md bg-slate-100 p-2 text-xs text-slate-700">Requiere enlace o código de acceso.</div>}
                 </div>
 
                 <div className="space-y-2">
