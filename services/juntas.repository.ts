@@ -7,6 +7,9 @@ function mapSupabaseErrorMessage(message: string) {
   if (message.includes("Could not find the table 'public.juntas'")) {
     return 'La tabla public.juntas no existe en Supabase. Ejecuta las migraciones SQL del proyecto.';
   }
+  if (message.includes('violates foreign key constraint')) {
+    return 'No se pudo eliminar la junta porque aún tiene datos relacionados.';
+  }
   return message;
 }
 
@@ -210,8 +213,13 @@ export async function deleteDraftJunta(params: { juntaId: string; userId: string
   if (juntaResult.data.admin_id !== params.userId) return { ok: false as const, message: 'Solo el creador puede eliminar esta junta.' };
   if (juntaResult.data.estado === 'activa') return { ok: false as const, message: 'No puedes eliminar una junta activa.' };
 
-  const { error } = await supabase.schema('public').from('juntas').update({ estado: 'cerrada' }).eq('id', params.juntaId).eq('admin_id', params.userId);
-  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  const { error } = await supabase.schema('public').rpc('delete_junta_with_dependencies', { p_junta_id: params.juntaId });
+  if (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[deleteDraftJunta] supabase error', error);
+    }
+    return { ok: false as const, message: 'No pudimos eliminar la junta. Intenta nuevamente.' };
+  }
 
   return { ok: true as const };
 }
