@@ -203,14 +203,30 @@ export default function JuntasDisponiblesPage() {
   };
 
   const handleDelete = async (juntaId: string) => {
+    if (!juntaId) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Juntas disponibles] delete blocked: invalid junta id', { juntaId });
+      }
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'No pudimos eliminar la junta. Intenta nuevamente.' }));
+      return;
+    }
+
     const confirmDelete = window.confirm('¿Seguro que deseas eliminar esta junta? Esta acción no se puede deshacer.');
     if (!confirmDelete) return;
 
     setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: '' }));
     setDeletingId(juntaId);
 
+    if (process.env.NODE_ENV === 'development') {
+      console.log('delete junta id', juntaId);
+      console.log('delete payload', { p_junta_id: juntaId });
+    }
+
     const result = await deleteDraftJunta({ juntaId, userId: user.id });
     if (!result.ok) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Juntas disponibles] delete failed', { juntaId, message: result.message });
+      }
       setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: result.message }));
       setDeletingId(null);
       return;
@@ -284,10 +300,11 @@ export default function JuntasDisponiblesPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visibleJuntas.map((j) => {
+            const juntaId = j.id;
             const isOwner = j.admin_id === user.id;
             const isMember = j.is_member_current_user === true;
             const description = j.descripcion?.trim() || 'Junta sin descripción aún.';
-            const miembrosActuales = countByJunta.get(j.id) ?? 0;
+            const miembrosActuales = countByJunta.get(juntaId) ?? 0;
             const cupoCompleto = miembrosActuales >= j.participantes_max;
             const estadoVisual = j.estado === 'activa' ? 'activa' : cupoCompleto ? 'completa' : 'borrador';
             const roleState = isOwner ? 'owner' : isMember ? 'member' : 'visitor';
@@ -297,7 +314,7 @@ export default function JuntasDisponiblesPage() {
             const canJoin = roleState === 'visitor' && !cupoCompleto;
 
             return (
-              <Card key={j.id} className="flex h-full flex-col justify-between gap-4 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+              <Card key={juntaId} className="flex h-full flex-col justify-between gap-4 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="text-lg font-semibold leading-tight">{j.nombre}</h3>
@@ -322,35 +339,35 @@ export default function JuntasDisponiblesPage() {
 
                 <div className="space-y-2">
                   <div className="flex flex-wrap gap-2">
-                    <Link href={`/juntas/${j.id}`}><Button variant="outline">Ver detalle</Button></Link>
+                    <Link href={`/juntas/${juntaId}`}><Button variant="outline">Ver detalle</Button></Link>
                     {roleState === 'owner' && (
                       <Button
-                        disabled={!canActivate || activatingId === j.id}
-                        onClick={() => handleActivate(j.id)}
+                        disabled={!canActivate || activatingId === juntaId}
+                        onClick={() => handleActivate(juntaId)}
                       >
-                        {j.estado === 'activa' ? 'Junta activa' : activatingId === j.id ? 'Activando...' : 'Activar junta'}
+                        {j.estado === 'activa' ? 'Junta activa' : activatingId === juntaId ? 'Activando...' : 'Activar junta'}
                       </Button>
                     )}
                     {roleState === 'owner' && canDelete && (
                       <Button
                         variant="destructive"
-                        disabled={deletingId === j.id}
-                        onClick={() => handleDelete(j.id)}
+                        disabled={deletingId === juntaId}
+                        onClick={() => handleDelete(juntaId)}
                       >
-                        {deletingId === j.id ? 'Eliminando...' : 'Eliminar junta'}
+                        {deletingId === juntaId ? 'Eliminando...' : 'Eliminar junta'}
                       </Button>
                     )}
                     {roleState === 'member' && (
                       <Button
                         variant="ghost"
-                        disabled={!canLeave || leavingId === j.id}
-                        onClick={() => handleLeave(j.id)}
+                        disabled={!canLeave || leavingId === juntaId}
+                        onClick={() => handleLeave(juntaId)}
                       >
-                        {leavingId === j.id ? 'Retirándome...' : 'Retirarme'}
+                        {leavingId === juntaId ? 'Retirándome...' : 'Retirarme'}
                       </Button>
                     )}
                     {roleState === 'visitor' && (
-                      <Button disabled={!canJoin || joiningId === j.id} onClick={() => handleJoin(j.id, j.access_code)}>{joiningId === j.id ? 'Uniéndome...' : 'Unirme'}</Button>
+                      <Button disabled={!canJoin || joiningId === juntaId} onClick={() => handleJoin(juntaId, j.access_code)}>{joiningId === juntaId ? 'Uniéndome...' : 'Unirme'}</Button>
                     )}
                   </div>
                   {roleState === 'owner' && !cupoCompleto && (
@@ -362,7 +379,7 @@ export default function JuntasDisponiblesPage() {
                   {roleState === 'visitor' && cupoCompleto && (
                     <p className="text-xs text-slate-600">Cupo completo</p>
                   )}
-                  {joinErrorByJunta[j.id] && <p className="text-xs text-red-600">{joinErrorByJunta[j.id]}</p>}
+                  {joinErrorByJunta[juntaId] && <p className="text-xs text-red-600">{joinErrorByJunta[juntaId]}</p>}
                 </div>
               </Card>
             );

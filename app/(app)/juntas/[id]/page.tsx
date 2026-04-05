@@ -126,11 +126,27 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   <Button
                     variant="destructive"
                     onClick={async () => {
+                      if (!junta.id) {
+                        if (process.env.NODE_ENV === 'development') {
+                          console.error('[Junta detalle] delete blocked: invalid junta id', { junta });
+                        }
+                        alert('No pudimos eliminar la junta. Intenta nuevamente.');
+                        return;
+                      }
+
                       const confirmDelete = window.confirm('¿Seguro que deseas eliminar esta junta? Esta acción no se puede deshacer.');
                       if (!confirmDelete || !user) return;
 
+                      if (process.env.NODE_ENV === 'development') {
+                        console.log('delete junta id', junta.id);
+                        console.log('delete payload', { p_junta_id: junta.id });
+                      }
+
                       const result = await deleteDraftJunta({ juntaId: junta.id, userId: user.id });
                       if (!result.ok) {
+                        if (process.env.NODE_ENV === 'development') {
+                          console.error('[Junta detalle] delete failed', { juntaId: junta.id, message: result.message });
+                        }
                         alert(result.message);
                         return;
                       }
