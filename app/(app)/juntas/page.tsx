@@ -435,7 +435,7 @@ export default function JuntasDisponiblesPage() {
                         {deletingId === juntaId ? 'Eliminando...' : 'Eliminar junta'}
                       </Button>
                     )}
-                    {roleState === 'member' && (
+                    {roleState === 'member' && !isActive && (
                       <Button
                         variant="ghost"
                         disabled={!canLeave || leavingId === juntaId}
@@ -444,7 +444,7 @@ export default function JuntasDisponiblesPage() {
                         {leavingId === juntaId ? 'Retirándome...' : 'Retirarme'}
                       </Button>
                     )}
-                    {roleState === 'visitor' && (
+                    {roleState === 'visitor' && !isActive && (
                       j.visibilidad === 'privada'
                         ? <Button disabled={!canAccessPrivate || joiningId === juntaId} onClick={() => handleAccessPrivate(juntaId)}>{joiningId === juntaId ? 'Validando...' : 'Acceder con código'}</Button>
                         : <Button disabled={!canJoinPublic || joiningId === juntaId} onClick={() => handleJoin(juntaId)}>{joiningId === juntaId ? 'Uniéndome...' : 'Unirme'}</Button>
@@ -453,13 +453,10 @@ export default function JuntasDisponiblesPage() {
                   {roleState === 'owner' && activationFeedbackByJunta[juntaId] && (
                     <p className="text-xs text-amber-700">{activationFeedbackByJunta[juntaId]}</p>
                   )}
-                  {roleState === 'member' && j.estado === 'activa' && (
-                    <p className="text-xs text-amber-700">No puedes retirarte de una junta activa</p>
-                  )}
-                  {roleState === 'visitor' && j.visibilidad === 'privada' && (
+                  {roleState === 'visitor' && !isActive && j.visibilidad === 'privada' && (
                     <p className="text-xs text-slate-600">Requiere enlace o código de acceso</p>
                   )}
-                  {roleState === 'visitor' && cupoCompleto && (
+                  {roleState === 'visitor' && !isActive && cupoCompleto && (
                     <p className="text-xs text-slate-600">Cupo completo</p>
                   )}
                   {joinErrorByJunta[juntaId] && !(roleState === 'owner' && joinErrorByJunta[juntaId].includes('creador no puede retirarse')) && (

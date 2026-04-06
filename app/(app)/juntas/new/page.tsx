@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { createJuntaSchema } from '@/features/juntas/schemas';
 import { useAuthStore } from '@/store/auth-store';
@@ -14,8 +14,22 @@ import { useAppStore } from '@/store/app-store';
 import { generarCronograma } from '@/services/schedule.service';
 import { makeSlug } from '@/lib/slug';
 import { generateAccessCode } from '@/lib/access-code';
-import { createJuntaRecord, fetchJuntaById, fetchPublicJuntas } from '@/services/juntas.repository';
-import { calcularSimulacionJunta } from '@/services/incentive.service';
+import { createJuntaRecord } from '@/services/juntas.repository';
+
+const steps = [
+  { id: 1, title: 'Información básica' },
+  { id: 2, title: 'Estructura del grupo' },
+  { id: 3, title: 'Incentivos y garantía' },
+  { id: 4, title: 'Confirmación' }
+] as const;
+
+type CreateJuntaValues = z.infer<typeof createJuntaSchema> & { fondo_garantia: number };
+
+type SuccessState = {
+  juntaId: string;
+  nombre: string;
+  accessCode?: string;
+};
 
 export default function NewJuntaPage() {
   const router = useRouter();
@@ -25,229 +39,475 @@ export default function NewJuntaPage() {
   const allMembers = useAppStore((s) => (Array.isArray(s.members) ? s.members : []));
   const setData = useAppStore((s) => s.setData);
 
+  const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successState, setSuccessState] = useState<SuccessState | null>(null);
 
-  const { control, register, handleSubmit, setError, formState } = useForm<z.infer<typeof createJuntaSchema>>({
+  const { register, control, handleSubmit, setError, clearErrors, formState, getValues, trigger, setValue } = useForm<CreateJuntaValues>({
     defaultValues: {
-      frecuencia_pago: 'semanal',
-      visibilidad: 'privada',
+      nombre: '',
+      descripcion: '',
+      participantes_max: 8,
+      monto_cuota: 20,
       tipo_junta: 'normal',
-      incentivo_porcentaje: 5,
-      incentivo_regla: 'primero_ultimo'
+      incentivo_porcentaje: 0,
+      incentivo_regla: 'primero_ultimo',
+      frecuencia_pago: 'semanal',
+      fecha_inicio: '',
+      visibilidad: 'privada',
+      fondo_garantia: 0
     }
   });
 
   const form = useWatch({ control });
-  const simulacion = calcularSimulacionJunta({
-    participantes: Number(form.participantes_max || 2),
-    cuotaBase: Number(form.monto_cuota || 0),
-    frecuencia: form.frecuencia_pago ?? 'semanal',
-    fechaInicio: form.fecha_inicio || new Date().toISOString(),
-    tipoJunta: form.tipo_junta ?? 'normal',
-    incentivoPorcentaje: form.incentivo_porcentaje,
-    incentivoRegla: form.incentivo_regla
-  });
+  const nombreLength = (form.nombre ?? '').length;
+
+  const incentivoMonto = useMemo(() => {
+    if (form.tipo_junta !== 'incentivo') return 0;
+    return Math.round((Number(form.monto_cuota ?? 0) * Number(form.incentivo_porcentaje ?? 0)) / 100);
+  }, [form.monto_cuota, form.incentivo_porcentaje, form.tipo_junta]);
+
+  const previewParticipantes = Number(form.participantes_max ?? 0);
+  const previewCuota = Number(form.monto_cuota ?? 0);
+  const hasMeaningfulInput = useMemo(() => {
+    const hasNombre = (form.nombre ?? '').trim().length > 0;
+    const hasDescripcion = (form.descripcion ?? '').trim().length > 0;
+    const hasStructureChanges = previewParticipantes !== 8 || previewCuota !== 20 || form.tipo_junta !== 'normal' || form.frecuencia_pago !== 'semanal';
+    return hasNombre || hasDescripcion || hasStructureChanges;
+  }, [form.descripcion, form.frecuencia_pago, form.nombre, form.tipo_junta, previewCuota, previewParticipantes]);
 
   useEffect(() => {
     if (!user) router.replace('/login?redirect=/juntas/new');
   }, [user, router]);
 
+  const cycleLabel = useMemo(() => {
+    if (!previewParticipantes || previewParticipantes < 1) return '—';
+    if (form.frecuencia_pago === 'semanal') return `${previewParticipantes} semanas`;
+    if (form.frecuencia_pago === 'quincenal') return `${previewParticipantes} quincenas`;
+    return `${previewParticipantes} meses`;
+  }, [form.frecuencia_pago, previewParticipantes]);
+
+  const validateStep = async (targetStep: number) => {
+    const values = getValues();
+
+    if (targetStep === 1) {
+      const trimmedName = values.nombre?.trim() ?? '';
+      if (!trimmedName) {
+        setError('nombre', { message: 'El nombre es obligatorio.' });
+        return false;
+      }
+      if (trimmedName.length > 40) {
+        setError('nombre', { message: 'Máximo 40 caracteres.' });
+        return false;
+      }
+      clearErrors('nombre');
+      return true;
+    }
+
+    if (targetStep === 2) {
+      const participants = Number(values.participantes_max ?? 0);
+      const cuota = Number(values.monto_cuota ?? 0);
+
+      if (!Number.isInteger(participants) || participants < 4 || participants > 20) {
+        setError('participantes_max', { message: 'El tamaño del grupo debe ser entero entre 4 y 20.' });
+        return false;
+      }
+      if (cuota < 20) {
+        setError('monto_cuota', { message: 'La cuota base mínima es S/20.' });
+        return false;
+      }
+
+      clearErrors(['participantes_max', 'monto_cuota']);
+      return true;
+    }
+
+    if (targetStep === 3) {
+      if (!values.fecha_inicio) {
+        setError('fecha_inicio', { message: 'Selecciona una fecha de inicio.' });
+        return false;
+      }
+
+      const fondo = Number(values.fondo_garantia ?? 0);
+      if (fondo < 0) {
+        setError('fondo_garantia', { message: 'El fondo de garantía no puede ser negativo.' });
+        return false;
+      }
+
+      clearErrors(['fecha_inicio', 'fondo_garantia']);
+      return true;
+    }
+
+    return true;
+  };
+
+  const handleContinue = async () => {
+    const isValid = await validateStep(step);
+    if (!isValid) return;
+    setStep((prev) => Math.min(prev + 1, 4));
+  };
+
+  const handleBack = () => {
+    setStep((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleGoToStep = async (target: number) => {
+    if (target === step) return;
+    if (target < step) {
+      setStep(target);
+      return;
+    }
+
+    for (let current = step; current < target; current += 1) {
+      const ok = await validateStep(current);
+      if (!ok) return;
+    }
+
+    setStep(target);
+  };
+
   if (!user) return <Card>Redirigiendo a login...</Card>;
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-[1.3fr_0.7fr]">
-      <Card className="space-y-4 p-6">
+    <div className="mx-auto max-w-6xl space-y-4 lg:grid lg:grid-cols-[1fr_320px] lg:items-start lg:gap-6 lg:space-y-0">
+      <Card className="space-y-5 p-6">
         <div>
           <h1 className="text-2xl font-semibold">Crear junta</h1>
-          <p className="text-sm text-slate-600">Configura una junta normal o una junta con incentivos redistributivos.</p>
+          <p className="text-sm text-slate-600">Configura tu junta paso a paso y valida todo antes de publicarla.</p>
         </div>
 
-        <form
-          className="grid gap-3"
-          onSubmit={handleSubmit(async (values) => {
-            setErrorMsg(null);
-            const parsed = createJuntaSchema.safeParse(values);
-            if (!parsed.success) {
-              const issue = parsed.error.issues[0];
-              setError(issue.path[0] as 'nombre', { message: issue.message });
-              return;
-            }
+        <div className="grid gap-2 sm:grid-cols-4">
+          {steps.map((item) => {
+            const isCurrent = step === item.id;
+            const isDone = step > item.id;
+            const isClickable = item.id <= step;
 
-            try {
-              setLoading(true);
-              console.log('[Crear Junta] submit values', values);
-              const juntaId = crypto.randomUUID();
-              const slug = `${makeSlug(values.nombre)}-${juntaId.slice(0, 6)}`;
-              const bolsaBase = values.participantes_max * values.monto_cuota;
-              const created = {
-                id: juntaId,
-                admin_id: user.id,
-                slug,
-                invite_token: crypto.randomUUID(),
-                access_code: values.visibilidad === 'privada' ? generateAccessCode('PRIV') : undefined,
-                nombre: values.nombre,
-                descripcion: values.descripcion,
-                moneda: 'PEN' as const,
-                participantes_max: values.participantes_max,
-                monto_cuota: values.monto_cuota,
-                cuota_base: values.monto_cuota,
-                bolsa_base: bolsaBase,
-                tipo_junta: values.tipo_junta,
-                incentivo_porcentaje: values.tipo_junta === 'incentivo' ? Number(values.incentivo_porcentaje ?? 0) : 0,
-                incentivo_regla: values.tipo_junta === 'incentivo' ? values.incentivo_regla ?? 'primero_ultimo' : 'primero_ultimo',
-                premio_primero_pct: 0,
-                descuento_ultimo_pct: 0,
-                fee_plataforma_pct: 0,
-                frecuencia_pago: values.frecuencia_pago,
-                fecha_inicio: values.fecha_inicio,
-                dia_limite_pago: 1,
-                visibilidad: values.visibilidad,
-                cerrar_inscripciones: false,
-                estado: 'borrador' as const,
-                created_at: new Date().toISOString()
-              };
-
-              const persist = await createJuntaRecord(created);
-              if (!persist.ok) throw new Error(persist.message);
-
-              const postCreateById = await fetchJuntaById(juntaId);
-              if (process.env.NODE_ENV === 'development') {
-                console.log('[Crear Junta] post-create fetch by id', {
-                  juntaId,
-                  visibilidad: values.visibilidad,
-                  ok: postCreateById.ok,
-                  data: postCreateById.ok ? postCreateById.data : null,
-                  error: postCreateById.ok ? null : postCreateById.message
-                });
-              }
-
-              if (values.visibilidad === 'publica') {
-                const postCreatePublicCatalog = await fetchPublicJuntas();
-                if (process.env.NODE_ENV === 'development') {
-                  const existsInPublicCatalog =
-                    postCreatePublicCatalog.ok && postCreatePublicCatalog.data.some((item) => item.id === juntaId);
-                  console.log('[Crear Junta] post-create public catalog fetch', {
-                    juntaId,
-                    ok: postCreatePublicCatalog.ok,
-                    existsInPublicCatalog,
-                    size: postCreatePublicCatalog.ok ? postCreatePublicCatalog.data.length : 0,
-                    error: postCreatePublicCatalog.ok ? null : postCreatePublicCatalog.message
-                  });
-                }
-              }
-
-              const schedule = generarCronograma({
-                juntaId,
-                participantes: values.participantes_max,
-                monto: values.monto_cuota,
-                frecuencia: values.frecuencia_pago,
-                fechaInicio: values.fecha_inicio
-              });
-
-              setData({
-                juntas: [created, ...allJuntas],
-                schedules: [...allSchedules, ...schedule],
-                members: [...allMembers, { id: crypto.randomUUID(), junta_id: juntaId, profile_id: user.id, estado: 'activo', rol: 'admin', orden_turno: 1 }]
-              });
-
-              router.push(`/juntas/${juntaId}`);
-            } catch (error) {
-              setErrorMsg(error instanceof Error ? error.message : 'No se pudo crear la junta.');
-            } finally {
-              setLoading(false);
-            }
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  if (!isClickable) return;
+                  handleGoToStep(item.id);
+                }}
+                className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                  isCurrent
+                    ? 'border-slate-900 bg-slate-900 text-white'
+                    : isDone
+                      ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                      : 'border-slate-200 bg-white text-slate-500'
+                } ${isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
+              >
+                <p className="font-semibold">{isDone ? '✓' : item.id}. {item.title}</p>
+              </button>
+            );
           })}
-        >
-          <label className="text-sm font-medium">Nombre de la junta</label>
-          <Input placeholder="Ej: Junta Emprendedores" {...register('nombre')} />
+        </div>
 
-          <label className="text-sm font-medium">Descripción (opcional)</label>
-          <textarea className="min-h-24 rounded-md border border-slate-300 p-3 text-sm" placeholder="Describe el objetivo de la junta" {...register('descripcion')} />
+        {successState ? (
+          <div className="space-y-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+            <h2 className="text-lg font-semibold text-emerald-700">¡Junta creada con éxito!</h2>
+            <p className="text-sm text-emerald-900">{successState.nombre} ya está lista. Comparte este acceso con tus integrantes.</p>
+            {successState.accessCode ? (
+              <p className="rounded-md bg-white p-3 text-sm">Código de acceso: <span className="font-semibold">{successState.accessCode}</span></p>
+            ) : (
+              <p className="rounded-md bg-white p-3 text-sm break-all">Link de invitación: {`${typeof window !== 'undefined' ? window.location.origin : ''}/juntas/${successState.juntaId}`}</p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={() => router.push(`/juntas/${successState.juntaId}`)}>Ver detalle</Button>
+              <Link href="/juntas"><Button type="button" variant="outline">Ir al catálogo</Button></Link>
+            </div>
+          </div>
+        ) : (
+          <form
+            className="space-y-4"
+            onSubmit={handleSubmit(async (values) => {
+              setErrorMsg(null);
 
-          <label className="text-sm font-medium">Tamaño del grupo</label>
-          <Input type="number" {...register('participantes_max')} />
+              const validBasics = await validateStep(1);
+              const validStructure = await validateStep(2);
+              const validIncentive = await validateStep(3);
+              const schemaOk = await trigger(['nombre', 'participantes_max', 'monto_cuota', 'fecha_inicio', 'visibilidad', 'tipo_junta', 'frecuencia_pago']);
+              if (!validBasics || !validStructure || !validIncentive || !schemaOk) {
+                setStep((prev) => (prev < 4 ? prev : 1));
+                return;
+              }
 
-          <label className="text-sm font-medium">Cuota base por ronda</label>
-          <Input type="number" {...register('monto_cuota')} />
+              try {
+                setLoading(true);
+                await new Promise((resolve) => setTimeout(resolve, 1200));
 
-          <label className="text-sm font-medium">Tipo de junta</label>
-          <Select {...register('tipo_junta')}>
-            <option value="normal">Normal</option>
-            <option value="incentivo">Con incentivos</option>
-          </Select>
+                const juntaId = crypto.randomUUID();
+                const slug = `${makeSlug(values.nombre)}-${juntaId.slice(0, 6)}`;
+                const bolsaBase = values.participantes_max * values.monto_cuota;
+                const accessCode = values.visibilidad === 'privada' ? generateAccessCode('PRIV') : undefined;
+                const created = {
+                  id: juntaId,
+                  admin_id: user.id,
+                  slug,
+                  invite_token: crypto.randomUUID(),
+                  access_code: accessCode,
+                  nombre: values.nombre.trim(),
+                  descripcion: values.descripcion,
+                  moneda: 'PEN' as const,
+                  participantes_max: values.participantes_max,
+                  monto_cuota: values.monto_cuota,
+                  cuota_base: values.monto_cuota,
+                  bolsa_base: bolsaBase,
+                  tipo_junta: values.tipo_junta,
+                  incentivo_porcentaje: values.tipo_junta === 'incentivo' ? Number(values.incentivo_porcentaje ?? 0) : 0,
+                  incentivo_regla: values.tipo_junta === 'incentivo' ? values.incentivo_regla ?? 'primero_ultimo' : 'primero_ultimo',
+                  premio_primero_pct: 0,
+                  descuento_ultimo_pct: 0,
+                  fee_plataforma_pct: 0,
+                  frecuencia_pago: values.frecuencia_pago,
+                  fecha_inicio: values.fecha_inicio,
+                  dia_limite_pago: 1,
+                  visibilidad: values.visibilidad,
+                  cerrar_inscripciones: false,
+                  estado: 'borrador' as const,
+                  created_at: new Date().toISOString()
+                };
 
-          <div className="rounded-md bg-slate-50 p-3 text-xs text-slate-600">
-            {form.tipo_junta === 'incentivo'
-              ? 'Los primeros turnos reciben menos y los últimos más. Las cuotas se redistribuyen entre participantes sin que la plataforma retenga dinero.'
-              : 'Todos aportan lo mismo y todos reciben el mismo monto base según su turno.'}
+                const persist = await createJuntaRecord(created);
+                if (!persist.ok) throw new Error(persist.message);
+
+                const schedule = generarCronograma({
+                  juntaId,
+                  participantes: values.participantes_max,
+                  monto: values.monto_cuota,
+                  frecuencia: values.frecuencia_pago,
+                  fechaInicio: values.fecha_inicio
+                });
+
+                setData({
+                  juntas: [created, ...allJuntas],
+                  schedules: [...allSchedules, ...schedule],
+                  members: [...allMembers, { id: crypto.randomUUID(), junta_id: juntaId, profile_id: user.id, estado: 'activo', rol: 'admin', orden_turno: 1 }]
+                });
+
+                setSuccessState({ juntaId, nombre: created.nombre, accessCode });
+              } catch (error) {
+                setErrorMsg(error instanceof Error ? error.message : 'No se pudo crear la junta.');
+              } finally {
+                setLoading(false);
+              }
+            })}
+          >
+            <input type="hidden" {...register('visibilidad')} />
+            <input type="hidden" {...register('frecuencia_pago')} />
+            <input type="hidden" {...register('tipo_junta')} />
+
+            {step === 1 && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium">Nombre de la junta</label>
+                  <Input maxLength={40} placeholder="Ej: Junta Taxistas Centro" {...register('nombre')} />
+                  <p className="mt-1 text-xs text-slate-500">{nombreLength}/40 caracteres</p>
+                  {formState.errors.nombre && <p className="text-xs text-red-600">{formState.errors.nombre.message}</p>}
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Descripción (opcional)</label>
+                  <textarea
+                    className="min-h-24 w-full rounded-md border border-slate-300 p-3 text-sm"
+                    placeholder="Cuéntales a tus integrantes cómo funcionará esta junta y qué objetivo tiene."
+                    {...register('descripcion')}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Visibilidad</label>
+                  <div className="mt-2 flex gap-2">
+                    {(['publica', 'privada'] as const).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => {
+                          clearErrors('visibilidad');
+                          setValue('visibilidad', option, { shouldDirty: true, shouldValidate: true });
+                        }}
+                        className={`rounded-md border px-3 py-2 text-sm ${form.visibilidad === option ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 text-slate-700'}`}
+                      >
+                        {option === 'publica' ? 'Pública' : 'Privada'}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-600">
+                    {form.visibilidad === 'publica'
+                      ? 'Tu junta aparecerá en el catálogo para que otros la encuentren.'
+                      : 'Solo se accede por invitación o código de acceso privado.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium">Tamaño del grupo (4–20)</label>
+                  <Input type="number" min={4} max={20} step={1} {...register('participantes_max', { valueAsNumber: true })} />
+                  {formState.errors.participantes_max && <p className="text-xs text-red-600">{formState.errors.participantes_max.message}</p>}
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Cuota base (mínimo S/20)</label>
+                  <Input type="number" min={20} step={1} {...register('monto_cuota', { valueAsNumber: true })} />
+                  {formState.errors.monto_cuota && <p className="text-xs text-red-600">{formState.errors.monto_cuota.message}</p>}
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Frecuencia</label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(['semanal', 'quincenal', 'mensual'] as const).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => {
+                          setValue('frecuencia_pago', option, { shouldDirty: true, shouldValidate: true });
+                        }}
+                        className={`rounded-md border px-3 py-2 text-sm capitalize ${form.frecuencia_pago === option ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 text-slate-700'}`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Tipo de junta</label>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setValue('tipo_junta', 'normal', { shouldDirty: true, shouldValidate: true });
+                      }}
+                      className={`rounded-md border p-3 text-left ${form.tipo_junta === 'normal' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300'}`}
+                    >
+                      <p className="font-semibold">Normal</p>
+                      <p className="text-xs opacity-80">Todos aportan y reciben el mismo monto base.</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setValue('tipo_junta', 'incentivo', { shouldDirty: true, shouldValidate: true });
+                      }}
+                      className={`rounded-md border p-3 text-left ${form.tipo_junta === 'incentivo' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300'}`}
+                    >
+                      <p className="font-semibold">Con incentivos</p>
+                      <p className="text-xs opacity-80">Premia turnos tardíos con redistribución interna.</p>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-3">
+                {form.tipo_junta === 'incentivo' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Incentivo ({form.incentivo_porcentaje ?? 0}%)</label>
+                    <Input type="range" min={0} max={20} step={1} {...register('incentivo_porcentaje', { valueAsNumber: true })} />
+                    <p className="text-xs text-slate-600">
+                      Turno #1 paga S/{Math.max(previewCuota - incentivoMonto, 0)} (+S/{incentivoMonto}) · Turno #{Math.max(previewParticipantes, 1)} paga S/{previewCuota + incentivoMonto} (-S/{incentivoMonto})
+                    </p>
+                    {Number(form.incentivo_porcentaje ?? 0) === 0 && (
+                      <p className="text-xs text-amber-700">Incentivo en 0%: permitido, pero no genera redistribución.</p>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-sm font-medium">Fondo de garantía</label>
+                  <Input type="number" min={0} step={1} {...register('fondo_garantia', { valueAsNumber: true })} />
+                  {formState.errors.fondo_garantia && <p className="text-xs text-red-600">{formState.errors.fondo_garantia.message}</p>}
+                  {Number(form.fondo_garantia ?? 0) === 0 && (
+                    <p className="mt-1 text-xs text-amber-700">Sin fondo de protección — mayor riesgo de impago</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Fecha de inicio</label>
+                  <Input type="date" {...register('fecha_inicio')} />
+                  {formState.errors.fecha_inicio && <p className="text-xs text-red-600">{formState.errors.fecha_inicio.message}</p>}
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="space-y-3">
+                <div className="rounded-md border border-slate-200 p-3 text-sm">
+                  <p><span className="font-medium">Nombre:</span> {form.nombre || '—'}</p>
+                  <p><span className="font-medium">Visibilidad:</span> {form.visibilidad}</p>
+                  <p><span className="font-medium">Integrantes:</span> {form.participantes_max}</p>
+                  <p><span className="font-medium">Cuota base:</span> S/ {form.monto_cuota}</p>
+                  <p><span className="font-medium">Frecuencia:</span> {form.frecuencia_pago}</p>
+                  <p><span className="font-medium">Tipo:</span> {form.tipo_junta}</p>
+                  <p><span className="font-medium">Incentivo:</span> {form.tipo_junta === 'incentivo' ? `${form.incentivo_porcentaje}%` : 'No aplica'}</p>
+                  <p><span className="font-medium">Fondo garantía:</span> S/ {form.fondo_garantia ?? 0}</p>
+                  <p><span className="font-medium">Fecha inicio:</span> {form.fecha_inicio || '—'}</p>
+                </div>
+                <div className="rounded-md bg-slate-100 p-3 text-xs text-slate-700">
+                  La plataforma actúa como intermediario y no retiene fondos.
+                </div>
+              </div>
+            )}
+
+            {errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
+
+            <div className="flex flex-wrap justify-between gap-2 pt-2">
+              <Button type="button" variant="outline" disabled={step === 1 || loading} onClick={handleBack}>Atrás</Button>
+              {step < 4 ? (
+                <Button type="button" onClick={handleContinue}>Continuar</Button>
+              ) : (
+                <Button type="submit" disabled={loading}>{loading ? 'Creando junta...' : 'Crear junta'}</Button>
+              )}
+            </div>
+          </form>
+        )}
+      </Card>
+
+      {hasMeaningfulInput && (
+        <Card className="sticky top-20 hidden space-y-3 border-0 bg-[#1A1916] p-5 text-slate-100 lg:block">
+          <h2 className="text-lg font-semibold [font-family:'DM_Sans',sans-serif]">Vista previa</h2>
+          <p className="text-sm [font-family:'DM_Sans',sans-serif]">{(form.nombre ?? '').trim() || 'Nueva junta'}</p>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-white/10 px-2 py-1 capitalize">{form.visibilidad}</span>
+            <span className="rounded-full bg-white/10 px-2 py-1 capitalize">{form.frecuencia_pago}</span>
+            <span className="rounded-full bg-white/10 px-2 py-1 capitalize">{form.tipo_junta}</span>
           </div>
 
-          {form.tipo_junta === 'incentivo' && (
-            <>
-              <label className="text-sm font-medium">Porcentaje incentivo (%)</label>
-              <Input type="number" step="0.01" min="0" {...register('incentivo_porcentaje')} />
+          <div className="space-y-1 text-sm [font-family:'DM_Mono',monospace]">
+            <p>Bolsa total: S/ {(previewParticipantes * previewCuota).toFixed(2)}</p>
+            <p>Cuota base: S/ {previewCuota.toFixed(2)}</p>
+            <p>Duración del ciclo: {cycleLabel}</p>
+            <p>Fondo garantía: S/ {Number(form.fondo_garantia ?? 0).toFixed(2)}</p>
+          </div>
 
-              <label className="text-sm font-medium">Regla incentivo</label>
-              <Select {...register('incentivo_regla')}>
-                <option value="primero_ultimo">Solo primer y último</option>
-                <option value="escalonado">Escalonado por posición (beta)</option>
-              </Select>
-            </>
-          )}
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-wide text-slate-400">Integrantes</p>
+            <div className="flex flex-wrap gap-1">
+              {Array.from({ length: Math.min(previewParticipantes, 16) }).map((_, idx) => (
+                <span key={idx} className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-[10px]">{idx + 1}</span>
+              ))}
+              {previewParticipantes > 16 && <span className="inline-flex h-6 items-center rounded-full bg-white/15 px-2 text-[10px]">+{previewParticipantes - 16}</span>}
+            </div>
+          </div>
 
-          <label className="text-sm font-medium">Frecuencia de turnos</label>
-          <Select {...register('frecuencia_pago')}>
-            <option value="semanal">Semanal</option>
-            <option value="quincenal">Quincenal</option>
-            <option value="mensual">Mensual</option>
-          </Select>
+          <div className="space-y-1 text-xs [font-family:'DM_Mono',monospace]">
+            <p className="uppercase tracking-wide text-slate-400">Turnos simulados</p>
+            {Array.from({ length: Math.min(previewParticipantes, 5) }).map((_, idx) => {
+              const turno = idx + 1;
+              const isFirst = turno === 1;
+              const isLast = turno === previewParticipantes;
+              const appliedAdjustment = form.tipo_junta === 'incentivo' && (isFirst || isLast);
+              const turnoMonto = appliedAdjustment ? (isFirst ? Math.max(previewCuota - incentivoMonto, 0) : previewCuota + incentivoMonto) : previewCuota;
 
-          <label className="text-sm font-medium">Fecha de inicio</label>
-          <Input type="date" {...register('fecha_inicio')} />
-
-          <label className="text-sm font-medium">Visibilidad</label>
-          <Controller
-            control={control}
-            name="visibilidad"
-            render={({ field }) => (
-              <Select
-                name={field.name}
-                value={field.value ?? 'privada'}
-                onChange={(event) => {
-                  const nextValue = event.target.value as 'publica' | 'privada';
-                  console.log('[Crear Junta] visibilidad change', nextValue);
-                  field.onChange(nextValue);
-                }}
-                onBlur={field.onBlur}
-              >
-                <option value="publica">Pública</option>
-                <option value="privada">Privada</option>
-              </Select>
-            )}
-          />
-
-          {(formState.errors.nombre || formState.errors.incentivo_porcentaje) && (
-            <p className="text-xs text-red-500">{formState.errors.nombre?.message || formState.errors.incentivo_porcentaje?.message}</p>
-          )}
-          {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}
-          <Button disabled={loading}>{loading ? 'Creando...' : 'Crear junta'}</Button>
-        </form>
-      </Card>
-
-      <Card className="space-y-3 p-5">
-        <h2 className="text-lg font-semibold">Resumen en vivo</h2>
-        <p className="text-sm text-slate-600">Tipo: <span className="font-medium capitalize">{form.tipo_junta || 'normal'}</span></p>
-        <p className="text-sm text-slate-600">Grupo: <span className="font-medium">{form.participantes_max || 0}</span> personas</p>
-        <p className="text-sm text-slate-600">Cuota base: <span className="font-medium">S/ {form.monto_cuota || 0}</span></p>
-        <p className="text-sm text-slate-600">Bolsa base: <span className="font-medium">S/ {simulacion.bolsaBase}</span></p>
-        <p className="text-sm text-slate-600">Incentivo: <span className="font-medium">{simulacion.incentivoPorcentaje}%</span></p>
-        <p className="text-sm text-slate-600">Frecuencia: <span className="font-medium capitalize">{form.frecuencia_pago || '—'}</span></p>
-        <p className="text-sm text-slate-600">Visibilidad: <span className="font-medium capitalize">{form.visibilidad || '—'}</span></p>
-        <div className="rounded-md bg-slate-100 p-3 text-xs text-slate-600">
-          Plataforma: no retiene dinero. Todo ajuste se redistribuye entre participantes.
-        </div>
-      </Card>
+              return (
+                <p key={turno}>
+                  Turno #{turno}: S/{turnoMonto.toFixed(2)}
+                  {appliedAdjustment ? isFirst ? ` (+S/${incentivoMonto})` : ` (-S/${incentivoMonto})` : ''}
+                </p>
+              );
+            })}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
