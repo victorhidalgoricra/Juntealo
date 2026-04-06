@@ -359,6 +359,18 @@ export default function JuntasDisponiblesPage() {
             const canLeave = roleState === 'member' && j.estado !== 'activa';
             const canJoinPublic = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'publica';
             const canAccessPrivate = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'privada';
+            const actionBranch = roleState === 'owner' ? 'owner-actions' : roleState === 'member' ? 'member-actions' : 'visitor-actions';
+
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[Juntas card render]', {
+                juntaId,
+                juntaAdminId: j.admin_id ?? null,
+                currentUserId: user.id ?? null,
+                isOwner,
+                roleState,
+                actionBranch
+              });
+            }
 
             return (
               <Card key={juntaId} className="flex h-full flex-col justify-between gap-4 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
