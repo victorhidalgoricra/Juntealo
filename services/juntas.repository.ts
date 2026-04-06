@@ -3,6 +3,32 @@ import { hasSupabase } from '@/lib/env';
 import { Junta, JuntaMember } from '@/types/domain';
 import { ensureProfileExists } from './profile.service';
 
+const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
+
+function getInviteTokenByJuntaId(juntaId: string) {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(PRIVATE_TOKEN_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    return parsed[juntaId] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveInviteTokenForJunta(params: { juntaId: string; inviteToken: string }) {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = window.localStorage.getItem(PRIVATE_TOKEN_STORAGE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    parsed[params.juntaId] = params.inviteToken;
+    window.localStorage.setItem(PRIVATE_TOKEN_STORAGE_KEY, JSON.stringify(parsed));
+  } catch {
+    // ignore localStorage errors in non-critical flow
+  }
+}
+
 function mapSupabaseErrorMessage(message: string) {
   if (message.includes("Could not find the table 'public.juntas'")) {
     return 'La tabla public.juntas no existe en Supabase. Ejecuta las migraciones SQL del proyecto.';
@@ -207,9 +233,11 @@ export async function joinJuntaAsParticipant(params: { juntaId: string; profileI
     };
   }
 
-  const { data, error } = await supabase.schema('public').rpc('join_junta_with_access_code', {
+  const inviteToken = getInviteTokenByJuntaId(params.juntaId);
+  const { data, error } = await supabase.schema('public').rpc('join_junta_secure', {
     p_junta_id: params.juntaId,
-    p_access_code: params.accessCode ?? ''
+    p_access_code: params.accessCode ?? null,
+    p_invite_token: inviteToken ?? null
   });
 
   if (error) {

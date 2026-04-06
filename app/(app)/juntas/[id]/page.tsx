@@ -86,6 +86,21 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const progreso = Math.min((miembrosActuales / junta.participantes_max) * 100, 100);
   const activable = miembrosActuales >= junta.participantes_max;
   const isCreator = user?.id === junta.admin_id;
+  const isCurrentUserMember = miembrosActivos.some((member) => member.profile_id === user?.id);
+  const isPrivateUnauthorized = junta.visibilidad === 'privada' && !isCreator && !isCurrentUserMember;
+
+  if (isPrivateUnauthorized) {
+    return (
+      <Card className="space-y-3">
+        <h1 className="text-2xl font-semibold">{junta.nombre}</h1>
+        <p className="text-sm text-slate-600">Esta junta privada requiere enlace o código válido para acceder.</p>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => router.replace('/juntas')}>Volver a juntas</Button>
+          <Button onClick={() => router.replace('/juntas')}>Acceder con código</Button>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">

@@ -165,6 +165,15 @@ export default function JuntasDisponiblesPage() {
     setJoiningId(null);
   };
 
+  const handleAccessPrivate = async (juntaId: string) => {
+    const code = window.prompt('Ingresa el código de acceso de la junta privada');
+    if (!code || code.trim().length === 0) {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Esta junta privada requiere enlace o código válido.' }));
+      return;
+    }
+    await handleJoin(juntaId, code.trim().toUpperCase());
+  };
+
   const handleLeave = async (juntaId: string) => {
     setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: '' }));
     const junta = allJuntas.find((item) => item.id === juntaId);
@@ -348,7 +357,8 @@ export default function JuntasDisponiblesPage() {
             const canActivate = roleState === 'owner' && cupoCompleto && j.estado !== 'activa';
             const canDelete = roleState === 'owner' && j.estado !== 'activa';
             const canLeave = roleState === 'member' && j.estado !== 'activa';
-            const canJoin = roleState === 'visitor' && !cupoCompleto;
+            const canJoinPublic = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'publica';
+            const canAccessPrivate = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'privada';
 
             return (
               <Card key={juntaId} className="flex h-full flex-col justify-between gap-4 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
@@ -404,7 +414,9 @@ export default function JuntasDisponiblesPage() {
                       </Button>
                     )}
                     {roleState === 'visitor' && (
-                      <Button disabled={!canJoin || joiningId === juntaId} onClick={() => handleJoin(juntaId, j.access_code)}>{joiningId === juntaId ? 'Uniéndome...' : 'Unirme'}</Button>
+                      j.visibilidad === 'privada'
+                        ? <Button disabled={!canAccessPrivate || joiningId === juntaId} onClick={() => handleAccessPrivate(juntaId)}>{joiningId === juntaId ? 'Validando...' : 'Acceder con código'}</Button>
+                        : <Button disabled={!canJoinPublic || joiningId === juntaId} onClick={() => handleJoin(juntaId)}>{joiningId === juntaId ? 'Uniéndome...' : 'Unirme'}</Button>
                     )}
                   </div>
                   {roleState === 'owner' && !cupoCompleto && (
@@ -412,6 +424,9 @@ export default function JuntasDisponiblesPage() {
                   )}
                   {roleState === 'member' && j.estado === 'activa' && (
                     <p className="text-xs text-amber-700">No puedes retirarte de una junta activa</p>
+                  )}
+                  {roleState === 'visitor' && j.visibilidad === 'privada' && (
+                    <p className="text-xs text-slate-600">Requiere enlace o código de acceso</p>
                   )}
                   {roleState === 'visitor' && cupoCompleto && (
                     <p className="text-xs text-slate-600">Cupo completo</p>

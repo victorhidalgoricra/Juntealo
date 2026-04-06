@@ -39,10 +39,13 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
         <Button
           variant="outline"
           onClick={async () => {
-            if (hasSupabase && supabase) await supabase.auth.signOut();
-            setUser(null);
-            setData({ juntas: [], members: [], schedules: [], payments: [], payouts: [], notifications: [] });
-            router.push('/');
+            try {
+              if (hasSupabase && supabase) await supabase.auth.signOut();
+            } finally {
+              setUser(null);
+              setData({ juntas: [], members: [], schedules: [], payments: [], payouts: [], notifications: [] });
+              router.replace('/');
+            }
           }}
         >
           Cerrar sesión
