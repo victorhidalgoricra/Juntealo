@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,14 +15,125 @@ import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
 
+type DetailTab = 'integrantes' | 'cronograma' | 'pagos';
+
+function CronogramaView({
+  rows,
+  currentWeek,
+  myTurn
+}: {
+  rows: ReturnType<typeof calcularSimulacionJunta>['rows'];
+  currentWeek: number;
+  myTurn: number | null;
+}) {
+  return (
+    <Card>
+      <h2 className="mb-3 font-semibold">Cronograma</h2>
+      <div className="space-y-2">
+        {rows.map((row) => {
+          const status = row.turno === myTurn ? 'Tu turno' : row.turno < currentWeek ? 'Pagado' : row.turno === currentWeek ? 'Pendiente' : 'Por venir';
+          return (
+            <div key={`tab-schedule-${row.turno}`} className="flex items-center justify-between rounded-md border p-2 text-sm">
+              <p>Semana {row.turno} · {row.fechaRonda}</p>
+              <div className="flex items-center gap-2">
+                <Badge>{status}</Badge>
+                <span>S/ {row.cuotaPorRonda.toFixed(2)}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function IntegrantesView({
+  members,
+  juntaAdminId,
+  currentUserId,
+  currentWeek
+}: {
+  members: Array<{ id: string; profile_id: string; orden_turno: number; rol?: 'admin' | 'participante' }>;
+  juntaAdminId: string;
+  currentUserId?: string;
+  currentWeek: number;
+}) {
+  return (
+    <Card>
+      <h2 className="mb-2 font-semibold">Integrantes</h2>
+      <div className="space-y-2">
+        {members.map((member, index) => {
+          const isSelf = member.profile_id === currentUserId;
+          const displayName = member.profile_id === juntaAdminId ? 'Creador' : isSelf ? 'Tú' : `Integrante ${index + 1}`;
+          const paymentStatus = member.orden_turno < currentWeek ? 'Pagado' : member.orden_turno === currentWeek ? 'Pendiente' : 'Por venir';
+          return (
+            <div key={`tab-member-${member.id}`} className="flex items-center justify-between rounded-md border p-2 text-sm">
+              <div className="flex items-center gap-2">
+                <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${getAvatarColor(displayName)}`}>{getInitial(displayName)}</div>
+                <div>
+                  <p className="font-medium">{displayName}</p>
+                  <p className="text-xs text-slate-500">Turno {member.orden_turno} · {member.rol ?? 'participante'}</p>
+                </div>
+              </div>
+              <Badge>{paymentStatus}</Badge>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function PagosView({
+  rows,
+  currentWeek,
+  myTurn
+}: {
+  rows: ReturnType<typeof calcularSimulacionJunta>['rows'];
+  currentWeek: number;
+  myTurn: number | null;
+}) {
+  return (
+    <Card>
+      <h2 className="mb-2 font-semibold">Pagos</h2>
+      <div className="space-y-2">
+        {rows.map((row) => {
+          const status = row.turno < currentWeek ? 'pagado' : row.turno === currentWeek ? 'pendiente' : 'pendiente';
+          const isMine = row.turno === myTurn;
+          return (
+            <div key={`tab-payment-${row.turno}`} className="flex items-center justify-between rounded-md border p-2 text-sm">
+              <div>
+                <p className="font-medium">Turno #{row.turno}{isMine ? ' · Tu turno' : ''}</p>
+                <p className="text-xs text-slate-500">{row.fechaRonda}</p>
+              </div>
+              <div className="text-right">
+                <p>S/ {row.cuotaPorRonda.toFixed(2)}</p>
+                <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${status === 'pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {status}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 export default function JuntaDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const { juntas, members, setData } = useAppStore();
   const storeJunta = juntas.find((j) => j.id === params.id) ?? null;
   const [junta, setJunta] = useState<Junta | null>(storeJunta);
   const [loadingJunta, setLoadingJunta] = useState(!storeJunta);
   const [activeView, setActiveView] = useState<'general' | 'participante'>('general');
+  const [activeTab, setActiveTab] = useState<DetailTab>(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'integrantes' || tabParam === 'cronograma' || tabParam === 'pagos') return tabParam;
+    return 'cronograma';
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -332,10 +443,49 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
         </>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <Button><Link href={`/juntas/${junta.id}/members`}>Integrantes</Link></Button>
-        <Button variant="outline"><Link href={`/juntas/${junta.id}/schedule`}>Cronograma</Link></Button>
-        <Button variant="outline"><Link href={`/juntas/${junta.id}/payments`}>Pagos</Link></Button>
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('integrantes');
+              router.replace(`/juntas/${junta.id}?tab=integrantes`);
+            }}
+            className={`rounded-md px-3 py-2 text-sm transition ${activeTab === 'integrantes' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'}`}
+          >
+            Integrantes
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('cronograma');
+              router.replace(`/juntas/${junta.id}?tab=cronograma`);
+            }}
+            className={`rounded-md px-3 py-2 text-sm transition ${activeTab === 'cronograma' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'}`}
+          >
+            Cronograma
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('pagos');
+              router.replace(`/juntas/${junta.id}?tab=pagos`);
+            }}
+            className={`rounded-md px-3 py-2 text-sm transition ${activeTab === 'pagos' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'}`}
+          >
+            Pagos
+          </button>
+        </div>
+
+        {activeTab === 'integrantes' && (
+          <IntegrantesView members={miembrosNormalizados} juntaAdminId={junta.admin_id} currentUserId={user?.id} currentWeek={currentWeek} />
+        )}
+        {activeTab === 'cronograma' && (
+          <CronogramaView rows={simulacion.rows} currentWeek={currentWeek} myTurn={myTurn} />
+        )}
+        {activeTab === 'pagos' && (
+          <PagosView rows={simulacion.rows} currentWeek={currentWeek} myTurn={myTurn} />
+        )}
       </div>
     </div>
   );
