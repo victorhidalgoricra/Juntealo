@@ -11,7 +11,7 @@ export type EstadoPago =
   | 'approved'
   | 'rejected'
   | 'overdue';
-export type GlobalRole = 'user' | 'admin';
+export type GlobalRole = 'user' | 'admin' | 'backoffice_admin';
 
 export interface Profile {
   id: string;

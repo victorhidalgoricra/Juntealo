@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { normalizePaymentStatus, paymentStatusLabel } from '@/lib/payment-status';
+import { isBackofficeAdmin } from '@/services/auth-role.service';
 
 export default function AdminPaymentDetailPage({ params }: { params: { paymentId: string } }) {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function AdminPaymentDetailPage({ params }: { params: { paymentId
   const user = useAuthStore((s) => s.user);
   const [note, setNote] = useState('');
 
-  if (user?.global_role !== 'admin') {
+  if (!isBackofficeAdmin(user)) {
     return <Card>Solo el backoffice puede validar pagos.</Card>;
   }
 

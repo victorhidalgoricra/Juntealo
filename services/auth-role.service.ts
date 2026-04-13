@@ -1,6 +1,6 @@
 import { env, hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
-import { GlobalRole } from '@/types/domain';
+import { GlobalRole, Profile } from '@/types/domain';
 
 export async function resolveGlobalRole(email: string): Promise<GlobalRole> {
   const normalized = email.toLowerCase();
@@ -16,8 +16,13 @@ export async function resolveGlobalRole(email: string): Promise<GlobalRole> {
     .from('user_global_roles')
     .select('role')
     .eq('profile_id', profile.id)
-    .eq('role', 'admin')
+    .in('role', ['admin', 'backoffice_admin'])
     .maybeSingle();
 
+  if (roleRow?.role === 'backoffice_admin') return 'backoffice_admin';
   return roleRow?.role === 'admin' ? 'admin' : 'user';
+}
+
+export function isBackofficeAdmin(user: Pick<Profile, 'global_role'> | null | undefined) {
+  return user?.global_role === 'admin' || user?.global_role === 'backoffice_admin';
 }

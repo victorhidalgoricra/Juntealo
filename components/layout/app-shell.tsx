@@ -5,17 +5,19 @@ import { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth-store';
+import { isBackofficeAdmin } from '@/services/auth-role.service';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
+  const canValidatePayments = isBackofficeAdmin(user);
   const isAccountSection = pathname.startsWith('/account') || pathname.startsWith('/profile') || pathname.startsWith('/settings') || pathname.startsWith('/notifications');
   const links = [
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/juntas', label: 'Juntas disponibles' },
     { href: '/juntas/new', label: 'Crear junta' },
     { href: '/account', label: 'Mi cuenta' },
-    ...(user?.global_role === 'admin' ? [{ href: '/admin', label: 'Backoffice' }] : [])
+    ...(canValidatePayments ? [{ href: '/admin', label: 'Backoffice' }, { href: '/admin/pagos', label: 'Validar pagos' }] : [])
   ];
 
   return (

@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { normalizePaymentStatus } from '@/lib/payment-status';
+import { isBackofficeAdmin } from '@/services/auth-role.service';
 
 export default function AdminPage() {
   const { juntas, members, payments, schedules, setData } = useAppStore();
@@ -21,6 +22,10 @@ export default function AdminPage() {
     changedAt: string;
   }>>([]);
 
+  if (!isBackofficeAdmin(authUser)) {
+    return <Card><p className="text-sm text-slate-600">No tienes permisos para acceder al backoffice.</p></Card>;
+  }
+
   const activas = juntas.filter((j) => j.estado === 'activa').length;
   const borrador = juntas.filter((j) => j.estado === 'borrador').length;
   const montoEstimado = juntas.reduce((acc, j) => acc + j.monto_cuota * j.participantes_max, 0);
@@ -33,26 +38,23 @@ export default function AdminPage() {
     estado: members.some((m) => m.profile_id === id && m.estado === 'moroso') ? 'moroso' : 'activo'
   }));
 
-  const pendingPayments = useMemo(
-    () => payments.filter((payment) => {
-      const status = normalizePaymentStatus(payment.estado);
-      return status === 'submitted' || status === 'validating' || status === 'rejected';
-    }).map((payment) => {
-      const junta = juntas.find((item) => item.id === payment.junta_id);
-      const schedule = schedules.find((item) => item.id === payment.schedule_id);
-      const member = members.find((item) => item.junta_id === payment.junta_id && item.profile_id === payment.profile_id);
-      return {
-        payment,
-        juntaName: junta?.nombre ?? 'Junta',
-        semana: schedule?.cuota_numero ?? 0,
-        participante: member?.rol === 'admin' ? 'Creador' : `Participante turno ${member?.orden_turno ?? '-'}`,
-        expectedAmount: schedule?.monto ?? payment.monto,
-        submittedAmount: payment.monto,
-        submittedAt: payment.pagado_en
-      };
-    }),
-    [juntas, members, payments, schedules]
-  );
+  const pendingPayments = payments.filter((payment) => {
+    const status = normalizePaymentStatus(payment.estado);
+    return status === 'submitted' || status === 'validating' || status === 'rejected';
+  }).map((payment) => {
+    const junta = juntas.find((item) => item.id === payment.junta_id);
+    const schedule = schedules.find((item) => item.id === payment.schedule_id);
+    const member = members.find((item) => item.junta_id === payment.junta_id && item.profile_id === payment.profile_id);
+    return {
+      payment,
+      juntaName: junta?.nombre ?? 'Junta',
+      semana: schedule?.cuota_numero ?? 0,
+      participante: member?.rol === 'admin' ? 'Creador' : `Participante turno ${member?.orden_turno ?? '-'}`,
+      expectedAmount: schedule?.monto ?? payment.monto,
+      submittedAmount: payment.monto,
+      submittedAt: payment.pagado_en
+    };
+  });
 
   const updatePaymentStatus = (paymentId: string, newStatus: 'approved' | 'rejected' | 'validating') => {
     const target = payments.find((payment) => payment.id === paymentId);

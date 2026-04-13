@@ -16,13 +16,58 @@ export default function PaymentsPage({ params }: { params: { id: string } }) {
   const { payments, schedules, setData } = useAppStore();
   const [monto, setMonto] = useState('');
   const [scheduleId, setScheduleId] = useState('');
-
+  const [message, setMessage] = useState<string | null>(null);
 
   if (!user) {
     return <Card><p className="text-sm text-slate-600">Inicia sesión para continuar.</p></Card>;
   }
 
   const list = payments.filter((p) => p.junta_id === params.id);
+  const selectedSchedule = schedules.find((s) => s.id === scheduleId);
+  const expectedAmount = selectedSchedule?.monto ?? null;
+
+  const registerManualPayment = () => {
+    setMessage(null);
+    if (!scheduleId || !monto) {
+      setMessage('Selecciona la cuota e ingresa un monto.');
+      return;
+    }
+
+    const amount = Number(monto);
+    const existing = list.find((payment) => payment.schedule_id === scheduleId && payment.profile_id === user.id);
+    const existingStatus = normalizePaymentStatus(existing?.estado);
+
+    if (existing && (existingStatus === 'submitted' || existingStatus === 'validating' || existingStatus === 'approved')) {
+      setMessage('Ya registraste un pago para esta cuota y está en validación o aprobado.');
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const payload = {
+      id: existing?.id ?? crypto.randomUUID(),
+      junta_id: params.id,
+      schedule_id: scheduleId,
+      round_id: scheduleId,
+      member_id: user.id,
+      profile_id: user.id,
+      expected_amount: expectedAmount ?? amount,
+      submitted_amount: amount,
+      monto: amount,
+      estado: 'submitted' as const,
+      payment_status: 'submitted' as const,
+      submitted_at: now,
+      pagado_en: now
+    };
+
+    setData({
+      payments: existing
+        ? payments.map((payment) => (payment.id === existing.id ? { ...payment, ...payload } : payment))
+        : [...payments, payload]
+    });
+
+    setMonto('');
+    setMessage('Pago registrado. Estado: En validación.');
+  };
 
   return (
     <div className="space-y-4">
@@ -34,29 +79,9 @@ export default function PaymentsPage({ params }: { params: { id: string } }) {
             {schedules.filter((s) => s.junta_id === params.id).map((s) => <option key={s.id} value={s.id}>Cuota {s.cuota_numero}</option>)}
           </Select>
           <Input placeholder="Monto" value={monto} onChange={(e) => setMonto(e.target.value)} />
-          <Button
-            onClick={() => {
-              if (!scheduleId || !monto) return;
-              setData({
-                payments: [
-                  ...payments,
-                  {
-                    id: crypto.randomUUID(),
-                    junta_id: params.id,
-                    schedule_id: scheduleId,
-                    profile_id: user.id,
-                    monto: Number(monto),
-                    estado: 'submitted',
-                    pagado_en: new Date().toISOString()
-                  }
-                ]
-              });
-              setMonto('');
-            }}
-          >
-            Registrar
-          </Button>
+          <Button onClick={registerManualPayment}>Registrar</Button>
         </div>
+        {message && <p className="mt-2 text-sm text-blue-700">{message}</p>}
       </Card>
       <Card>
         <div className="mb-2 flex items-center justify-between">
@@ -78,15 +103,9 @@ export default function PaymentsPage({ params }: { params: { id: string } }) {
         <div className="space-y-2">
           {list.map((p) => (
             <div key={p.id} className="flex items-center justify-between rounded border p-2 text-sm">
-              <p>{p.profile_id} · S/ {p.monto}</p>
+              <p>{p.profile_id} · S/ {(p.submitted_amount ?? p.monto).toFixed(2)}</p>
               <div className="flex items-center gap-2">
                 <Badge>{paymentStatusLabel(normalizePaymentStatus(p.estado))}</Badge>
-                {(normalizePaymentStatus(p.estado) === 'submitted' || normalizePaymentStatus(p.estado) === 'validating') && (
-                  <>
-                    <Button variant="ghost" onClick={() => setData({ payments: payments.map((x) => (x.id === p.id ? { ...x, estado: 'approved' } : x)) })}>Aprobar</Button>
-                    <Button variant="destructive" onClick={() => setData({ payments: payments.map((x) => (x.id === p.id ? { ...x, estado: 'rejected' } : x)) })}>Rechazar</Button>
-                  </>
-                )}
               </div>
             </div>
           ))}
