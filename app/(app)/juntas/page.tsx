@@ -11,7 +11,6 @@ import { useAuthStore } from '@/store/auth-store';
 import { useAppStore } from '@/store/app-store';
 import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
-import { isJuntaActive } from '@/lib/junta-status';
 import {
   activateJuntaIfReady,
   deleteDraftJunta,
@@ -371,9 +370,9 @@ export default function JuntasDisponiblesPage() {
             const description = j.descripcion?.trim() || 'Junta sin descripción aún.';
             const miembrosActuales = countByJunta.get(juntaId) ?? 0;
             const cupoCompleto = miembrosActuales >= j.participantes_max;
-            const estadoVisual = isJuntaActive(j.estado) ? 'activa' : cupoCompleto ? 'completa' : 'borrador';
+            const estadoVisual = j.estado === 'activa' ? 'activa' : cupoCompleto ? 'completa' : 'borrador';
             const roleState = isOwner ? 'owner' : isMember ? 'member' : 'visitor';
-            const isActive = isJuntaActive(j.estado);
+            const isActive = j.estado === 'activa';
             const canActivate = roleState === 'owner' && !isActive;
             const canDelete = roleState === 'owner';
             const canLeave = roleState === 'member' && !isActive;
