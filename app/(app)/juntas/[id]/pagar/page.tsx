@@ -22,13 +22,18 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   const junta = juntas.find((item) => item.id === params.id);
   const currentSchedule = schedules
     .filter((item) => item.junta_id === params.id)
-    .sort((a, b) => a.cuota_numero - b.cuota_numero)[0];
+    .sort((a, b) => a.cuota_numero - b.cuota_numero)
+    .find((item) => item.estado === 'pendiente')
+    ?? schedules
+      .filter((item) => item.junta_id === params.id)
+      .sort((a, b) => a.cuota_numero - b.cuota_numero)[0];
 
   const existingPayment = payments.find(
     (payment) => payment.junta_id === params.id && payment.profile_id === user?.id && payment.schedule_id === currentSchedule?.id
   );
 
-  const [monto, setMonto] = useState<number>(existingPayment?.submitted_amount ?? existingPayment?.monto ?? currentSchedule?.monto ?? junta?.monto_cuota ?? 0);
+  const expectedAmount = currentSchedule?.monto ?? junta?.monto_cuota ?? 0;
+  const monto = expectedAmount;
   const [method, setMethod] = useState<'yape' | 'plin' | 'transferencia' | 'efectivo' | 'otro'>(existingPayment?.payment_method ?? 'yape');
   const [operationNumber, setOperationNumber] = useState(existingPayment?.operation_number ?? '');
   const [note, setNote] = useState(existingPayment?.participant_note ?? '');
@@ -57,7 +62,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   }, [receiptFile]);
 
   if (!user) return <Card>Debes iniciar sesión.</Card>;
-  if (!junta || !currentSchedule) return <Card>No encontramos datos de pago para esta junta.</Card>;
+  if (!junta || !currentSchedule) return <Card>No encontramos una cuota/ronda pendiente para esta junta.</Card>;
   if (!isJuntaActive(junta.estado)) return <Card>Aún no puedes registrar pagos porque la junta no está activa.</Card>;
 
   const uploadReceiptIfNeeded = async () => {
@@ -76,8 +81,20 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
 
   const submitVoucher = async (event: FormEvent) => {
     event.preventDefault();
+    if (!isJuntaActive(junta.estado)) {
+      setMessage('La junta aún no está activa');
+      return;
+    }
+    if (monto !== expectedAmount) {
+      setMessage('Solo puedes registrar el monto completo de la cuota');
+      return;
+    }
+    if (!receiptFile && !fileName) {
+      setMessage('Debes subir un voucher para enviar tu pago');
+      return;
+    }
     if (!canSubmitPayment) {
-      setMessage('Ya tienes un pago en validación o aprobado para esta semana.');
+      setMessage('Ya tienes un pago enviado para esta cuota');
       return;
     }
 
@@ -95,8 +112,8 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         round_id: currentSchedule.id,
         member_id: user.id,
         profile_id: user.id,
-        expected_amount: currentSchedule.monto,
-        submitted_amount: monto,
+        expected_amount: expectedAmount,
+        submitted_amount: expectedAmount,
         monto,
         estado: nextStatus,
         receipt_url: receiptUrl,
@@ -119,7 +136,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
           : [...payments, nextPayment]
       });
 
-      setMessage('Tu comprobante fue enviado correctamente y está pendiente de validación.');
+      setMessage('Tu pago fue enviado correctamente y está pendiente de validación');
       setTimeout(() => router.push(`/juntas/${junta.id}?view=participante`), 900);
     } catch (error) {
       console.error('[Registrar pago] error', error);
@@ -142,8 +159,8 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
 
       <form onSubmit={submitVoucher} className="space-y-3">
         <Card className="space-y-3">
-          <label className="text-sm font-medium">Monto enviado</label>
-          <Input type="number" value={monto} onChange={(event) => setMonto(Number(event.target.value))} />
+          <label className="text-sm font-medium">Monto de la cuota (fijo)</label>
+          <Input type="number" value={monto} readOnly />
 
           <label className="text-sm font-medium">Método de pago</label>
           <select className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" value={method} onChange={(event) => setMethod(event.target.value as 'yape' | 'plin' | 'transferencia' | 'efectivo' | 'otro')}>
@@ -157,7 +174,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
           <label className="text-sm font-medium">Número de operación (opcional)</label>
           <Input value={operationNumber} onChange={(event) => setOperationNumber(event.target.value)} />
 
-          <label className="text-sm font-medium">Voucher / comprobante (JPG, PNG o PDF)</label>
+          <label className="text-sm font-medium">Voucher / comprobante (obligatorio · JPG, PNG o PDF)</label>
           <Input
             type="file"
             accept="image/jpeg,image/jpg,image/png,application/pdf"
@@ -189,7 +206,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         {message && <p className="text-sm text-blue-700">{message}</p>}
 
         <div className="flex gap-2">
-          <Button type="submit" disabled={submitting || !canSubmitPayment}>{submitting ? 'Enviando...' : 'Enviar pago'}</Button>
+          <Button type="submit" disabled={submitting}>{submitting ? 'Enviando...' : 'Enviar a validación'}</Button>
           <Button type="button" variant="outline" onClick={() => router.push(`/juntas/${junta.id}?view=participante`)}>Volver</Button>
         </div>
       </form>
