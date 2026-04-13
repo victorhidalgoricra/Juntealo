@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/select';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { exportarPagosCsv } from '@/services/report.service';
+import { normalizePaymentStatus, paymentStatusLabel } from '@/lib/payment-status';
 
 export default function PaymentsPage({ params }: { params: { id: string } }) {
   const user = useAuthStore((s) => s.user);
@@ -45,7 +46,7 @@ export default function PaymentsPage({ params }: { params: { id: string } }) {
                     schedule_id: scheduleId,
                     profile_id: user.id,
                     monto: Number(monto),
-                    estado: 'pendiente_aprobacion',
+                    estado: 'submitted',
                     pagado_en: new Date().toISOString()
                   }
                 ]
@@ -79,11 +80,11 @@ export default function PaymentsPage({ params }: { params: { id: string } }) {
             <div key={p.id} className="flex items-center justify-between rounded border p-2 text-sm">
               <p>{p.profile_id} · S/ {p.monto}</p>
               <div className="flex items-center gap-2">
-                <Badge>{p.estado === 'pendiente_aprobacion' ? 'pendiente' : p.estado}</Badge>
-                {p.estado === 'pendiente_aprobacion' && (
+                <Badge>{paymentStatusLabel(normalizePaymentStatus(p.estado))}</Badge>
+                {(normalizePaymentStatus(p.estado) === 'submitted' || normalizePaymentStatus(p.estado) === 'validating') && (
                   <>
-                    <Button variant="ghost" onClick={() => setData({ payments: payments.map((x) => (x.id === p.id ? { ...x, estado: 'aprobado' } : x)) })}>Aprobar</Button>
-                    <Button variant="destructive" onClick={() => setData({ payments: payments.map((x) => (x.id === p.id ? { ...x, estado: 'rechazado' } : x)) })}>Rechazar</Button>
+                    <Button variant="ghost" onClick={() => setData({ payments: payments.map((x) => (x.id === p.id ? { ...x, estado: 'approved' } : x)) })}>Aprobar</Button>
+                    <Button variant="destructive" onClick={() => setData({ payments: payments.map((x) => (x.id === p.id ? { ...x, estado: 'rejected' } : x)) })}>Rechazar</Button>
                   </>
                 )}
               </div>

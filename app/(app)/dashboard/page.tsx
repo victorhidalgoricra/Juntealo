@@ -124,7 +124,7 @@ function getUserJuntaScore(params: {
   juntas: Junta[];
 }): JuntaScoreData {
   const relevantPayments = params.payments.filter((payment) => payment.profile_id === params.userId);
-  const approved = relevantPayments.filter((payment) => payment.estado === 'aprobado').length;
+  const approved = relevantPayments.filter((payment) => payment.estado === 'approved').length;
   const dueLate = params.schedules.filter((schedule) => params.myJuntaIds.includes(schedule.junta_id) && schedule.estado === 'vencida').length;
   const completedCycles = params.juntas.filter((junta) => params.myJuntaIds.includes(junta.id) && junta.estado === 'cerrada').length;
 
@@ -189,7 +189,7 @@ function getCurrentCycleContributionSummary(params: {
   schedules: PaymentSchedule[];
   myJuntaIds: string[];
 }): ContributionSummaryData {
-  const approvedPayments = params.payments.filter((payment) => payment.profile_id === params.userId && payment.estado === 'aprobado');
+  const approvedPayments = params.payments.filter((payment) => payment.profile_id === params.userId && payment.estado === 'approved');
   const totalAportado = approvedPayments.reduce((acc, payment) => acc + payment.monto, 0);
   const periodCount = params.schedules.filter((schedule) => params.myJuntaIds.includes(schedule.junta_id)).length;
 
@@ -512,7 +512,7 @@ export default function DashboardPage() {
     myJuntaIds
   });
 
-  const approvedCount = safePayments.filter((payment) => payment.profile_id === user.id && payment.estado === 'aprobado').length;
+  const approvedCount = safePayments.filter((payment) => payment.profile_id === user.id && payment.estado === 'approved').length;
   const lateCount = safeSchedules.filter((schedule) => myJuntaIds.includes(schedule.junta_id) && schedule.estado === 'vencida').length;
   const paymentRate = approvedCount + lateCount > 0 ? Math.round((approvedCount / (approvedCount + lateCount)) * 100) : 0;
   const completedCycles = safeJuntas.filter((junta) => myJuntaIds.includes(junta.id) && junta.estado === 'cerrada').length;

@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
+import { normalizePaymentStatus } from '@/lib/payment-status';
 
 export default function AdminPage() {
   const { juntas, members, payments, schedules, setData } = useAppStore();
@@ -33,7 +34,10 @@ export default function AdminPage() {
   }));
 
   const pendingPayments = useMemo(
-    () => payments.filter((payment) => payment.estado === 'pendiente_aprobacion').map((payment) => {
+    () => payments.filter((payment) => {
+      const status = normalizePaymentStatus(payment.estado);
+      return status === 'submitted' || status === 'validating' || status === 'rejected';
+    }).map((payment) => {
       const junta = juntas.find((item) => item.id === payment.junta_id);
       const schedule = schedules.find((item) => item.id === payment.schedule_id);
       const member = members.find((item) => item.junta_id === payment.junta_id && item.profile_id === payment.profile_id);
@@ -50,7 +54,7 @@ export default function AdminPage() {
     [juntas, members, payments, schedules]
   );
 
-  const updatePaymentStatus = (paymentId: string, newStatus: 'aprobado' | 'rechazado' | 'pendiente_aprobacion') => {
+  const updatePaymentStatus = (paymentId: string, newStatus: 'approved' | 'rejected' | 'validating') => {
     const target = payments.find((payment) => payment.id === paymentId);
     if (!target || !authUser) return;
     const previousStatus = target.estado;
@@ -77,7 +81,10 @@ export default function AdminPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Backoffice Administrador</h1>
-        <Link href="/dashboard"><Button variant="outline">Ir al producto</Button></Link>
+        <div className="flex gap-2">
+          <Link href="/admin/pagos"><Button variant="outline">Validar pagos</Button></Link>
+          <Link href="/dashboard"><Button variant="outline">Ir al producto</Button></Link>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-6">
@@ -127,7 +134,10 @@ export default function AdminPage() {
 
       <Card>
         <h2 className="mb-2 font-semibold">Incidencias / errores</h2>
-        <p className="text-sm text-slate-600">Pagos pendientes: {payments.filter((p) => p.estado === 'pendiente_aprobacion').length}</p>
+        <p className="text-sm text-slate-600">Pagos pendientes: {payments.filter((p) => {
+          const status = normalizePaymentStatus(p.estado);
+          return status === 'pending' || status === 'submitted' || status === 'validating' || status === 'rejected';
+        }).length}</p>
         <p className="text-sm text-slate-600">Cuotas vencidas: {schedules.filter((s) => s.estado === 'vencida').length}</p>
       </Card>
 
@@ -153,9 +163,9 @@ export default function AdminPage() {
                   onChange={(event) => setNotesByPayment((prev) => ({ ...prev, [row.payment.id]: event.target.value }))}
                 />
                 <div className="flex flex-wrap gap-1">
-                  <Button variant="outline" onClick={() => updatePaymentStatus(row.payment.id, 'aprobado')}>Aprobar</Button>
-                  <Button variant="destructive" onClick={() => updatePaymentStatus(row.payment.id, 'rechazado')}>Rechazar</Button>
-                  <Button variant="ghost" onClick={() => updatePaymentStatus(row.payment.id, 'pendiente_aprobacion')}>Observar</Button>
+                  <Button variant="outline" onClick={() => updatePaymentStatus(row.payment.id, 'approved')}>Aprobar</Button>
+                  <Button variant="destructive" onClick={() => updatePaymentStatus(row.payment.id, 'rejected')}>Rechazar</Button>
+                  <Button variant="ghost" onClick={() => updatePaymentStatus(row.payment.id, 'validating')}>Observar</Button>
                 </div>
               </div>
             ))}

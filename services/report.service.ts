@@ -2,7 +2,7 @@ import { Payment, PaymentSchedule } from '@/types/domain';
 
 export function resumenRecaudo(schedules: PaymentSchedule[], payments: Payment[]) {
   const esperado = schedules.reduce((acc, s) => acc + s.monto, 0);
-  const recaudado = payments.filter((p) => p.estado === 'aprobado').reduce((acc, p) => acc + p.monto, 0);
+  const recaudado = payments.filter((p) => p.estado === 'approved').reduce((acc, p) => acc + p.monto, 0);
   return {
     esperado,
     recaudado,
