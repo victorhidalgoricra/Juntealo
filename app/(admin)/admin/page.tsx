@@ -108,6 +108,7 @@ export default function AdminPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Backoffice</h1>
         <div className="flex gap-2">
+          <Link href="/admin/juntas"><Button variant="outline">Gestionar juntas</Button></Link>
           <Link href="/admin/pagos"><Button variant="outline">Validar pagos</Button></Link>
           <Link href="/dashboard"><Button variant="outline">Ir al producto</Button></Link>
         </div>

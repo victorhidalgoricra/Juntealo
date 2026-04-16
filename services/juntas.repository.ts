@@ -294,3 +294,42 @@ export async function deleteDraftJunta(params: { juntaId: string; currentProfile
 
   return { ok: true as const };
 }
+
+export type AdminJuntaListItem = {
+  id: string;
+  nombre: string;
+  slug: string;
+  estado: Junta['estado'];
+  admin_id: string;
+  admin_nombre: string | null;
+  admin_email: string | null;
+  tipo_junta: 'normal' | 'incentivo';
+  visibilidad: 'publica' | 'privada';
+  participantes_max: number;
+  integrantes_actuales: number;
+  frecuencia_pago: Junta['frecuencia_pago'];
+  fecha_inicio: string;
+  created_at: string;
+};
+
+export async function fetchAdminJuntas() {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as AdminJuntaListItem[] };
+
+  const { data, error } = await supabase.schema('public').rpc('admin_list_juntas');
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+
+  return { ok: true as const, data: (data ?? []) as AdminJuntaListItem[] };
+}
+
+export async function adminSoftDeleteJunta(params: { juntaId: string }) {
+  if (!hasSupabase || !supabase) {
+    return { ok: true as const, data: { id: params.juntaId, estado: 'bloqueada' as const } };
+  }
+
+  const { data, error } = await supabase.schema('public').rpc('admin_soft_delete_junta', { p_junta_id: params.juntaId });
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+
+  const junta = Array.isArray(data) ? (data[0] as Junta | undefined) : (data as Junta | null);
+  if (!junta) return { ok: false as const, message: 'No se pudo eliminar la junta.' };
+  return { ok: true as const, data: junta };
+}
