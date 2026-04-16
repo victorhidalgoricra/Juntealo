@@ -6,7 +6,9 @@ import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth-store';
 import { Profile } from '@/types/domain';
-import { InputHTMLAttributes } from 'react';
+import { InputHTMLAttributes, useEffect, useState } from 'react';
+import { fetchProfileById, upsertProfile } from '@/services/profile.service';
+import { hasSupabase } from '@/lib/env';
 
 type PayoutMethod = NonNullable<Profile['preferred_payout_method']>;
 
@@ -152,9 +154,28 @@ function LabeledInput({
 
 export function ProfilePanel() {
   const { user, setUser } = useAuthStore();
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const userId = user?.id;
+
+  useEffect(() => {
+    if (!hasSupabase || !userId) return;
+
+    setLoadingProfile(true);
+    fetchProfileById(userId)
+      .then((result) => {
+        if (!result.ok || !result.data) return;
+        const currentRole = useAuthStore.getState().user?.global_role;
+        setUser({ ...result.data, global_role: currentRole ?? result.data.global_role });
+      })
+      .finally(() => setLoadingProfile(false));
+  }, [setUser, userId]);
+
   if (!user) return null;
 
   const updateUser = (patch: Partial<Profile>) => {
+    setFeedback(null);
     setUser({ ...user, ...patch });
   };
 
@@ -173,6 +194,15 @@ export function ProfilePanel() {
         <h1 className="text-xl font-semibold">Perfil</h1>
         <p className="text-sm text-slate-600">Mantén tus datos personales y tu medio de pago actualizados.</p>
       </div>
+
+      {loadingProfile && (
+        <p className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">Cargando tus datos guardados...</p>
+      )}
+      {feedback && (
+        <p className={`rounded-md px-3 py-2 text-sm ${feedback.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+          {feedback.message}
+        </p>
+      )}
 
       {!user.preferred_payout_method && (
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -218,7 +248,28 @@ export function ProfilePanel() {
         <PaymentMethodFields user={user} onUserChange={updateUser} />
       </section>
 
-      <Button type="button">Guardar cambios</Button>
+      <Button
+        type="button"
+        disabled={saving}
+        onClick={async () => {
+          try {
+            setFeedback(null);
+            setSaving(true);
+            const result = await upsertProfile(user);
+            if (!result.ok) {
+              setFeedback({ type: 'error', message: 'No pudimos guardar tus cambios. Inténtalo nuevamente.' });
+              return;
+            }
+            setFeedback({ type: 'success', message: 'Tus datos fueron actualizados correctamente.' });
+          } catch {
+            setFeedback({ type: 'error', message: 'No pudimos guardar tus cambios. Inténtalo nuevamente.' });
+          } finally {
+            setSaving(false);
+          }
+        }}
+      >
+        {saving ? 'Guardando cambios...' : 'Guardar cambios'}
+      </Button>
     </Card>
   );
 }

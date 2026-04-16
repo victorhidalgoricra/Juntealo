@@ -14,6 +14,7 @@ import { useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
 import { mapAuthErrorMessage } from '@/services/auth.service';
+import { ensureProfileExists, fetchProfileById } from '@/services/profile.service';
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
@@ -52,11 +53,41 @@ export function LoginPageClient() {
         if (!user) throw new Error('No se pudo obtener sesión.');
 
         const globalRole = await resolveGlobalRole(values.email);
+        const profileResult = await fetchProfileById(user.id);
+        if (!profileResult.ok) throw new Error(profileResult.message);
+        if (!profileResult.data) {
+          const ensureResult = await ensureProfileExists({
+            id: user.id,
+            email: values.email,
+            nombre: user.user_metadata?.full_name ?? values.email.split('@')[0],
+            celular: user.user_metadata?.phone ?? '000000000',
+            dni: user.user_metadata?.dni
+          });
+          if (!ensureResult.ok) throw new Error(ensureResult.message);
+        }
+        let refreshedProfile = profileResult.data;
+        if (!refreshedProfile) {
+          const retryProfile = await fetchProfileById(user.id);
+          if (!retryProfile.ok) throw new Error(retryProfile.message);
+          refreshedProfile = retryProfile.data;
+        }
         setUser({
           id: user.id,
-          email: values.email,
-          nombre: user.user_metadata?.full_name ?? values.email.split('@')[0],
-          celular: user.user_metadata?.phone ?? '000000000',
+          email: refreshedProfile?.email ?? values.email,
+          nombre: refreshedProfile?.nombre ?? user.user_metadata?.full_name ?? values.email.split('@')[0],
+          first_name: refreshedProfile?.first_name,
+          second_name: refreshedProfile?.second_name,
+          paternal_last_name: refreshedProfile?.paternal_last_name,
+          celular: refreshedProfile?.celular ?? user.user_metadata?.phone ?? '000000000',
+          dni: refreshedProfile?.dni,
+          foto_url: refreshedProfile?.foto_url,
+          preferred_payout_method: refreshedProfile?.preferred_payout_method,
+          payout_account_name: refreshedProfile?.payout_account_name,
+          payout_phone_number: refreshedProfile?.payout_phone_number,
+          payout_bank_name: refreshedProfile?.payout_bank_name,
+          payout_account_number: refreshedProfile?.payout_account_number,
+          payout_cci: refreshedProfile?.payout_cci,
+          payout_notes: refreshedProfile?.payout_notes,
           global_role: globalRole
         });
         router.push(redirect);
