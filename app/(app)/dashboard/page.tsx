@@ -36,7 +36,6 @@ type UpcomingPayoutData = {
 type ContributionSummaryData = {
   totalAportado: number;
   periodLabel: string;
-  fondoGarantia: number;
 };
 
 type JuntaCardData = {
@@ -148,8 +147,7 @@ function getCurrentCycleContributionSummary(params: {
 
   return {
     totalAportado,
-    periodLabel: `${periodCount > 0 ? periodCount : 0} ${periodCount === 1 ? 'semana' : 'semanas'} · ciclo actual`,
-    fondoGarantia: 0
+    periodLabel: `${periodCount > 0 ? periodCount : 0} ${periodCount === 1 ? 'semana' : 'semanas'} · ciclo actual`
   };
 }
 
@@ -356,16 +354,11 @@ function UpcomingPayoutCard({ data }: { data: UpcomingPayoutData }) {
 
 function ContributionSummaryCards({ summary }: { summary: ContributionSummaryData }) {
   return (
-    <div className="grid gap-3 md:grid-cols-2">
+    <div className="grid gap-3">
       <Card className="border-0 bg-blue-600 p-5 text-white">
         <p className="text-sm text-blue-100">Total aportado</p>
         <p className="text-4xl font-semibold">{money(summary.totalAportado)}</p>
         <p className="text-sm text-blue-100">{summary.periodLabel}</p>
-      </Card>
-      <Card className="p-5">
-        <p className="text-sm text-slate-500">Fondo de garantía</p>
-        <p className="text-4xl font-semibold text-slate-900">{money(summary.fondoGarantia)}</p>
-        <p className="text-sm text-slate-500">Se devuelve al cerrar ciclo</p>
       </Card>
     </div>
   );

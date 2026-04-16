@@ -19,11 +19,11 @@ import { createJuntaRecord } from '@/services/juntas.repository';
 const steps = [
   { id: 1, title: 'Información básica' },
   { id: 2, title: 'Estructura del grupo' },
-  { id: 3, title: 'Incentivos y garantía' },
+  { id: 3, title: 'Incentivos y calendario' },
   { id: 4, title: 'Confirmación' }
 ] as const;
 
-type CreateJuntaValues = z.infer<typeof createJuntaSchema> & { fondo_garantia: number };
+type CreateJuntaValues = z.infer<typeof createJuntaSchema>;
 
 type SuccessState = {
   juntaId: string;
@@ -56,8 +56,7 @@ export default function NewJuntaPage() {
       incentivo_regla: 'primero_ultimo',
       frecuencia_pago: 'semanal',
       fecha_inicio: '',
-      visibilidad: 'privada',
-      fondo_garantia: 0
+      visibilidad: 'privada'
     }
   });
 
@@ -129,13 +128,7 @@ export default function NewJuntaPage() {
         return false;
       }
 
-      const fondo = Number(values.fondo_garantia ?? 0);
-      if (fondo < 0) {
-        setError('fondo_garantia', { message: 'El fondo de garantía no puede ser negativo.' });
-        return false;
-      }
-
-      clearErrors(['fecha_inicio', 'fondo_garantia']);
+      clearErrors(['fecha_inicio']);
       return true;
     }
 
@@ -444,15 +437,6 @@ export default function NewJuntaPage() {
                 )}
 
                 <div>
-                  <label className="text-sm font-medium">Fondo de garantía</label>
-                  <Input type="number" min={0} step={1} {...register('fondo_garantia', { valueAsNumber: true })} />
-                  {formState.errors.fondo_garantia && <p className="text-xs text-red-600">{formState.errors.fondo_garantia.message}</p>}
-                  {Number(form.fondo_garantia ?? 0) === 0 && (
-                    <p className="mt-1 text-xs text-amber-700">Sin fondo de protección — mayor riesgo de impago</p>
-                  )}
-                </div>
-
-                <div>
                   <label className="text-sm font-medium">Fecha de inicio</label>
                   <Input type="date" {...register('fecha_inicio')} />
                   {formState.errors.fecha_inicio && <p className="text-xs text-red-600">{formState.errors.fecha_inicio.message}</p>}
@@ -471,7 +455,6 @@ export default function NewJuntaPage() {
                   <p><span className="font-medium">Tipo:</span> {form.tipo_junta}</p>
                   <p><span className="font-medium">Asignación de turnos:</span> {form.turn_assignment_mode === 'manual' ? 'Manual' : 'Al azar'}</p>
                   <p><span className="font-medium">Incentivo:</span> {form.tipo_junta === 'incentivo' ? `${form.incentivo_porcentaje}%` : 'No aplica'}</p>
-                  <p><span className="font-medium">Fondo garantía:</span> S/ {form.fondo_garantia ?? 0}</p>
                   <p><span className="font-medium">Fecha inicio:</span> {form.fecha_inicio || '—'}</p>
                 </div>
                 <div className="rounded-md bg-slate-100 p-3 text-xs text-slate-700">
@@ -509,7 +492,6 @@ export default function NewJuntaPage() {
             <p>Bolsa total: S/ {(previewParticipantes * previewCuota).toFixed(2)}</p>
             <p>Cuota base: S/ {previewCuota.toFixed(2)}</p>
             <p>Duración del ciclo: {cycleLabel}</p>
-            <p>Fondo garantía: S/ {Number(form.fondo_garantia ?? 0).toFixed(2)}</p>
           </div>
 
           <div className="space-y-2">

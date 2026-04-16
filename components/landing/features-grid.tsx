@@ -23,8 +23,8 @@ const features = [
     descClass: 'text-[var(--muted)]'
   },
   {
-    title: 'Fondo de garantía',
-    description: 'Reduce el riesgo del grupo con reglas de respaldo y seguimiento.',
+    title: 'Seguimiento en tiempo real',
+    description: 'Visualiza aportes, turnos y avances del ciclo sin perder el contexto del grupo.',
     icon: '🧾',
     cardClass: 'bg-[var(--amber-bg)] text-[var(--text)]',
     descClass: 'text-[var(--muted)]'

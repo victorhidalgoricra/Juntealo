@@ -256,7 +256,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-sm text-slate-600">{paidCount}/{miembrosActuales} pagaron esta semana · Cierre ventana: hoy 12:00pm · Fondo garantía: S/{((junta.cuota_base ?? junta.monto_cuota) * 0.25).toFixed(0)}</p>
+            <p className="mt-3 text-sm text-slate-600">{paidCount}/{miembrosActuales} pagaron esta semana · Cierre ventana: hoy 12:00pm</p>
           </Card>
 
           <Card className="flex flex-wrap gap-2">
@@ -334,7 +334,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
           <div className="grid gap-3 md:grid-cols-2">
             <Card><p className="text-sm text-slate-500">Score de confianza</p><p className="text-4xl font-semibold text-emerald-700">{Math.max(65, 95 - pendingCount * 3)}</p><p className="text-sm text-slate-600">{paidCount} pagos a tiempo</p></Card>
-            <Card><p className="text-sm text-slate-500">Fondo garantía</p><p className="text-4xl font-semibold">S/{((junta.cuota_base ?? junta.monto_cuota) * 0.25).toFixed(0)}</p><p className="text-sm text-slate-600">Se devuelve al final</p></Card>
+            <Card><p className="text-sm text-slate-500">Estado de pagos</p><p className="text-4xl font-semibold">{paidCount}/{miembrosActuales}</p><p className="text-sm text-slate-600">Integrantes con pago registrado esta semana</p></Card>
           </div>
 
           <Card className="flex flex-wrap gap-2">
