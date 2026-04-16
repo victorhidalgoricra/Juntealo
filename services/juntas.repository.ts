@@ -60,6 +60,7 @@ export async function createJuntaRecord(junta: Junta) {
     invite_token: junta.invite_token,
     access_code: junta.access_code ?? null,
     tipo_junta: junta.tipo_junta ?? 'normal',
+    turn_assignment_mode: junta.turn_assignment_mode ?? 'random',
     incentivo_porcentaje: junta.incentivo_porcentaje ?? 0,
     incentivo_regla: junta.incentivo_regla ?? 'primero_ultimo',
     cuota_base: junta.cuota_base ?? junta.monto_cuota,

@@ -11,6 +11,7 @@ export type ReceiverPaymentDetails = {
 };
 
 export function getParticipantDisplayName(profile?: Partial<Profile> | null) {
+  const uuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (!profile) return 'Usuario sin nombre';
 
   const first = (profile.first_name ?? '').trim();
@@ -20,7 +21,7 @@ export function getParticipantDisplayName(profile?: Partial<Profile> | null) {
   if (byParts) return byParts;
 
   const fullName = (profile.nombre ?? '').trim();
-  if (fullName) return fullName;
+  if (fullName && !uuidLike.test(fullName)) return fullName;
 
   const email = (profile.email ?? '').trim();
   if (email) {

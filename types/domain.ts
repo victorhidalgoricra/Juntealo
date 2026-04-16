@@ -44,6 +44,7 @@ export interface Junta {
   tipo_junta?: TipoJunta;
   incentivo_porcentaje?: number;
   incentivo_regla?: IncentivoRegla;
+  turn_assignment_mode?: 'random' | 'manual';
   cuota_base?: number;
   bolsa_base?: number;
   nombre: string;
