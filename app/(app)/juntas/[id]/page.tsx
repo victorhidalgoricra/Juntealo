@@ -68,6 +68,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [junta, setJunta] = useState<Junta | null>(juntas.find((j) => j.id === params.id) ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [accessState, setAccessState] = useState<'checking' | 'allowed' | 'unauthorized' | 'blocked' | 'not_found'>('checking');
+  const [phaseTwoLoading, setPhaseTwoLoading] = useState(false);
+  const [detailMembers, setDetailMembers] = useState<typeof members>([]);
+  const [detailPayments, setDetailPayments] = useState<typeof payments>([]);
+  const [detailSchedules, setDetailSchedules] = useState<typeof schedules>([]);
   const [paymentInfo, setPaymentInfo] = useState<string | null>(null);
   const [manualTurns, setManualTurns] = useState<Record<string, number>>({});
 
@@ -107,7 +111,6 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
         }
 
         setJunta(resolvedJunta);
-        setData({ juntas: [resolvedJunta, ...juntas.filter((item) => item.id !== resolvedJunta!.id)] });
 
         const isCreator = resolvedJunta.admin_id === user.id;
         const isActiveMember = activeMembers.some((member) => member.profile_id === user.id);
@@ -130,9 +133,18 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       }
     };
     load();
-  }, [juntas, params.id, setData, user]);
+  }, [juntas, params.id, setData, user, user?.id]);
 
-  const juntaMembers = useMemo(() => members.filter((member) => member.junta_id === params.id && member.estado === 'activo'), [members, params.id]);
+  useEffect(() => {
+    if (accessState !== 'allowed' || !junta) return;
+    setPhaseTwoLoading(true);
+    setDetailMembers(members.filter((member) => member.junta_id === junta.id && member.estado === 'activo'));
+    setDetailPayments(payments.filter((payment) => payment.junta_id === junta.id));
+    setDetailSchedules(schedules.filter((schedule) => schedule.junta_id === junta.id));
+    setPhaseTwoLoading(false);
+  }, [accessState, junta, members, payments, schedules]);
+
+  const juntaMembers = useMemo(() => detailMembers, [detailMembers]);
   const currentUserName = useMemo(() => user?.nombre?.split(' ')[0] ?? 'Tú', [user?.nombre]);
 
   const simulation = useMemo(() => {
@@ -160,8 +172,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const summary = getCurrentWeekSummary({
     junta,
     members: juntaMembers,
-    payments,
-    schedules,
+    payments: detailPayments,
+    schedules: detailSchedules,
     currentWeek,
     userId: user?.id,
     juntaActiva
@@ -229,6 +241,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
       {mainView === 'general' && (
         <div className="space-y-4">
+          {phaseTwoLoading && <Card className="p-3 text-sm text-slate-500">Cargando pagos, cronograma e integrantes…</Card>}
           <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
             <Card className="p-3"><p className="text-xs text-slate-500">Bolsa semana</p><p className="text-2xl font-semibold">S/{((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}</p></Card>
             <Card className="p-3"><p className="text-xs text-slate-500">Pagos esta semana</p><p className="text-2xl font-semibold">{summary.paid}/{summary.rows.length}</p></Card>
