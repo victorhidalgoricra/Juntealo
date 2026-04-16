@@ -7,6 +7,7 @@ import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { getPaymentAlertState, type PaymentAlertState } from '@/lib/payment-alert';
 import { getJuntaEngagementLayer, type JuntaMission, type LevelUnlocks } from '@/services/junta-engagement.service';
 import {
   buildJuntaScoreStatsFromDomain,
@@ -17,16 +18,6 @@ import {
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
-
-type PendingPaymentBannerData = {
-  juntaId: string;
-  cuotaId: string;
-  juntaNombre: string;
-  monto: number;
-  dueDate: Date;
-  isOverdue: boolean;
-  hasMultiplePending: boolean;
-};
 
 type UpcomingPayoutData = {
   juntaId: string;
@@ -89,35 +80,6 @@ function getMyJuntaIds(userId: string, juntas: Junta[], members: JuntaMember[]) 
   const owned = juntas.filter((j) => j.admin_id === userId).map((j) => j.id);
   const memberOf = members.filter((m) => m.profile_id === userId).map((m) => m.junta_id);
   return Array.from(new Set([...owned, ...memberOf]));
-}
-
-function getPendingPaymentBanner(params: {
-  juntas: Junta[];
-  schedules: PaymentSchedule[];
-  myJuntaIds: string[];
-}): PendingPaymentBannerData | null {
-  const today = new Date();
-  const dueCandidates = params.schedules
-    .filter((schedule) => params.myJuntaIds.includes(schedule.junta_id))
-    .filter((schedule) => schedule.estado === 'pendiente' || schedule.estado === 'vencida')
-    .sort((a, b) => new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime());
-
-  const nextDue = dueCandidates[0];
-  if (!nextDue) return null;
-
-  const junta = params.juntas.find((item) => item.id === nextDue.junta_id);
-  if (!junta) return null;
-
-  const dueDate = new Date(nextDue.fecha_vencimiento);
-  return {
-    juntaId: junta.id,
-    cuotaId: nextDue.id,
-    juntaNombre: junta.nombre,
-    monto: nextDue.monto,
-    dueDate,
-    isOverdue: dueDate < today || nextDue.estado === 'vencida',
-    hasMultiplePending: dueCandidates.length > 1
-  };
 }
 
 function getUpcomingPayout(params: {
@@ -261,24 +223,28 @@ function DashboardHeader({ displayName }: { displayName: string }) {
   );
 }
 
-function PendingPaymentBanner({ data }: { data: PendingPaymentBannerData }) {
-  const isToday = format(data.dueDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-  const dueLabel = isToday ? `vence hoy ${format(data.dueDate, 'HH:mm')}` : `vence ${format(data.dueDate, 'dd MMM', { locale: es })}`;
+function PendingPaymentBanner({ data }: { data: PaymentAlertState }) {
+  if (!data.juntaId || !data.cuotaId) return null;
   const directHref = `/juntas/${data.juntaId}/registrar-pago?juntaId=${encodeURIComponent(data.juntaId)}&cuotaId=${encodeURIComponent(data.cuotaId)}&src=dashboard`;
   const fallbackHref = `/juntas/${data.juntaId}/payments`;
+  const toneClass = data.status === 'overdue'
+    ? 'border-rose-300 bg-rose-100 hover:border-rose-400'
+    : 'border-amber-300 bg-amber-100 hover:border-amber-400';
+  const titleToneClass = data.status === 'overdue' ? 'text-rose-900' : 'text-amber-900';
+  const ctaToneClass = data.status === 'overdue' ? 'text-rose-700' : 'text-blue-700';
 
   return (
     <Link href={data.hasMultiplePending ? fallbackHref : directHref}>
-      <Card className="border border-amber-300 bg-amber-100 p-4 hover:border-amber-400">
+      <Card className={`border p-4 ${toneClass}`}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-200">⏺</div>
+            <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/70">⏺</div>
             <div>
-              <p className="text-sm font-semibold text-amber-900">{data.isOverdue ? 'Pago pendiente hoy' : 'Próximo pago'}</p>
-              <p className="text-sm text-amber-900">{data.juntaNombre} · {money(data.monto)} · {dueLabel}</p>
+              <p className={`text-sm font-semibold ${titleToneClass}`}>{data.title}</p>
+              <p className={`text-sm ${titleToneClass}`}>{data.subtitle}</p>
             </div>
           </div>
-          <p className="text-sm font-semibold text-blue-700">Pagar →</p>
+          <p className={`text-sm font-semibold ${ctaToneClass}`}>Pagar →</p>
         </div>
       </Card>
     </Link>
@@ -463,10 +429,12 @@ export default function DashboardPage() {
   const myJuntaIds = getMyJuntaIds(user.id, safeJuntas, safeMembers);
   const displayName = getDisplayName(user.nombre, user.email);
 
-  const pendingPaymentBanner = getPendingPaymentBanner({
+  const paymentAlert = getPaymentAlertState({
+    userId: user.id,
+    myJuntaIds,
     juntas: safeJuntas,
     schedules: safeSchedules,
-    myJuntaIds
+    payments: safePayments
   });
 
   const scoreStats = buildJuntaScoreStatsFromDomain({
@@ -521,7 +489,7 @@ export default function DashboardPage() {
     <div className="space-y-5">
       <DashboardHeader displayName={displayName} />
 
-      {pendingPaymentBanner && <PendingPaymentBanner data={pendingPaymentBanner} />}
+      {paymentAlert.status !== 'none' && paymentAlert.status !== 'paid' && <PendingPaymentBanner data={paymentAlert} />}
 
       <JuntaScoreCard score={score} />
 
