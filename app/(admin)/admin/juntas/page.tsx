@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -20,24 +20,28 @@ export default function AdminJuntasPage() {
   const [visibilidad, setVisibilidad] = useState<'todas' | 'publica' | 'privada'>('todas');
   const [tipo, setTipo] = useState<'todos' | 'normal' | 'incentivo'>('todos');
   const [createdFrom, setCreatedFrom] = useState('');
+  const [showBlocked, setShowBlocked] = useState(false);
 
   const [candidate, setCandidate] = useState<AdminJuntaListItem | null>(null);
   const [submittingDelete, setSubmittingDelete] = useState(false);
 
+  const loadRows = useCallback(async (includeBlocked: boolean) => {
+    setLoading(true);
+    const result = await fetchAdminJuntas({ includeBlocked });
+    if (!result.ok) {
+      setError(result.message);
+      setLoading(false);
+      return;
+    }
+    setError(null);
+    setRows(result.data);
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     if (!isBackofficeAdmin(user)) return;
-
-    setLoading(true);
-    fetchAdminJuntas()
-      .then((result) => {
-        if (!result.ok) {
-          setError(result.message);
-          return;
-        }
-        setRows(result.data);
-      })
-      .finally(() => setLoading(false));
-  }, [user]);
+    loadRows(showBlocked);
+  }, [user, showBlocked, loadRows]);
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -87,7 +91,6 @@ export default function AdminJuntasPage() {
             <option value="borrador">Borrador</option>
             <option value="activa">Activa</option>
             <option value="cerrada">Cerrada</option>
-            <option value="bloqueada">Cancelada</option>
           </select>
           <select className="rounded-md border px-3 py-2 text-sm" value={visibilidad} onChange={(event) => setVisibilidad(event.target.value as typeof visibilidad)}>
             <option value="todas">Visibilidad: todas</option>
@@ -100,6 +103,10 @@ export default function AdminJuntasPage() {
             <option value="incentivo">Con incentivos</option>
           </select>
           <input className="rounded-md border px-3 py-2 text-sm" type="date" value={createdFrom} onChange={(event) => setCreatedFrom(event.target.value)} />
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <input id="show-blocked" type="checkbox" checked={showBlocked} onChange={(event) => setShowBlocked(event.target.checked)} />
+          <label htmlFor="show-blocked">Ver también juntas eliminadas/bloqueadas</label>
         </div>
       </Card>
 
@@ -122,13 +129,13 @@ export default function AdminJuntasPage() {
             </thead>
             <tbody>
               {filteredRows.map((row) => (
-                <tr key={row.id} className="border-t align-top">
+                <tr key={row.id} className={`border-t align-top ${row.bloqueada ? 'bg-slate-50 text-slate-500' : ''}`}>
                   <td className="px-3 py-2">
                     <p className="font-medium text-slate-900">{row.nombre}</p>
                     <p className="text-xs text-slate-500">slug: {row.slug}</p>
                   </td>
                   <td className="px-3 py-2">
-                    <Badge>{row.estado}</Badge>
+                    <Badge>{row.bloqueada ? 'bloqueada' : row.estado}</Badge>
                   </td>
                   <td className="px-3 py-2">
                     <p>{row.admin_nombre ?? 'Sin nombre'}</p>
@@ -143,8 +150,8 @@ export default function AdminJuntasPage() {
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-2">
                       <Link href={`/admin/juntas/${row.id}`}><Button variant="outline">Ver detalle</Button></Link>
-                      <Button variant="destructive" disabled={row.estado === 'bloqueada'} onClick={() => setCandidate(row)}>
-                        {row.estado === 'bloqueada' ? 'Eliminada' : 'Eliminar'}
+                      <Button variant="destructive" disabled={row.bloqueada} onClick={() => setCandidate(row)}>
+                        {row.bloqueada ? 'Eliminada' : 'Eliminar'}
                       </Button>
                     </div>
                   </td>
@@ -188,7 +195,7 @@ export default function AdminJuntasPage() {
                       setError(result.message);
                       return;
                     }
-                    setRows((previous) => previous.map((row) => (row.id === candidate.id ? { ...row, estado: 'bloqueada' } : row)));
+                    await loadRows(showBlocked);
                     setCandidate(null);
                   } finally {
                     setSubmittingDelete(false);

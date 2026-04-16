@@ -138,7 +138,14 @@ export async function createJuntaRecord(junta: Junta) {
 export async function fetchMyJuntas(adminId: string) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Junta[] };
 
-  const { data, error } = await supabase.schema('public').from('juntas').select('*').eq('admin_id', adminId).order('created_at', { ascending: false });
+  const { data, error } = await supabase
+    .schema('public')
+    .from('juntas')
+    .select('*')
+    .eq('admin_id', adminId)
+    .neq('estado', 'bloqueada')
+    .eq('bloqueada', false)
+    .order('created_at', { ascending: false });
   if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
 
   return { ok: true as const, data: (data ?? []) as Junta[] };
@@ -310,12 +317,15 @@ export type AdminJuntaListItem = {
   frecuencia_pago: Junta['frecuencia_pago'];
   fecha_inicio: string;
   created_at: string;
+  bloqueada: boolean;
 };
 
-export async function fetchAdminJuntas() {
+export async function fetchAdminJuntas(params?: { includeBlocked?: boolean }) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as AdminJuntaListItem[] };
 
-  const { data, error } = await supabase.schema('public').rpc('admin_list_juntas');
+  const { data, error } = await supabase.schema('public').rpc('admin_list_juntas', {
+    p_include_blocked: Boolean(params?.includeBlocked)
+  });
   if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
 
   return { ok: true as const, data: (data ?? []) as AdminJuntaListItem[] };
