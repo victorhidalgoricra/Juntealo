@@ -215,6 +215,22 @@ export async function fetchMembersByJuntaIds(juntaIds: string[]) {
   return { ok: true as const, data: (data ?? []) as JuntaMember[] };
 }
 
+export async function fetchMyActiveMembership(params: { juntaId: string; profileId: string }) {
+  if (!hasSupabase || !supabase) return { ok: true as const, isActiveMember: false };
+
+  const { data, error } = await supabase
+    .schema('public')
+    .from('junta_members')
+    .select('id')
+    .eq('junta_id', params.juntaId)
+    .eq('profile_id', params.profileId)
+    .eq('estado', 'activo')
+    .maybeSingle();
+
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  return { ok: true as const, isActiveMember: Boolean(data?.id) };
+}
+
 export async function joinJuntaAsParticipant(params: { juntaId: string; profileId: string; accessCode?: string }) {
   if (!hasSupabase || !supabase) {
     return {

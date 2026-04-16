@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, fetchAvailableJuntas, fetchJuntaById, fetchMembersByJuntaIds } from '@/services/juntas.repository';
+import { activateJuntaIfReady, fetchAvailableJuntas, fetchJuntaById, fetchMembersByJuntaIds, fetchMyActiveMembership } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -88,9 +88,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
       try {
         const storedJunta = juntas.find((j) => j.id === params.id) ?? null;
-        const [detailResult, membersResult] = await Promise.all([
+        const [detailResult, membersResult, membershipResult] = await Promise.all([
           storedJunta ? Promise.resolve({ ok: true as const, data: storedJunta }) : fetchJuntaById(params.id),
-          fetchMembersByJuntaIds([params.id])
+          fetchMembersByJuntaIds([params.id]),
+          fetchMyActiveMembership({ juntaId: params.id, profileId: user.id })
         ]);
 
         let resolvedJunta = detailResult.ok ? detailResult.data : null;
@@ -113,7 +114,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
         setJunta(resolvedJunta);
 
         const isCreator = resolvedJunta.admin_id === user.id;
-        const isActiveMember = activeMembers.some((member) => member.profile_id === user.id);
+        const isActiveMember = membershipResult.ok
+          ? membershipResult.isActiveMember
+          : activeMembers.some((member) => member.profile_id === user.id);
         const hasAccess = isCreator || isActiveMember;
         if (!hasAccess) {
           setAccessState('unauthorized');
