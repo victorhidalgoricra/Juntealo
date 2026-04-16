@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, fetchJuntaById, fetchMembersByJuntaIds } from '@/services/juntas.repository';
+import { activateJuntaIfReady, fetchAvailableJuntas, fetchJuntaById, fetchMembersByJuntaIds } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -66,28 +66,74 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [generalTab, setGeneralTab] = useState<GeneralTab>('integrantes');
   const [loadingJunta, setLoadingJunta] = useState(true);
   const [junta, setJunta] = useState<Junta | null>(juntas.find((j) => j.id === params.id) ?? null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [accessState, setAccessState] = useState<'checking' | 'allowed' | 'unauthorized' | 'blocked' | 'not_found'>('checking');
   const [paymentInfo, setPaymentInfo] = useState<string | null>(null);
   const [manualTurns, setManualTurns] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const load = async () => {
-      const existing = juntas.find((j) => j.id === params.id) ?? null;
-      if (existing) {
-        setJunta(existing);
-      } else {
-        const result = await fetchJuntaById(params.id);
-        if (result.ok && result.data) {
-          setJunta(result.data);
-          setData({ juntas: [result.data, ...juntas.filter((j) => j.id !== result.data!.id)] });
-        }
+      if (!user) {
+        setLoadingJunta(false);
+        setAccessState('unauthorized');
+        return;
       }
 
-      const membersResult = await fetchMembersByJuntaIds([params.id]);
-      if (membersResult.ok) setData({ members: membersResult.data });
-      setLoadingJunta(false);
+      setLoadError(null);
+      setAccessState('checking');
+
+      try {
+        let resolvedJunta = juntas.find((j) => j.id === params.id) ?? null;
+
+        if (!resolvedJunta) {
+          const detailResult = await fetchJuntaById(params.id);
+          if (detailResult.ok && detailResult.data) {
+            resolvedJunta = detailResult.data;
+          } else {
+            const catalogResult = await fetchAvailableJuntas(user.id);
+            if (catalogResult.ok) {
+              resolvedJunta = catalogResult.data.find((item) => item.id === params.id) ?? null;
+            }
+          }
+        }
+
+        if (!resolvedJunta) {
+          setAccessState('not_found');
+          setLoadingJunta(false);
+          return;
+        }
+
+        setJunta(resolvedJunta);
+        setData({ juntas: [resolvedJunta, ...juntas.filter((item) => item.id !== resolvedJunta!.id)] });
+
+        const membersResult = await fetchMembersByJuntaIds([params.id]);
+        const activeMembers = membersResult.ok ? membersResult.data.filter((member) => member.estado === 'activo') : [];
+        if (membersResult.ok) setData({ members: membersResult.data });
+
+        const isCreator = resolvedJunta.admin_id === user.id;
+        const isActiveMember = activeMembers.some((member) => member.profile_id === user.id);
+        const hasAccess = isCreator || isActiveMember;
+        if (!hasAccess) {
+          setAccessState('unauthorized');
+          setLoadingJunta(false);
+          return;
+        }
+
+        if (resolvedJunta.bloqueada) {
+          setAccessState('blocked');
+          setLoadingJunta(false);
+          return;
+        }
+
+        setAccessState('allowed');
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : 'No se pudo cargar la junta.');
+      } finally {
+        setLoadingJunta(false);
+      }
     };
     load();
-  }, [juntas, params.id, setData]);
+  }, [juntas, params.id, setData, user]);
 
   const juntaMembers = useMemo(() => members.filter((member) => member.junta_id === params.id && member.estado === 'activo'), [members, params.id]);
   const currentUserName = useMemo(() => user?.nombre?.split(' ')[0] ?? 'Tú', [user?.nombre]);
@@ -106,6 +152,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   }, [junta]);
 
   if (loadingJunta) return <Card>Cargando junta...</Card>;
+  if (loadError) return <Card><p className="text-sm text-red-600">No pudimos cargar la junta: {loadError}</p></Card>;
+  if (accessState === 'unauthorized') return <Card><p className="text-sm text-slate-600">No tienes permisos para ver esta junta.</p></Card>;
+  if (accessState === 'blocked') return <Card><p className="text-sm text-slate-600">Esta junta no está disponible temporalmente.</p></Card>;
+  if (accessState === 'not_found') return <Card><p className="text-sm text-slate-600">Junta no encontrada.</p></Card>;
   if (!junta || !simulation) return <Card><p className="text-sm text-slate-600">Junta no encontrada.</p></Card>;
 
   const juntaActiva = isJuntaActive(junta.estado);
