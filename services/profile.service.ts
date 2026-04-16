@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
+import { Profile } from '@/types/domain';
 
 export async function ensureProfileExists(input: {
   id: string;
@@ -39,4 +40,18 @@ export async function checkProfileConflicts(input: { dni: string; celular: strin
     existsDni: Boolean(row?.exists_dni),
     existsCelular: Boolean(row?.exists_celular)
   };
+}
+
+export async function fetchProfilesByIds(profileIds: string[]) {
+  if (profileIds.length === 0) return { ok: true as const, data: [] as Profile[] };
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Profile[] };
+
+  const { data, error } = await supabase
+    .schema('public')
+    .from('profiles')
+    .select('id,email,nombre,first_name,second_name,paternal_last_name,celular,dni,foto_url,preferred_payout_method,payout_account_name,payout_phone_number,payout_bank_name,payout_account_number,payout_cci,payout_notes')
+    .in('id', profileIds);
+
+  if (error) return { ok: false as const, message: error.message };
+  return { ok: true as const, data: (data ?? []) as Profile[] };
 }

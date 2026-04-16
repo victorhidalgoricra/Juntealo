@@ -6,6 +6,7 @@ export type PaymentAlertStatus = 'upcoming' | 'due_today' | 'overdue' | 'paid' |
 
 export type PaymentAlertState = {
   status: PaymentAlertStatus;
+  tone?: 'neutral' | 'warning' | 'destructive';
   title: string;
   subtitle: string;
   amount?: number;
@@ -78,9 +79,19 @@ export function getPaymentAlertState(params: {
     .filter((item) => item.payment?.estado !== 'approved')
     .sort((a, b) => new Date(a.schedule.fecha_vencimiento).getTime() - new Date(b.schedule.fecha_vencimiento).getTime());
 
+  const hasPaidCandidate = params.schedules
+    .filter((schedule) => params.myJuntaIds.includes(schedule.junta_id))
+    .filter((schedule) => schedule.estado === 'pendiente' || schedule.estado === 'vencida' || schedule.estado === 'pagada')
+    .some((schedule) => params.payments.some((payment) =>
+      payment.profile_id === params.userId
+      && payment.junta_id === schedule.junta_id
+      && payment.schedule_id === schedule.id
+      && payment.estado === 'approved'));
+
   if (pendingCandidates.length === 0) {
     return {
-      status: 'none',
+      status: hasPaidCandidate ? 'paid' : 'none',
+      tone: 'neutral',
       title: '',
       subtitle: ''
     };
@@ -91,6 +102,7 @@ export function getPaymentAlertState(params: {
   if (!junta) {
     return {
       status: 'none',
+      tone: 'neutral',
       title: '',
       subtitle: ''
     };
@@ -102,6 +114,7 @@ export function getPaymentAlertState(params: {
   if (dueDate.getTime() < now.getTime()) {
     return {
       status: 'overdue',
+      tone: 'destructive',
       title: `Tienes un pago vencido de S/${next.schedule.monto.toFixed(2)}`,
       subtitle: `Venció el ${format(dueDate, "dd 'de' MMMM, HH:mm", { locale: es })} (${formatDistanceToNowStrict(dueDate, { addSuffix: true, locale: es })}).`,
       amount: next.schedule.monto,
@@ -118,6 +131,7 @@ export function getPaymentAlertState(params: {
   if (isSameDay(dueDate, now)) {
     return {
       status: 'due_today',
+      tone: 'warning',
       title: `Tienes hasta hoy ${dueTime ?? '23:59'} para pagar S/${next.schedule.monto.toFixed(2)}`,
       subtitle: `${junta.nombre}. ${remainingText ?? ''}`.trim(),
       amount: next.schedule.monto,
@@ -133,6 +147,7 @@ export function getPaymentAlertState(params: {
 
   return {
     status: 'upcoming',
+    tone: 'warning',
     title: `Tu próximo pago vence el ${format(dueDate, "dd 'de' MMMM, HH:mm", { locale: es })}`,
     subtitle: `${junta.nombre} · S/${next.schedule.monto.toFixed(2)}`,
     amount: next.schedule.monto,

@@ -17,9 +17,19 @@ export interface Profile {
   id: string;
   email: string;
   nombre: string;
+  first_name?: string;
+  second_name?: string;
+  paternal_last_name?: string;
   celular: string;
   dni?: string;
   foto_url?: string;
+  preferred_payout_method?: 'yape' | 'plin' | 'bank_account' | 'cash' | 'other';
+  payout_account_name?: string;
+  payout_phone_number?: string;
+  payout_bank_name?: string;
+  payout_account_number?: string;
+  payout_cci?: string;
+  payout_notes?: string;
   global_role?: GlobalRole;
 }
 

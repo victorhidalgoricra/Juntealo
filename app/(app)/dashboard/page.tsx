@@ -1,14 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getPaymentAlertState, type PaymentAlertState } from '@/lib/payment-alert';
+import {
+  getCurrentRoundReceiver,
+  getParticipantDisplayName,
+  getReceiverPaymentDetails
+} from '@/lib/payment-instructions';
 import { getJuntaEngagementLayer, type JuntaMission, type LevelUnlocks } from '@/services/junta-engagement.service';
+import { fetchProfilesByIds } from '@/services/profile.service';
 import {
   buildJuntaScoreStatsFromDomain,
   getScoreBadge,
@@ -17,7 +23,7 @@ import {
 } from '@/services/junta-score.service';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
+import { Junta, JuntaMember, Payment, PaymentSchedule, Payout, Profile } from '@/types/domain';
 
 type UpcomingPayoutData = {
   juntaId: string;
@@ -55,6 +61,20 @@ type NextLevelData = {
   unlocks: LevelUnlocks | null;
   gainText: string;
   lossText: string;
+};
+
+type PaymentInstructionData = {
+  juntaId: string;
+  receiverName: string;
+  amount: number;
+  statusLabel: string;
+  receiverMethod: string;
+  receiverDestination: string | null;
+  receiverSecondary: string | null;
+  receiverNotes: string | null;
+  missingReceiverMethod: boolean;
+  missingMyPayoutConfig: boolean;
+  timeline: Array<{ id: string; label: string }>;
 };
 
 function money(value: number) {
@@ -227,11 +247,11 @@ function PendingPaymentBanner({ data }: { data: PaymentAlertState }) {
   if (!data.juntaId || !data.cuotaId) return null;
   const directHref = `/juntas/${data.juntaId}/registrar-pago?juntaId=${encodeURIComponent(data.juntaId)}&cuotaId=${encodeURIComponent(data.cuotaId)}&src=dashboard`;
   const fallbackHref = `/juntas/${data.juntaId}/payments`;
-  const toneClass = data.status === 'overdue'
+  const toneClass = data.tone === 'destructive'
     ? 'border-rose-300 bg-rose-100 hover:border-rose-400'
     : 'border-amber-300 bg-amber-100 hover:border-amber-400';
-  const titleToneClass = data.status === 'overdue' ? 'text-rose-900' : 'text-amber-900';
-  const ctaToneClass = data.status === 'overdue' ? 'text-rose-700' : 'text-blue-700';
+  const titleToneClass = data.tone === 'destructive' ? 'text-rose-900' : 'text-amber-900';
+  const ctaToneClass = data.tone === 'destructive' ? 'text-rose-700' : 'text-blue-700';
 
   return (
     <Link href={data.hasMultiplePending ? fallbackHref : directHref}>
@@ -248,6 +268,38 @@ function PendingPaymentBanner({ data }: { data: PaymentAlertState }) {
         </div>
       </Card>
     </Link>
+  );
+}
+
+function PaymentInstructionCard({ data }: { data: PaymentInstructionData }) {
+  return (
+    <Card className="border border-slate-200 p-4">
+      <h2 className="text-base font-semibold text-slate-900">Tu aporte de esta semana</h2>
+      <p className="mt-2 text-sm text-slate-700">Debes pagar a: <span className="font-semibold">{data.receiverName}</span></p>
+      <p className="text-sm text-slate-700">Monto: <span className="font-semibold">{money(data.amount)}</span></p>
+      <p className="text-sm text-slate-700">Estado: <span className="font-semibold">{data.statusLabel}</span></p>
+      <p className="text-sm text-slate-700">Medio de pago: <span className="font-semibold">{data.receiverMethod}</span></p>
+      {data.receiverDestination && <p className="text-sm text-slate-700">{data.receiverDestination}</p>}
+      {data.receiverSecondary && <p className="text-sm text-slate-700">{data.receiverSecondary}</p>}
+      {data.receiverNotes && <p className="text-xs text-slate-500">Nota: {data.receiverNotes}</p>}
+
+      {data.missingReceiverMethod && (
+        <p className="mt-2 text-sm font-medium text-amber-700">Este participante aún no configuró su medio de pago.</p>
+      )}
+      {data.missingMyPayoutConfig && (
+        <p className="mt-1 text-sm font-medium text-blue-700">Completa tu medio de pago en tu perfil para poder recibir aportes.</p>
+      )}
+
+      <div className="mt-3 space-y-1">
+        {data.timeline.map((item) => (
+          <p key={item.id} className="text-xs text-slate-600">{item.label}</p>
+        ))}
+      </div>
+
+      <div className="mt-3">
+        <Link href={`/juntas/${data.juntaId}`} className="text-sm font-medium text-blue-700">Ver detalle de junta →</Link>
+      </div>
+    </Card>
   );
 }
 
@@ -417,25 +469,98 @@ function NextLevelSection({ data }: { data: NextLevelData }) {
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const { juntas, schedules, payments, members, payouts } = useAppStore();
+  const safeJuntas = useMemo(() => (Array.isArray(juntas) ? juntas : []), [juntas]);
+  const safeSchedules = useMemo(() => (Array.isArray(schedules) ? schedules : []), [schedules]);
+  const safePayments = useMemo(() => (Array.isArray(payments) ? payments : []), [payments]);
+  const safeMembers = useMemo(() => (Array.isArray(members) ? members : []), [members]);
+  const safePayouts = useMemo(() => (Array.isArray(payouts) ? payouts : []), [payouts]);
+  const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
+  const userId = user?.id ?? '';
 
-  if (!user) return <Card>Necesitas iniciar sesión para ver tu dashboard.</Card>;
+  const myJuntaIds = useMemo(
+    () => (user ? getMyJuntaIds(user.id, safeJuntas, safeMembers) : []),
+    [safeJuntas, safeMembers, user]
+  );
+  const displayName = user ? getDisplayName(user.nombre, user.email) : 'Miembro';
 
-  const safeJuntas = Array.isArray(juntas) ? juntas : [];
-  const safeSchedules = Array.isArray(schedules) ? schedules : [];
-  const safePayments = Array.isArray(payments) ? payments : [];
-  const safeMembers = Array.isArray(members) ? members : [];
-  const safePayouts = Array.isArray(payouts) ? payouts : [];
+  useEffect(() => {
+    if (!user) return;
+    const memberProfileIds = safeMembers
+      .filter((member) => myJuntaIds.includes(member.junta_id))
+      .map((member) => member.profile_id);
+    const ids = Array.from(new Set([userId, ...memberProfileIds]));
 
-  const myJuntaIds = getMyJuntaIds(user.id, safeJuntas, safeMembers);
-  const displayName = getDisplayName(user.nombre, user.email);
+    fetchProfilesByIds(ids).then((result) => {
+      if (!result.ok) return;
+      const mapped = result.data.reduce<Record<string, Profile>>((acc, profile) => {
+        acc[profile.id] = profile;
+        return acc;
+      }, {});
+      if (!mapped[userId]) mapped[userId] = user;
+      setProfilesById(mapped);
+    });
+  }, [myJuntaIds, safeMembers, user, userId]);
 
   const paymentAlert = getPaymentAlertState({
-    userId: user.id,
+    userId,
     myJuntaIds,
     juntas: safeJuntas,
     schedules: safeSchedules,
     payments: safePayments
   });
+
+  const paymentInstruction = useMemo<PaymentInstructionData | null>(() => {
+    if (!paymentAlert.juntaId || !paymentAlert.cuotaId) return null;
+    if (paymentAlert.status === 'none' || paymentAlert.status === 'paid') return null;
+
+    const schedule = safeSchedules.find((item) => item.id === paymentAlert.cuotaId);
+    const junta = safeJuntas.find((item) => item.id === paymentAlert.juntaId);
+    if (!schedule || !junta) return null;
+
+    const juntaMembers = safeMembers.filter((member) => member.junta_id === junta.id);
+    const receiverMember = getCurrentRoundReceiver({ schedule, members: juntaMembers });
+    if (!receiverMember) return null;
+
+    const receiverProfile = profilesById[receiverMember.profile_id];
+    const receiverName = getParticipantDisplayName(receiverProfile);
+    const receiverPayment = getReceiverPaymentDetails(receiverProfile);
+    const myPaymentConfig = getReceiverPaymentDetails(profilesById[userId] ?? user);
+
+    const timeline = safeSchedules
+      .filter((item) => item.junta_id === junta.id)
+      .slice()
+      .sort((a, b) => new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime())
+      .slice(0, 4)
+      .map((item) => {
+        const member = getCurrentRoundReceiver({ schedule: item, members: juntaMembers });
+        const profile = member ? profilesById[member.profile_id] : null;
+        const name = member?.profile_id === userId ? 'Tú' : getParticipantDisplayName(profile);
+        return {
+          id: item.id,
+          label: `S${item.cuota_numero} · ${format(new Date(item.fecha_vencimiento), 'dd MMM', { locale: es })} · Recibe ${name} · ${money(item.monto)}`
+        };
+      });
+
+    return {
+      juntaId: junta.id,
+      receiverName,
+      amount: schedule.monto,
+      statusLabel: paymentAlert.status === 'overdue' ? 'Vencido' : paymentAlert.status === 'due_today' ? 'Vence hoy' : 'Pendiente',
+      receiverMethod: receiverPayment.methodLabel,
+      receiverDestination: receiverPayment.destinationLabel && receiverPayment.destinationValue
+        ? `${receiverPayment.destinationLabel}: ${receiverPayment.destinationValue}`
+        : null,
+      receiverSecondary: receiverPayment.secondaryLabel && receiverPayment.secondaryValue
+        ? `${receiverPayment.secondaryLabel}: ${receiverPayment.secondaryValue}`
+        : null,
+      receiverNotes: receiverPayment.notes,
+      missingReceiverMethod: !receiverPayment.isConfigured,
+      missingMyPayoutConfig: !myPaymentConfig.isConfigured,
+      timeline
+    };
+  }, [paymentAlert, profilesById, safeJuntas, safeMembers, safeSchedules, user, userId]);
+
+  if (!user) return <Card>Necesitas iniciar sesión para ver tu dashboard.</Card>;
 
   const scoreStats = buildJuntaScoreStatsFromDomain({
     userId: user.id,
@@ -490,6 +615,7 @@ export default function DashboardPage() {
       <DashboardHeader displayName={displayName} />
 
       {paymentAlert.status !== 'none' && paymentAlert.status !== 'paid' && <PendingPaymentBanner data={paymentAlert} />}
+      {paymentInstruction && <PaymentInstructionCard data={paymentInstruction} />}
 
       <JuntaScoreCard score={score} />
 
