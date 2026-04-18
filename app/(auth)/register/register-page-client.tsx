@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth-store';
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { mapAuthErrorMessage } from '@/services/auth.service';
+import { mapRegisterErrorMessage } from '@/services/auth.service';
 import { useState } from 'react';
 import { checkProfileConflicts } from '@/services/profile.service';
 
@@ -52,8 +52,9 @@ export function RegisterPageClient() {
 
           try {
             setLoading(true);
+            const normalized = parsed.data;
             if (hasSupabase && supabase) {
-              const conflictCheck = await checkProfileConflicts({ dni: values.dni, celular: values.celular });
+              const conflictCheck = await checkProfileConflicts({ dni: normalized.dni, celular: normalized.celular });
               if (!conflictCheck.ok) throw new Error(conflictCheck.message);
               if (conflictCheck.existsDni) {
                 setError('dni', { message: 'Este DNI ya está registrado.' });
@@ -66,10 +67,10 @@ export function RegisterPageClient() {
 
               const emailRedirectTo = `${window.location.origin}/login?confirmed=1`;
               const { data, error } = await supabase.auth.signUp({
-                email: values.email,
-                password: values.password,
+                email: normalized.email,
+                password: normalized.password,
                 options: {
-                  data: { full_name: values.nombre, phone: values.celular, dni: values.dni },
+                  data: { full_name: normalized.nombre, phone: normalized.celular, dni: normalized.dni },
                   emailRedirectTo
                 }
               });
@@ -86,11 +87,11 @@ export function RegisterPageClient() {
               return;
             }
 
-            setUser({ id: crypto.randomUUID(), ...values, global_role: 'user' });
+            setUser({ id: crypto.randomUUID(), ...normalized, global_role: 'user' });
             router.push(redirect);
           } catch (error) {
             console.error('[Register] auth error', error);
-            setAuthError(error instanceof Error ? mapAuthErrorMessage(error.message) : 'No pudimos completar tu registro.');
+            setAuthError(error instanceof Error ? mapRegisterErrorMessage(error.message) : 'No pudimos completar tu registro.');
           } finally {
             setLoading(false);
           }
@@ -103,12 +104,12 @@ export function RegisterPageClient() {
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">DNI</label>
-          <Input placeholder="12345678" {...register('dni')} />
+          <Input placeholder="12345678" inputMode="numeric" autoComplete="off" {...register('dni')} />
           <FieldError message={formState.errors.dni?.message} />
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Celular</label>
-          <Input placeholder="987654321" {...register('celular')} />
+          <Input placeholder="987654321" inputMode="tel" autoComplete="tel" {...register('celular')} />
           <FieldError message={formState.errors.celular?.message} />
         </div>
         <div className="space-y-1.5">

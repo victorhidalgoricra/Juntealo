@@ -55,3 +55,20 @@ Timezone de negocio: **America/Lima**.
 - Si una junta está en `borrador` y la fecha actual (America/Lima) supera `fecha_inicio`, pasa a bloqueada.
 - Una junta bloqueada no permite unirse ni activarse.
 - Esta validación se aplica en backend al intentar unirse o activar, y se refleja también en UI.
+
+
+## Registro y validaciones de identidad
+- El flujo de registro usa solo estos campos para crear perfil inicial: `nombre`, `email`, `celular`, `dni`, `password`.
+- Se normalizan `dni` y `celular` a **solo dígitos** antes de validar/enviar.
+- Regla de negocio: el `dni` es único global en `public.profiles` (índice único por `normalize_digits(dni)`).
+
+### Verificación de duplicados históricos de DNI (pre-migración)
+```sql
+select public.normalize_digits(dni) as dni_normalizado, count(*) as total
+from public.profiles
+where public.normalize_digits(dni) is not null
+group by public.normalize_digits(dni)
+having count(*) > 1;
+```
+
+Si la consulta devuelve filas, debes resolver esos duplicados antes de aplicar la migración de unicidad de DNI.
