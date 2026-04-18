@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card';
 import { isBackofficeAdmin } from '@/services/auth-role.service';
 import { AdminJuntaListItem, adminSoftDeleteJunta, fetchAdminJuntas } from '@/services/juntas.repository';
 import { useAuthStore } from '@/store/auth-store';
+import { formatCalendarDate } from '@/lib/calendar-date';
 
 export default function AdminJuntasPage() {
   const user = useAuthStore((s) => s.user);
@@ -160,7 +161,7 @@ export default function AdminJuntasPage() {
                   <td className="px-3 py-2">{row.integrantes_actuales}/{row.participantes_max}</td>
                   <td className="px-3 py-2 capitalize">{row.frecuencia_pago}</td>
                   <td className="px-3 py-2">{new Date(row.created_at).toLocaleDateString('es-PE')}</td>
-                  <td className="px-3 py-2">{new Date(row.fecha_inicio).toLocaleDateString('es-PE')}</td>
+                  <td className="px-3 py-2">{formatCalendarDate(row.fecha_inicio)}</td>
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-2">
                       <Link href={`/admin/juntas/${row.id}`}><Button variant="outline">Ver detalle</Button></Link>

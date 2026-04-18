@@ -1,4 +1,4 @@
-import { addDays, addMonths, format } from 'date-fns';
+import { addFrequencyToDate } from '@/lib/calendar-date';
 import { Frecuencia, TipoJunta } from '@/types/domain';
 
 type SimParams = {
@@ -84,16 +84,10 @@ export function calcularSimulacionJunta(params: SimParams) {
     : Array.from({ length: n }, () => 0);
 
   const contributions = calculateContributionByTurn(cuotaBase, turnIncentives);
-  const start = new Date(params.fechaInicio);
 
   const rows: SimRow[] = Array.from({ length: n }).map((_, index) => {
     const turno = index + 1;
-    const date =
-      params.frecuencia === 'semanal'
-        ? addDays(start, index * 7)
-        : params.frecuencia === 'quincenal'
-          ? addDays(start, index * 14)
-          : addMonths(start, index);
+    const date = addFrequencyToDate(params.fechaInicio, params.frecuencia, index);
 
     const cuotaPorRonda = contributions[index] ?? cuotaBase;
     const ajuste = round2(cuotaPorRonda - cuotaBase);
@@ -103,7 +97,7 @@ export function calcularSimulacionJunta(params: SimParams) {
 
     return {
       turno,
-      fechaRonda: format(date, 'yyyy-MM-dd'),
+      fechaRonda: date,
       cuotaPorRonda,
       totalAportadoCiclo,
       montoRecibido,

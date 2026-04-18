@@ -24,6 +24,7 @@ import {
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { Junta, JuntaMember, Payment, PaymentSchedule, Payout, Profile } from '@/types/domain';
+import { parseCalendarDate } from '@/lib/calendar-date';
 
 type UpcomingPayoutData = {
   juntaId: string;
@@ -117,7 +118,7 @@ function getUpcomingPayout(params: {
       return {
         payout,
         junta,
-        date: schedule ? new Date(schedule.fecha_vencimiento) : null
+        date: schedule ? parseCalendarDate(schedule.fecha_vencimiento) : null
       };
     })
     .filter((item) => item.junta)
@@ -170,7 +171,7 @@ function getActiveJuntas(params: {
       const hasPending = juntaSchedules.some((schedule) => schedule.estado === 'vencida' || schedule.estado === 'pendiente');
       const nextSchedule = juntaSchedules
         .slice()
-        .sort((a, b) => new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime())[0];
+        .sort((a, b) => parseCalendarDate(a.fecha_vencimiento).getTime() - parseCalendarDate(b.fecha_vencimiento).getTime())[0];
 
       return {
         id: junta.id,
@@ -180,7 +181,7 @@ function getActiveJuntas(params: {
         frecuencia: junta.frecuencia_pago,
         tipo: junta.tipo_junta ?? 'normal',
         turno: myTurnMap.get(junta.id) ?? null,
-        nextDate: nextSchedule ? new Date(nextSchedule.fecha_vencimiento) : null,
+        nextDate: nextSchedule ? parseCalendarDate(nextSchedule.fecha_vencimiento) : null,
         status: hasPending ? 'pendiente' : 'al_dia'
       };
     });
@@ -522,7 +523,7 @@ export default function DashboardPage() {
     const timeline = safeSchedules
       .filter((item) => item.junta_id === junta.id)
       .slice()
-      .sort((a, b) => new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime())
+      .sort((a, b) => parseCalendarDate(a.fecha_vencimiento).getTime() - parseCalendarDate(b.fecha_vencimiento).getTime())
       .slice(0, 4)
       .map((item) => {
         const member = getCurrentRoundReceiver({ schedule: item, members: juntaMembers });
@@ -530,7 +531,7 @@ export default function DashboardPage() {
         const name = member?.profile_id === userId ? 'Tú' : getParticipantDisplayName(profile);
         return {
           id: item.id,
-          label: `S${item.cuota_numero} · ${format(new Date(item.fecha_vencimiento), 'dd MMM', { locale: es })} · Recibe ${name} · ${money(item.monto)}`
+          label: `S${item.cuota_numero} · ${format(parseCalendarDate(item.fecha_vencimiento), 'dd MMM', { locale: es })} · Recibe ${name} · ${money(item.monto)}`
         };
       });
 

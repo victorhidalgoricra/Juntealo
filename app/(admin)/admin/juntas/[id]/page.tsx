@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { isBackofficeAdmin } from '@/services/auth-role.service';
 import { adminSoftDeleteJunta, fetchJuntaById, fetchMembersByJuntaIds } from '@/services/juntas.repository';
 import { Junta } from '@/types/domain';
+import { formatCalendarDate } from '@/lib/calendar-date';
 
 export default function AdminJuntaDetailPage({ params }: { params: { id: string } }) {
   const user = useAuthStore((s) => s.user);
@@ -80,7 +81,7 @@ export default function AdminJuntaDetailPage({ params }: { params: { id: string 
           <p><span className="font-medium">Tipo:</span> {junta.tipo_junta ?? 'normal'}</p>
           <p><span className="font-medium">Visibilidad:</span> {junta.visibilidad}</p>
           <p><span className="font-medium">Frecuencia:</span> {junta.frecuencia_pago}</p>
-          <p><span className="font-medium">Inicio:</span> {new Date(junta.fecha_inicio).toLocaleDateString('es-PE')}</p>
+          <p><span className="font-medium">Inicio:</span> {formatCalendarDate(junta.fecha_inicio)}</p>
           <p><span className="font-medium">Creación:</span> {new Date(junta.created_at).toLocaleDateString('es-PE')}</p>
         </div>
 

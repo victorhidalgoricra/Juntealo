@@ -19,6 +19,7 @@ import {
   validatePaymentReceiptFile
 } from '@/services/payment-receipt-upload.service';
 import { generarCronograma } from '@/services/schedule.service';
+import { formatCalendarDate } from '@/lib/calendar-date';
 
 export default function JuntaPayPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -62,7 +63,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
 
   const scheduleLabel = useMemo(() => {
     if (!currentSchedule) return 'Ronda no disponible';
-    return `Semana ${currentSchedule.cuota_numero} · vence ${new Date(currentSchedule.fecha_vencimiento).toLocaleDateString('es-PE')}`;
+    return `Semana ${currentSchedule.cuota_numero} · vence ${formatCalendarDate(currentSchedule.fecha_vencimiento)}`;
   }, [currentSchedule]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -256,7 +257,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         <p className="text-sm text-slate-600">{junta.nombre}</p>
         <p className="text-sm text-slate-600">{scheduleLabel}</p>
         <p className="text-sm text-slate-600">Monto esperado: <span className="font-semibold">S/ {currentSchedule.monto.toFixed(2)}</span></p>
-        <p className="text-sm text-slate-600">Fecha límite: <span className="font-semibold">{new Date(currentSchedule.fecha_vencimiento).toLocaleDateString('es-PE')}</span></p>
+        <p className="text-sm text-slate-600">Fecha límite: <span className="font-semibold">{formatCalendarDate(currentSchedule.fecha_vencimiento)}</span></p>
         <p className="text-sm text-slate-600">Estado actual: <span className="font-semibold">{paymentStatusLabel(currentStatus)}</span></p>
         {alreadyPaid && <p className="text-sm font-medium text-emerald-700">Pago ya registrado</p>}
         {isUnderValidation && <p className="text-sm font-medium text-blue-700">Tu pago está en validación</p>}
