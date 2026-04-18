@@ -12,6 +12,7 @@ import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
 import { isJuntaActive } from '@/lib/junta-status';
+import { APP_BUSINESS_TIMEZONE, isJuntaBlockedByDeadline } from '@/lib/junta-blocking';
 import {
   getCurrentWeekSummary,
   getPaidParticipants,
@@ -123,7 +124,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           return;
         }
 
-        if (resolvedJunta.bloqueada) {
+        if (isJuntaBlockedByDeadline(resolvedJunta)) {
           setAccessState('blocked');
           return;
         }
@@ -186,6 +187,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   if (!junta || !simulation) return <Card><p className="text-sm text-slate-600">Junta no encontrada.</p></Card>;
 
   const juntaActiva = isJuntaActive(junta.estado);
+  const blockedByDeadline = isJuntaBlockedByDeadline(junta);
   const currentWeek = Math.max(1, Math.min(simulation.rows.length, Math.max(juntaMembers.length, 1)));
   const summary = getCurrentWeekSummary({
     junta,
@@ -220,19 +222,20 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     incentivoRegla: junta.incentivo_regla
   });
 
-  const canOperateTurns = !juntaActiva && junta.turn_assignment_mode === 'manual';
+  const canOperateTurns = !juntaActiva && junta.turn_assignment_mode === 'manual' && !blockedByDeadline;
 
   const headerSubtitle = `Semana ${currentWeek} · ${junta.frecuencia_pago} · ${junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}`;
 
   return (
     <div className="space-y-4 pb-6">
       <Card className="space-y-4 p-4">
-        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{junta.nombre}</h1>
             <p className="text-sm text-slate-500">{headerSubtitle}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <Badge>{juntaActiva ? 'Activa' : 'En formación'}</Badge>
+              {blockedByDeadline && <Badge>Bloqueada</Badge>}
               <Badge>{junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</Badge>
               <Badge>{juntaMembers.length}/{junta.participantes_max} integrantes</Badge>
             </div>
@@ -364,8 +367,12 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           {generalTab === 'turnos' && (
             <Card className="space-y-3 p-4">
               <p className="text-sm text-slate-600">Este modo solo está disponible antes de activar la junta. Arrastra o selecciona el turno de cada participante manualmente.</p>
-              {juntaActiva ? (
-                <p className="rounded-md bg-slate-100 p-3 text-sm text-slate-600">La junta ya está activa. Los turnos están en modo solo lectura.</p>
+              {juntaActiva || blockedByDeadline ? (
+                <p className="rounded-md bg-slate-100 p-3 text-sm text-slate-600">
+                  {blockedByDeadline
+                    ? 'La junta está bloqueada por vencimiento y los turnos quedan en modo solo lectura.'
+                    : 'La junta ya está activa. Los turnos están en modo solo lectura.'}
+                </p>
               ) : (
                 <>
                   <div className="space-y-2">
@@ -413,6 +420,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                     </Button>
                   </div>
                 </>
+              )}
+              {blockedByDeadline && (
+                <p className="text-xs text-rose-700">Bloqueada por no activarse antes de la fecha del primer pago ({APP_BUSINESS_TIMEZONE}).</p>
               )}
             </Card>
           )}

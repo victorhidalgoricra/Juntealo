@@ -48,3 +48,10 @@ on conflict do nothing;
 ## Nota FK admin_id
 `public.juntas.admin_id` referencia `public.profiles(id)` (no `auth.users`).
 Por eso se incluye trigger/backfill para asegurar que todo usuario autenticado tenga profile.
+
+## Regla de bloqueo por activación tardía
+Timezone de negocio: **America/Lima**.
+
+- Si una junta está en `borrador` y la fecha actual (America/Lima) supera `fecha_inicio`, pasa a bloqueada.
+- Una junta bloqueada no permite unirse ni activarse.
+- Esta validación se aplica en backend al intentar unirse o activar, y se refleja también en UI.

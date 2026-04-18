@@ -12,6 +12,7 @@ import { useAppStore } from '@/store/app-store';
 import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import { isJuntaActive } from '@/lib/junta-status';
+import { APP_BUSINESS_TIMEZONE, isJuntaBlockedByDeadline } from '@/lib/junta-blocking';
 import {
   activateJuntaIfReady,
   deleteDraftJunta,
@@ -367,13 +368,14 @@ export default function JuntasDisponiblesPage() {
             const miembrosActuales = countByJunta.get(juntaId) ?? 0;
             const cupoCompleto = miembrosActuales >= j.participantes_max;
             const estadoVisual = isJuntaActive(j.estado) ? 'activa' : cupoCompleto ? 'completa' : 'borrador';
+            const isBlocked = isJuntaBlockedByDeadline(j);
             const roleState = isOwner ? 'owner' : isMember ? 'member' : 'visitor';
             const isActive = isJuntaActive(j.estado);
-            const canActivate = roleState === 'owner' && !isActive;
-            const canDelete = roleState === 'owner';
-            const canLeave = roleState === 'member' && !isActive;
-            const canJoinPublic = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'publica';
-            const canAccessPrivate = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'privada';
+            const canActivate = roleState === 'owner' && !isActive && !isBlocked;
+            const canDelete = roleState === 'owner' && !isBlocked;
+            const canLeave = roleState === 'member' && !isActive && !isBlocked;
+            const canJoinPublic = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'publica' && !isBlocked;
+            const canAccessPrivate = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'privada' && !isBlocked;
             const actionBranch = roleState === 'owner' ? 'owner-actions' : roleState === 'member' ? 'member-actions' : 'visitor-actions';
 
             if (process.env.NODE_ENV === 'development') {
@@ -394,6 +396,7 @@ export default function JuntasDisponiblesPage() {
                     <h3 className="text-lg font-semibold leading-tight">{j.nombre}</h3>
                     <Badge>{j.visibilidad === 'publica' ? 'Pública' : 'Privada'}</Badge>
                   </div>
+                  {isBlocked && <Badge>Bloqueada</Badge>}
                   <p className="text-sm text-slate-600">{description}</p>
 
                   <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
@@ -406,6 +409,11 @@ export default function JuntasDisponiblesPage() {
                   </div>
 
                   {cupoCompleto && <div className="rounded-md bg-amber-50 p-2 text-xs text-amber-700">Cupo completo</div>}
+                  {isBlocked && (
+                    <div className="rounded-md bg-rose-50 p-2 text-xs text-rose-700">
+                      Junta bloqueada por no activarse antes de la fecha del primer pago ({APP_BUSINESS_TIMEZONE}).
+                    </div>
+                  )}
                   {j.visibilidad === 'privada' && <div className="rounded-md bg-slate-100 p-2 text-xs text-slate-700">Requiere enlace o código de acceso.</div>}
                   {roleState === 'owner' && <div className="rounded-md bg-indigo-50 p-2 text-xs text-indigo-700">Eres el creador de esta junta.</div>}
                   {roleState === 'member' && <div className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-700">Participando</div>}
@@ -446,6 +454,7 @@ export default function JuntasDisponiblesPage() {
                         : <Button disabled={!canJoinPublic || joiningId === juntaId} onClick={() => handleJoin(juntaId)}>{joiningId === juntaId ? 'Uniéndome...' : 'Unirme'}</Button>
                     )}
                   </div>
+                  {isBlocked && <p className="text-xs text-rose-700">No se permiten nuevas uniones ni activación.</p>}
                   {roleState === 'owner' && activationFeedbackByJunta[juntaId] && (
                     <p className="text-xs text-amber-700">{activationFeedbackByJunta[juntaId]}</p>
                   )}
