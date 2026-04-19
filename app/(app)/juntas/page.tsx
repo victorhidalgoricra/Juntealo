@@ -71,20 +71,20 @@ export default function JuntasDisponiblesPage() {
       return;
     }
 
-    if (!snapshotResult.ok) {
-      console.error('[Juntas disponibles] error loading snapshot', snapshotResult.message);
-      setError('No pudimos sincronizar tu estado de membresía. Intenta nuevamente.');
-      setLoading(false);
-      return;
-    }
-
     setData({
       juntas: catalogResult.data,
-      members: snapshotResult.data.members,
-      schedules: snapshotResult.data.schedules,
-      payments: snapshotResult.data.payments,
-      payouts: snapshotResult.data.payouts
+      ...(snapshotResult.ok
+        ? {
+          members: snapshotResult.data.members,
+          schedules: snapshotResult.data.schedules,
+          payments: snapshotResult.data.payments,
+          payouts: snapshotResult.data.payouts
+        }
+        : {})
     });
+    if (!snapshotResult.ok) {
+      console.error('[Juntas disponibles] error loading snapshot', snapshotResult.message);
+    }
     setLoading(false);
   }, [user, setData]);
 

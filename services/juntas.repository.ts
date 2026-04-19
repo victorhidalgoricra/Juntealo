@@ -53,6 +53,8 @@ async function fetchPublicJuntasFallback() {
     .select('id,admin_id,nombre,descripcion,visibilidad,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,access_code,slug,created_at')
     .eq('visibilidad', 'publica')
     .in('estado', ['borrador', 'activa'])
+    .eq('bloqueada', false)
+    .eq('cerrar_inscripciones', false)
     .order('created_at', { ascending: false })
     .limit(200);
 
@@ -174,15 +176,21 @@ export async function fetchJuntaById(id: string) {
 export async function fetchPublicJuntas() {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Junta[] };
 
-  const { data, error } = await supabase.schema('public').rpc('catalog_juntas', { p_include_private: false });
+  const { data, error } = await supabase
+    .schema('public')
+    .from('juntas')
+    .select('*')
+    .eq('visibilidad', 'publica')
+    .in('estado', ['borrador', 'activa'])
+    .eq('bloqueada', false)
+    .eq('cerrar_inscripciones', false)
+    .order('created_at', { ascending: false });
 
   if (error) {
+    console.error('[fetchPublicJuntas] direct query failed', error);
     return fetchPublicJuntasFallback();
   }
 
-  if (!Array.isArray(data)) {
-    return fetchPublicJuntasFallback();
-  }
   return { ok: true as const, data: (data ?? []) as Junta[] };
 }
 
