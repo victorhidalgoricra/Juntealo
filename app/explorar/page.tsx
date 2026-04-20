@@ -26,13 +26,14 @@ export default function ExplorarPage() {
         if (!mounted) return;
         if (!result.ok) {
           console.error('[Explorar] error loading public catalog', result.message);
-          setError('No pudimos cargar las juntas disponibles. Intenta nuevamente.');
+          setError(result.message || 'No pudimos cargar las juntas disponibles. Intenta nuevamente.');
           return;
         }
 
         setJuntas(result.data);
-      } catch {
-        if (mounted) setError('No pudimos cargar las juntas disponibles. Intenta nuevamente.');
+      } catch (caughtError) {
+        console.error('[Explorar] unexpected load failure', caughtError);
+        if (mounted) setError(caughtError instanceof Error ? caughtError.message : 'No pudimos cargar las juntas disponibles. Intenta nuevamente.');
       } finally {
         if (mounted) setLoading(false);
       }

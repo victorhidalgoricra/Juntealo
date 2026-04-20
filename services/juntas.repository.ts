@@ -62,6 +62,11 @@ async function fetchPublicJuntasFallback() {
   return { ok: true as const, data: (fallback.data ?? []) as Junta[] };
 }
 
+function isColumnMissingError(message: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes('column') && (normalized.includes('bloqueada') || normalized.includes('cerrar_inscripciones'));
+}
+
 export async function createJuntaRecord(junta: Junta) {
   if (!hasSupabase || !supabase) {
     return { ok: true as const, source: 'mock' as const };
@@ -176,22 +181,38 @@ export async function fetchJuntaById(id: string) {
 export async function fetchPublicJuntas() {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Junta[] };
 
-  const { data, error } = await supabase
+  const baseQuery = supabase
     .schema('public')
     .from('juntas')
-    .select('*')
+    .select('id,admin_id,nombre,descripcion,visibilidad,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,access_code,slug,created_at,integrantes_actuales,bloqueada,cerrar_inscripciones')
     .eq('visibilidad', 'publica')
     .in('estado', ['borrador', 'activa'])
-    .eq('bloqueada', false)
-    .eq('cerrar_inscripciones', false)
     .order('created_at', { ascending: false });
+
+  const { data, error } = await baseQuery
+    .eq('bloqueada', false)
+    .eq('cerrar_inscripciones', false);
 
   if (error) {
     console.error('[fetchPublicJuntas] direct query failed', error);
+    if (isColumnMissingError(error.message)) {
+      const fallbackWithoutColumns = await supabase
+        .schema('public')
+        .from('juntas')
+        .select('id,admin_id,nombre,descripcion,visibilidad,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,access_code,slug,created_at,integrantes_actuales')
+        .eq('visibilidad', 'publica')
+        .in('estado', ['borrador', 'activa'])
+        .order('created_at', { ascending: false });
+      if (!fallbackWithoutColumns.error) {
+        return { ok: true as const, data: (fallbackWithoutColumns.data ?? []) as Junta[] };
+      }
+      console.error('[fetchPublicJuntas] fallback without optional columns failed', fallbackWithoutColumns.error);
+    }
     return fetchPublicJuntasFallback();
   }
 
-  return { ok: true as const, data: (data ?? []) as Junta[] };
+  const filtered = (data ?? []).filter((row) => !row.bloqueada && !row.cerrar_inscripciones) as Junta[];
+  return { ok: true as const, data: filtered };
 }
 
 export async function fetchAvailableJuntas(_userId: string) {
