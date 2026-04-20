@@ -181,38 +181,46 @@ export async function fetchJuntaById(id: string) {
 export async function fetchPublicJuntas() {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Junta[] };
 
-  const baseQuery = supabase
-    .schema('public')
-    .from('juntas')
-    .select('id,admin_id,nombre,descripcion,visibilidad,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,access_code,slug,created_at,integrantes_actuales,bloqueada,cerrar_inscripciones')
-    .eq('visibilidad', 'publica')
-    .in('estado', ['borrador', 'activa'])
-    .order('created_at', { ascending: false });
-
-  const { data, error } = await baseQuery
-    .eq('bloqueada', false)
-    .eq('cerrar_inscripciones', false);
-
-  if (error) {
-    console.error('[fetchPublicJuntas] direct query failed', error);
-    if (isColumnMissingError(error.message)) {
-      const fallbackWithoutColumns = await supabase
-        .schema('public')
-        .from('juntas')
-        .select('id,admin_id,nombre,descripcion,visibilidad,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,access_code,slug,created_at,integrantes_actuales')
-        .eq('visibilidad', 'publica')
-        .in('estado', ['borrador', 'activa'])
-        .order('created_at', { ascending: false });
-      if (!fallbackWithoutColumns.error) {
-        return { ok: true as const, data: (fallbackWithoutColumns.data ?? []) as Junta[] };
-      }
-      console.error('[fetchPublicJuntas] fallback without optional columns failed', fallbackWithoutColumns.error);
-    }
-    return fetchPublicJuntasFallback();
+  const rpcResult = await supabase.schema('public').rpc('catalog_juntas_public_light');
+  if (!rpcResult.error && Array.isArray(rpcResult.data)) {
+    return { ok: true as const, data: rpcResult.data as Junta[] };
   }
 
-  const filtered = (data ?? []).filter((row) => !row.bloqueada && !row.cerrar_inscripciones) as Junta[];
-  return { ok: true as const, data: filtered };
+  if (rpcResult.error) {
+    console.error('[fetchPublicJuntas] lightweight RPC failed', rpcResult.error);
+  }
+
+  const directResult = await supabase
+    .schema('public')
+    .from('juntas')
+    .select('id,admin_id,nombre,descripcion,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,visibilidad,slug,created_at')
+    .eq('visibilidad', 'publica')
+    .in('estado', ['borrador', 'activa'])
+    .eq('bloqueada', false)
+    .eq('cerrar_inscripciones', false)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (!directResult.error) {
+    return { ok: true as const, data: (directResult.data ?? []) as Junta[] };
+  }
+
+  console.error('[fetchPublicJuntas] direct fallback query failed', directResult.error);
+
+  if (isColumnMissingError(directResult.error.message)) {
+    const fallbackWithoutColumns = await supabase
+      .schema('public')
+      .from('juntas')
+      .select('id,admin_id,nombre,descripcion,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,visibilidad,slug,created_at')
+      .eq('visibilidad', 'publica')
+      .in('estado', ['borrador', 'activa'])
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (!fallbackWithoutColumns.error) return { ok: true as const, data: (fallbackWithoutColumns.data ?? []) as Junta[] };
+    console.error('[fetchPublicJuntas] column-compat fallback failed', fallbackWithoutColumns.error);
+  }
+
+  return fetchPublicJuntasFallback();
 }
 
 export async function fetchAvailableJuntas(_userId: string) {
