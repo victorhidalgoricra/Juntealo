@@ -1,20 +1,24 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { PublicNav } from '@/components/marketing/public-nav';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { fetchPublicJuntas } from '@/services/juntas.repository';
+import { fetchMyActiveMembershipsByJuntaIds, fetchPublicJuntas } from '@/services/juntas.repository';
 import { Junta } from '@/types/domain';
 import { useAuthStore } from '@/store/auth-store';
+import { saveExploreJoinIntent } from '@/lib/explore-join-intent';
 
 export default function ExplorarPage() {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [juntas, setJuntas] = useState<Junta[]>([]);
+  const [memberJuntaIds, setMemberJuntaIds] = useState<string[]>([]);
+  const [membershipLoading, setMembershipLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -45,7 +49,68 @@ export default function ExplorarPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const resolveMemberships = async () => {
+      if (!user?.id || juntas.length === 0) {
+        if (mounted) {
+          setMemberJuntaIds([]);
+          setMembershipLoading(false);
+        }
+        return;
+      }
+
+      if (mounted) setMembershipLoading(true);
+      const result = await fetchMyActiveMembershipsByJuntaIds({
+        profileId: user.id,
+        juntaIds: juntas.map((junta) => junta.id)
+      });
+
+      if (!mounted) return;
+      if (!result.ok) {
+        console.error('[Explorar] membership lookup failed', result.message);
+        setMemberJuntaIds([]);
+        setMembershipLoading(false);
+        return;
+      }
+
+      setMemberJuntaIds(result.data);
+      setMembershipLoading(false);
+    };
+
+    resolveMemberships();
+
+    return () => {
+      mounted = false;
+    };
+  }, [juntas, user?.id]);
+
+  const memberIds = useMemo(() => new Set(memberJuntaIds), [memberJuntaIds]);
   const emptyMessage = useMemo(() => 'No hay juntas públicas por ahora.', []);
+  const todayDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const resolveIsStarted = (junta: Junta) => {
+    if (!junta.fecha_inicio) return junta.estado === 'activa';
+    return junta.fecha_inicio <= todayDate;
+  };
+
+  const handleJoinClick = (junta: Junta, options: { disabled: boolean; isMember: boolean }) => {
+    if (options.disabled) return;
+
+    if (!user?.id) {
+      saveExploreJoinIntent(junta.id);
+      router.push('/login');
+      return;
+    }
+
+    if (options.isMember) {
+      router.push(`/juntas/${junta.id}`);
+      return;
+    }
+
+    router.push('/juntas');
+  };
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
@@ -69,6 +134,13 @@ export default function ExplorarPage() {
             {juntas.map((j) => {
               const integrantes = Number(j.integrantes_actuales ?? 0);
               const cupoCompleto = integrantes >= j.participantes_max;
+              const isMember = memberIds.has(j.id);
+              const juntaIniciada = resolveIsStarted(j);
+              const joinDisabled = (!isMember && (juntaIniciada || cupoCompleto)) || (Boolean(user?.id) && membershipLoading);
+              const actionLabel = isMember
+                ? 'Ver detalle'
+                : (membershipLoading ? 'Validando...' : (juntaIniciada ? 'En curso' : (cupoCompleto ? 'Cupo completo' : 'Unirme')));
+
               return (
                 <Card key={j.id} className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -79,12 +151,12 @@ export default function ExplorarPage() {
                   <p className="text-xs text-slate-500">Frecuencia: {j.frecuencia_pago} · Cuota: S/ {j.cuota_base ?? j.monto_cuota}</p>
                   <p className="text-xs text-slate-500">Inicio: {j.fecha_inicio} · Integrantes: {integrantes}/{j.participantes_max}</p>
                   <div className="flex gap-2">
-                    <Link href={`/junta/${j.slug}`}><Button variant="outline">Ver detalle</Button></Link>
-                    {user ? (
-                      <Link href={`/juntas`}><Button disabled={cupoCompleto}>{cupoCompleto ? 'Cupo completo' : 'Unirme'}</Button></Link>
-                    ) : (
-                      <Link href={`/login?redirect=${encodeURIComponent(`/junta/${j.slug}`)}`}><Button>Iniciar sesión para unirme</Button></Link>
-                    )}
+                    <Button
+                      disabled={joinDisabled}
+                      onClick={() => handleJoinClick(j, { disabled: joinDisabled, isMember })}
+                    >
+                      {actionLabel}
+                    </Button>
                   </div>
                 </Card>
               );

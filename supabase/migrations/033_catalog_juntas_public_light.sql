@@ -37,7 +37,7 @@ as $$
     j.created_at
   from public.juntas j
   where j.visibilidad = 'publica'
-    and j.estado in ('borrador', 'activa')
+    and j.estado = 'activa'
     and coalesce(j.bloqueada, false) = false
     and coalesce(j.cerrar_inscripciones, false) = false
   order by j.created_at desc

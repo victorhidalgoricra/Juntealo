@@ -15,6 +15,8 @@ import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
 import { mapAuthErrorMessage } from '@/services/auth.service';
 import { ensureProfileExists, fetchProfileById } from '@/services/profile.service';
+import { clearExploreJoinIntent, readExploreJoinIntent } from '@/lib/explore-join-intent';
+import { fetchMyActiveMembership } from '@/services/juntas.repository';
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
@@ -44,6 +46,21 @@ export function LoginPageClient() {
     }
     return null;
   }, [signupParam]);
+
+  const resolvePostLoginRoute = async (params: { profileId: string; fallbackRedirect: string }) => {
+    const intent = readExploreJoinIntent();
+    if (!intent?.juntaId) return params.fallbackRedirect;
+
+    const membershipResult = await fetchMyActiveMembership({
+      juntaId: intent.juntaId,
+      profileId: params.profileId
+    });
+
+    clearExploreJoinIntent();
+    if (!membershipResult.ok) return '/juntas';
+    if (membershipResult.isActiveMember) return `/juntas/${intent.juntaId}`;
+    return '/juntas';
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     setAuthError(null);
@@ -109,13 +126,23 @@ export function LoginPageClient() {
           payout_notes: refreshedProfile?.payout_notes,
           global_role: globalRole
         });
-        router.replace(redirect);
+        const nextPath = await resolvePostLoginRoute({
+          profileId: user.id,
+          fallbackRedirect: redirect
+        });
+
+        router.replace(nextPath);
         return;
       }
 
       const globalRole = await resolveGlobalRole(values.email);
-      setUser({ id: crypto.randomUUID(), email: values.email, nombre: values.email.split('@')[0], celular: '', global_role: globalRole });
-      router.replace(redirect);
+      const offlineUserId = crypto.randomUUID();
+      setUser({ id: offlineUserId, email: values.email, nombre: values.email.split('@')[0], celular: '', global_role: globalRole });
+      const nextPath = await resolvePostLoginRoute({
+        profileId: offlineUserId,
+        fallbackRedirect: redirect
+      });
+      router.replace(nextPath);
     } catch (error) {
       console.error('[Login] auth error', error);
       setAuthError(error instanceof Error ? mapAuthErrorMessage(error.message) : 'No se pudo iniciar sesión en este momento.');

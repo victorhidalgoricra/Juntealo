@@ -52,7 +52,7 @@ async function fetchPublicJuntasFallback() {
     .from('juntas')
     .select('id,admin_id,nombre,descripcion,visibilidad,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,access_code,slug,created_at')
     .eq('visibilidad', 'publica')
-    .in('estado', ['borrador', 'activa'])
+    .eq('estado', 'activa')
     .eq('bloqueada', false)
     .eq('cerrar_inscripciones', false)
     .order('created_at', { ascending: false })
@@ -195,7 +195,7 @@ export async function fetchPublicJuntas() {
     .from('juntas')
     .select('id,admin_id,nombre,descripcion,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,visibilidad,slug,created_at')
     .eq('visibilidad', 'publica')
-    .in('estado', ['borrador', 'activa'])
+    .eq('estado', 'activa')
     .eq('bloqueada', false)
     .eq('cerrar_inscripciones', false)
     .order('created_at', { ascending: false })
@@ -213,7 +213,7 @@ export async function fetchPublicJuntas() {
       .from('juntas')
       .select('id,admin_id,nombre,descripcion,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,visibilidad,slug,created_at')
       .eq('visibilidad', 'publica')
-      .in('estado', ['borrador', 'activa'])
+      .eq('estado', 'activa')
       .order('created_at', { ascending: false })
       .limit(200);
     if (!fallbackWithoutColumns.error) return { ok: true as const, data: (fallbackWithoutColumns.data ?? []) as Junta[] };
@@ -282,6 +282,25 @@ export async function fetchMyActiveMembership(params: { juntaId: string; profile
 
   if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
   return { ok: true as const, isActiveMember: Boolean(data?.id) };
+}
+
+export async function fetchMyActiveMembershipsByJuntaIds(params: { juntaIds: string[]; profileId: string }) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as string[] };
+  if (params.juntaIds.length === 0) return { ok: true as const, data: [] as string[] };
+
+  const { data, error } = await supabase
+    .schema('public')
+    .from('junta_members')
+    .select('junta_id')
+    .in('junta_id', params.juntaIds)
+    .eq('profile_id', params.profileId)
+    .eq('estado', 'activo');
+
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  return {
+    ok: true as const,
+    data: Array.from(new Set((data ?? []).map((row) => row.junta_id)))
+  };
 }
 
 export async function joinJuntaAsParticipant(params: { juntaId: string; profileId: string; accessCode?: string }) {
