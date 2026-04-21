@@ -13,6 +13,7 @@ returns table (
   fecha_inicio date,
   estado public.junta_estado,
   participantes_max int,
+  integrantes_actuales int,
   visibilidad public.junta_visibility,
   slug text,
   created_at timestamptz
@@ -32,12 +33,13 @@ as $$
     j.fecha_inicio,
     j.estado,
     j.participantes_max,
+    j.integrantes_actuales,
     j.visibilidad,
     j.slug,
     j.created_at
   from public.juntas j
   where j.visibilidad = 'publica'
-    and j.estado = 'activa'
+    and j.estado in ('borrador', 'activa')
     and coalesce(j.bloqueada, false) = false
     and coalesce(j.cerrar_inscripciones, false) = false
   order by j.created_at desc

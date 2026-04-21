@@ -50,9 +50,9 @@ async function fetchPublicJuntasFallback() {
   const fallback = await supabase
     .schema('public')
     .from('juntas')
-    .select('id,admin_id,nombre,descripcion,visibilidad,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,access_code,slug,created_at')
+    .select('id,admin_id,nombre,descripcion,visibilidad,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,access_code,slug,created_at,integrantes_actuales')
     .eq('visibilidad', 'publica')
-    .eq('estado', 'activa')
+    .in('estado', ['borrador', 'activa'])
     .eq('bloqueada', false)
     .eq('cerrar_inscripciones', false)
     .order('created_at', { ascending: false })
@@ -193,9 +193,9 @@ export async function fetchPublicJuntas() {
   const directResult = await supabase
     .schema('public')
     .from('juntas')
-    .select('id,admin_id,nombre,descripcion,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,visibilidad,slug,created_at')
+    .select('id,admin_id,nombre,descripcion,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,visibilidad,slug,created_at,integrantes_actuales')
     .eq('visibilidad', 'publica')
-    .eq('estado', 'activa')
+    .in('estado', ['borrador', 'activa'])
     .eq('bloqueada', false)
     .eq('cerrar_inscripciones', false)
     .order('created_at', { ascending: false })
@@ -211,9 +211,9 @@ export async function fetchPublicJuntas() {
     const fallbackWithoutColumns = await supabase
       .schema('public')
       .from('juntas')
-      .select('id,admin_id,nombre,descripcion,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,visibilidad,slug,created_at')
+      .select('id,admin_id,nombre,descripcion,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,visibilidad,slug,created_at,integrantes_actuales')
       .eq('visibilidad', 'publica')
-      .eq('estado', 'activa')
+      .in('estado', ['borrador', 'activa'])
       .order('created_at', { ascending: false })
       .limit(200);
     if (!fallbackWithoutColumns.error) return { ok: true as const, data: (fallbackWithoutColumns.data ?? []) as Junta[] };

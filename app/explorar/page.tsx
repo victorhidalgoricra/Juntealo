@@ -88,11 +88,8 @@ export default function ExplorarPage() {
 
   const memberIds = useMemo(() => new Set(memberJuntaIds), [memberJuntaIds]);
   const emptyMessage = useMemo(() => 'No hay juntas públicas por ahora.', []);
-  const todayDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
-
   const resolveIsStarted = (junta: Junta) => {
-    if (!junta.fecha_inicio) return junta.estado === 'activa';
-    return junta.fecha_inicio <= todayDate;
+    return junta.estado === 'activa';
   };
 
   const handleJoinClick = (junta: Junta, options: { disabled: boolean; isMember: boolean }) => {
