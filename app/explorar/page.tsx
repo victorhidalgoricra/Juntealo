@@ -87,10 +87,6 @@ export default function ExplorarPage() {
   }, [juntas, user?.id]);
 
   const memberIds = useMemo(() => new Set(memberJuntaIds), [memberJuntaIds]);
-  const emptyMessage = useMemo(() => 'No hay juntas públicas por ahora.', []);
-  const resolveIsStarted = (junta: Junta) => {
-    return junta.estado === 'activa';
-  };
 
   const handleJoinClick = (junta: Junta, options: { disabled: boolean; isMember: boolean }) => {
     if (options.disabled) return;
@@ -125,14 +121,14 @@ export default function ExplorarPage() {
         )}
 
         {!loading && !error && (juntas.length === 0 ? (
-          <Card>{emptyMessage}</Card>
+          <Card>No hay juntas públicas por ahora.</Card>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {juntas.map((j) => {
               const integrantes = Number(j.integrantes_actuales ?? 0);
               const cupoCompleto = integrantes >= j.participantes_max;
               const isMember = memberIds.has(j.id);
-              const juntaIniciada = resolveIsStarted(j);
+              const juntaIniciada = j.estado === 'activa';
               const joinDisabled = (!isMember && (juntaIniciada || cupoCompleto)) || (Boolean(user?.id) && membershipLoading);
               const actionLabel = isMember
                 ? 'Ver detalle'
