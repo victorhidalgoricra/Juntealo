@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/store/auth-store';
 import { useAppStore } from '@/store/app-store';
+import { hasSupabase } from '@/lib/env';
+import { supabase } from '@/lib/supabase';
 import { isJuntaActive } from '@/lib/junta-status';
 import { APP_BUSINESS_TIMEZONE, isJuntaBlockedByDeadline } from '@/lib/junta-blocking';
 import { getActiveMemberCountByJunta, isUserMember } from '@/lib/junta-members';
@@ -50,10 +52,7 @@ export default function JuntasDisponiblesPage() {
   const [leavingId, setLeavingId] = useState<string | null>(null);
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterId>('todas');
-  const [privateCodeByJunta, setPrivateCodeByJunta] = useState<Record<string, string>>({});
-  const [showPrivateInputForJunta, setShowPrivateInputForJunta] = useState<string | null>(null);
 
   const reloadCatalog = useCallback(async () => {
     if (!user) return;
@@ -115,6 +114,20 @@ export default function JuntasDisponiblesPage() {
     });
   }, [activeFilter, allJuntas, allMembers, query, user?.id]);
 
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+
+    console.log(
+      '[Juntas disponibles] debug catalog snapshot',
+      visibleJuntas.map((junta) => ({
+        juntaId: junta.id,
+        is_member_current_user: isUserMember({ juntaId: junta.id, userId: user?.id, members: allMembers }),
+        isOwner: junta.admin_id === user?.id,
+        integrantes_actuales: Number(junta.integrantes_actuales ?? 0)
+      }))
+    );
+  }, [allMembers, user?.id, visibleJuntas]);
+
   if (!user) {
     return (
       <Card className="space-y-3">
@@ -148,14 +161,14 @@ export default function JuntasDisponiblesPage() {
 
     const foundJunta = result.data;
     setData({ juntas: [foundJunta, ...allJuntas.filter((j) => j.id !== foundJunta.id)] });
-    router.push(`/juntas/${foundJunta.id}`);
+    window.location.href = `/juntas/${foundJunta.id}`;
   };
 
-  const handleJoin = async (juntaId: string, code?: string) => {
+  const handleJoin = async (juntaId: string, accessCode?: string) => {
     setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: '' }));
     setJoiningId(juntaId);
 
-    const result = await joinJuntaAsParticipant({ juntaId, profileId: user.id, accessCode: code });
+    const result = await joinJuntaAsParticipant({ juntaId, profileId: user.id, accessCode });
     if (!result.ok) {
       setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: result.message }));
       setJoiningId(null);
@@ -183,18 +196,17 @@ export default function JuntasDisponiblesPage() {
       mensaje: `Ahora participas en ${joinedJunta?.nombre ?? 'tu nueva junta'}.`,
       leida: false
     });
-    setShowPrivateInputForJunta(null);
     await reloadCatalog();
     setJoiningId(null);
   };
 
-  const handleJoinPrivate = async (juntaId: string) => {
-    const code = (privateCodeByJunta[juntaId] ?? '').trim().toUpperCase();
-    if (!code) {
-      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Ingresa el código de acceso.' }));
+  const handleAccessPrivate = async (juntaId: string) => {
+    const code = window.prompt('Ingresa el código de acceso de la junta privada');
+    if (!code || code.trim().length === 0) {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Esta junta privada requiere enlace o código válido.' }));
       return;
     }
-    await handleJoin(juntaId, code);
+    await handleJoin(juntaId, code.trim().toUpperCase());
   };
 
   const handleLeave = async (juntaId: string) => {
@@ -266,27 +278,74 @@ export default function JuntasDisponiblesPage() {
     setActivatingId(null);
   };
 
-  const handleDelete = async (juntaId: string) => {
-    if (!user?.id || !juntaId) {
+  const handleDelete = async (juntaId: string, juntaAdminId: string) => {
+    const currentProfileId = user?.id;
+    if (!currentProfileId) {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'No pudimos validar tu perfil. Vuelve a iniciar sesión.' }));
+      return;
+    }
+
+    if (!juntaId) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Juntas disponibles] delete blocked: invalid junta id', { juntaId });
+      }
       setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'No pudimos eliminar la junta. Intenta nuevamente.' }));
       return;
     }
 
-    setDeleteConfirmId(null);
+    const confirmDelete = window.confirm('¿Seguro que deseas eliminar esta junta? Esta acción no se puede deshacer.');
+    if (!confirmDelete) return;
+
     setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: '' }));
     setDeletingId(juntaId);
 
-    const result = await deleteDraftJunta({ juntaId, currentProfileId: user.id });
+    if (process.env.NODE_ENV === 'development') {
+      const sessionResult = hasSupabase && supabase ? await supabase.auth.getSession() : null;
+      console.log('delete session before', {
+        userInStore: user?.id ?? null,
+        supabaseSessionUser: sessionResult?.data.session?.user?.id ?? null,
+        supabaseSessionError: sessionResult?.error ?? null
+      });
+      console.log('delete junta id', juntaId);
+      console.log('delete junta admin_id', juntaAdminId);
+      console.log('delete currentProfileId', currentProfileId);
+      console.log('delete payload', { p_junta_id: juntaId, p_user_id: currentProfileId });
+    }
+
+    const result = await deleteDraftJunta({ juntaId, currentProfileId });
     if (!result.ok) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Juntas disponibles] delete failed', { juntaId, message: result.message });
+      }
       setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: result.message }));
       setDeletingId(null);
       return;
     }
 
-    setData({ members: allMembers.filter((member) => member.junta_id !== juntaId) });
-    setDeletingId(null);
-    await reloadCatalog();
-    router.replace('/juntas');
+    try {
+      setData({ members: allMembers.filter((member) => member.junta_id !== juntaId) });
+      setDeletingId(null);
+      await reloadCatalog();
+      alert('Junta eliminada correctamente.');
+
+      if (process.env.NODE_ENV === 'development') {
+        const sessionResult = hasSupabase && supabase ? await supabase.auth.getSession() : null;
+        console.log('delete session after', {
+          userInStore: user?.id ?? null,
+          supabaseSessionUser: sessionResult?.data.session?.user?.id ?? null,
+          supabaseSessionError: sessionResult?.error ?? null
+        });
+        console.log('delete redirect route', '/juntas');
+      }
+
+      router.replace('/juntas');
+    } catch (postDeleteError) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Juntas disponibles] post-delete error', postDeleteError);
+      }
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'La junta se eliminó, pero ocurrió un error al actualizar la vista.' }));
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -363,8 +422,18 @@ export default function JuntasDisponiblesPage() {
             const canLeave = roleState === 'member' && !isActive && !isBlocked;
             const canJoinPublic = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'publica' && !isBlocked;
             const canAccessPrivate = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'privada' && !isBlocked;
-            const isShowingPrivateInput = showPrivateInputForJunta === juntaId;
-            const isConfirmingDelete = deleteConfirmId === juntaId;
+            const actionBranch = roleState === 'owner' ? 'owner-actions' : roleState === 'member' ? 'member-actions' : 'visitor-actions';
+
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[Juntas card render]', {
+                juntaId,
+                juntaAdminId: j.admin_id ?? null,
+                currentUserId: user.id ?? null,
+                isOwner,
+                roleState,
+                actionBranch
+              });
+            }
 
             return (
               <Card key={juntaId} className="flex h-full flex-col justify-between gap-4 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
@@ -391,42 +460,12 @@ export default function JuntasDisponiblesPage() {
                       Junta bloqueada por no activarse antes de la fecha del primer pago ({APP_BUSINESS_TIMEZONE}).
                     </div>
                   )}
+                  {j.visibilidad === 'privada' && <div className="rounded-md bg-slate-100 p-2 text-xs text-slate-700">Requiere enlace o código de acceso.</div>}
                   {roleState === 'owner' && <div className="rounded-md bg-indigo-50 p-2 text-xs text-indigo-700">Eres el creador de esta junta.</div>}
                   {roleState === 'member' && <div className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-700">Participando</div>}
                 </div>
 
                 <div className="space-y-2">
-                  {isShowingPrivateInput && (
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Código de acceso"
-                        value={privateCodeByJunta[juntaId] ?? ''}
-                        onChange={(e) => setPrivateCodeByJunta((prev) => ({ ...prev, [juntaId]: e.target.value.toUpperCase() }))}
-                        className="text-sm"
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleJoinPrivate(juntaId); }}
-                      />
-                      <Button
-                        disabled={joiningId === juntaId}
-                        onClick={() => handleJoinPrivate(juntaId)}
-                      >
-                        {joiningId === juntaId ? 'Validando...' : 'Entrar'}
-                      </Button>
-                      <Button variant="ghost" onClick={() => setShowPrivateInputForJunta(null)}>✕</Button>
-                    </div>
-                  )}
-
-                  {isConfirmingDelete && (
-                    <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 space-y-2">
-                      <p>¿Seguro que deseas eliminar esta junta? Esta acción no se puede deshacer.</p>
-                      <div className="flex gap-2">
-                        <Button variant="destructive" disabled={deletingId === juntaId} onClick={() => handleDelete(juntaId)}>
-                          {deletingId === juntaId ? 'Eliminando...' : 'Sí, eliminar'}
-                        </Button>
-                        <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancelar</Button>
-                      </div>
-                    </div>
-                  )}
-
                   <div className="flex flex-wrap gap-2">
                     <Link href={`/juntas/${juntaId}`}><Button variant="outline">Ver detalle</Button></Link>
                     {roleState === 'owner' && !isActive && (
@@ -437,13 +476,13 @@ export default function JuntasDisponiblesPage() {
                         {activatingId === juntaId ? 'Activando...' : 'Activar junta'}
                       </Button>
                     )}
-                    {roleState === 'owner' && !isActive && canDelete && !isConfirmingDelete && (
+                    {roleState === 'owner' && !isActive && canDelete && (
                       <Button
                         variant="destructive"
                         disabled={deletingId === juntaId}
-                        onClick={() => setDeleteConfirmId(juntaId)}
+                        onClick={() => handleDelete(juntaId, j.admin_id)}
                       >
-                        Eliminar junta
+                        {deletingId === juntaId ? 'Eliminando...' : 'Eliminar junta'}
                       </Button>
                     )}
                     {roleState === 'member' && !isActive && (
@@ -455,21 +494,21 @@ export default function JuntasDisponiblesPage() {
                         {leavingId === juntaId ? 'Retirándome...' : 'Retirarme'}
                       </Button>
                     )}
-                    {roleState === 'visitor' && !isActive && j.visibilidad === 'privada' && !isShowingPrivateInput && (
-                      <Button disabled={!canAccessPrivate} onClick={() => setShowPrivateInputForJunta(juntaId)}>
-                        Acceder con código
-                      </Button>
-                    )}
-                    {roleState === 'visitor' && !isActive && j.visibilidad === 'publica' && (
-                      <Button disabled={!canJoinPublic || joiningId === juntaId} onClick={() => handleJoin(juntaId)}>
-                        {joiningId === juntaId ? 'Uniéndome...' : 'Unirme'}
-                      </Button>
+                    {roleState === 'visitor' && !isActive && (
+                      j.visibilidad === 'privada'
+                        ? <Button disabled={!canAccessPrivate || joiningId === juntaId} onClick={() => handleAccessPrivate(juntaId)}>{joiningId === juntaId ? 'Validando...' : 'Acceder con código'}</Button>
+                        : <Button disabled={!canJoinPublic || joiningId === juntaId} onClick={() => handleJoin(juntaId)}>{joiningId === juntaId ? 'Uniéndome...' : 'Unirme'}</Button>
                     )}
                   </div>
-
                   {isBlocked && <p className="text-xs text-rose-700">No se permiten nuevas uniones ni activación.</p>}
                   {roleState === 'owner' && activationFeedbackByJunta[juntaId] && (
                     <p className="text-xs text-amber-700">{activationFeedbackByJunta[juntaId]}</p>
+                  )}
+                  {roleState === 'visitor' && !isActive && j.visibilidad === 'privada' && (
+                    <p className="text-xs text-slate-600">Requiere enlace o código de acceso</p>
+                  )}
+                  {roleState === 'visitor' && !isActive && cupoCompleto && (
+                    <p className="text-xs text-slate-600">Cupo completo</p>
                   )}
                   {joinErrorByJunta[juntaId] && !(roleState === 'owner' && joinErrorByJunta[juntaId].includes('creador no puede retirarse')) && (
                     <p className="text-xs text-red-600">{joinErrorByJunta[juntaId]}</p>

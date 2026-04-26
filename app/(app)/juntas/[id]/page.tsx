@@ -74,7 +74,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [detailMembers, setDetailMembers] = useState<typeof members>([]);
   const [detailPayments, setDetailPayments] = useState<typeof payments>([]);
   const [detailSchedules, setDetailSchedules] = useState<typeof schedules>([]);
-  const [turnsMessage, setTurnsMessage] = useState<string | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<string | null>(null);
   const [manualTurns, setManualTurns] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -196,13 +196,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
   const juntaActiva = isJuntaActive(junta.estado);
   const blockedByDeadline = isJuntaBlockedByDeadline(junta);
-  const currentWeek = (() => {
-    if (!juntaActiva || detailSchedules.length === 0) return 1;
-    const pending = detailSchedules
-      .filter((s) => s.junta_id === junta.id && (s.estado === 'pendiente' || s.estado === 'vencida'))
-      .sort((a, b) => a.cuota_numero - b.cuota_numero)[0];
-    return pending ? pending.cuota_numero : simulation.rows.length;
-  })();
+  const currentWeek = Math.max(1, Math.min(simulation.rows.length, Math.max(juntaMembers.length, 1)));
   const summary = getCurrentWeekSummary({
     junta,
     members: juntaMembers,
@@ -264,6 +258,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             >
               Copiar enlace
             </Button>
+            <Button variant="ghost">Opciones</Button>
           </div>
         </div>
 
@@ -348,25 +343,15 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2 text-left">Turno</th><th className="px-3 py-2 text-left">Participante</th><th className="px-3 py-2 text-left">Fecha</th><th className="px-3 py-2 text-left">Recibe</th><th className="px-3 py-2 text-left">Estado</th></tr></thead>
                 <tbody>
-                  {scheduleRows.map((row) => {
-                    const memberAtTurn = juntaMembers.find((m) => m.orden_turno === row.turno);
-                    const participantLabel = memberAtTurn
-                      ? memberAtTurn.profile_id === user?.id
-                        ? 'Tú'
-                        : memberAtTurn.profile_id === junta.admin_id
-                          ? 'Creador'
-                          : `Integrante ${juntaMembers.findIndex((m) => m.profile_id === memberAtTurn.profile_id) + 1}`
-                      : `Turno ${row.turno}`;
-                    return (
-                      <tr key={row.turno} className={`border-t ${row.isCurrentWeek ? 'bg-blue-50' : ''}`}>
-                        <td className="px-3 py-2">#{row.turno}</td>
-                        <td className="px-3 py-2">{participantLabel}</td>
-                        <td className="px-3 py-2">{row.fechaRonda}</td>
-                        <td className="px-3 py-2">S/{row.montoRecibido.toFixed(2)}</td>
-                        <td className="px-3 py-2"><span className={`rounded-full px-2 py-1 text-xs ${statusClass(row.weekStatus)}`}>{row.weekStatus}</span></td>
-                      </tr>
-                    );
-                  })}
+                  {scheduleRows.map((row) => (
+                    <tr key={row.turno} className={`border-t ${row.isCurrentWeek ? 'bg-blue-50' : ''}`}>
+                      <td className="px-3 py-2">#{row.turno}</td>
+                      <td className="px-3 py-2">{row.isUserTurn ? 'Tú' : `Integrante ${row.turno}`}</td>
+                      <td className="px-3 py-2">{row.fechaRonda}</td>
+                      <td className="px-3 py-2">S/{row.montoRecibido.toFixed(2)}</td>
+                      <td className="px-3 py-2"><span className={`rounded-full px-2 py-1 text-xs ${statusClass(row.weekStatus)}`}>{row.weekStatus}</span></td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
               <p className="p-3 text-xs text-slate-500">{junta.tipo_junta === 'incentivo' ? `Incentivos aplicados: ${incentiveLabel}` : 'Junta normal sin incentivos.'}</p>
@@ -425,7 +410,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                         const next: Record<string, number> = {};
                         shuffled.forEach((member, idx) => { next[member.profile_id] = idx + 1; });
                         setManualTurns(next);
-                        setTurnsMessage(null);
+                        setPaymentInfo(null);
                       }}
                     >
                       Sortear aleatoriamente
@@ -437,7 +422,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                           const assignedTurns = juntaMembers.map((member) => manualTurns[member.profile_id] ?? member.orden_turno);
                           const uniqueTurns = new Set(assignedTurns);
                           if (uniqueTurns.size !== juntaMembers.length) {
-                            setTurnsMessage('No puedes repetir turnos. Asigna un turno único por integrante.');
+                            setPaymentInfo('No puedes repetir turnos. Asigna un turno único por integrante.');
                             return;
                           }
 
@@ -448,19 +433,19 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
                           const saveTurnsResult = await updateJuntaMemberTurns({ juntaId: junta.id, turnsByProfileId });
                           if (!saveTurnsResult.ok) {
-                            setTurnsMessage(saveTurnsResult.message);
+                            setPaymentInfo(saveTurnsResult.message);
                             return;
                           }
                         }
 
                         const result = await activateJuntaIfReady({ juntaId: junta.id });
                         if (!result.ok) {
-                          setTurnsMessage(result.message);
+                          setPaymentInfo(result.message);
                           return;
                         }
 
                         await refreshSnapshot();
-                        setTurnsMessage(null);
+                        setPaymentInfo(null);
                       }}
                     >
                       Activar junta
@@ -468,7 +453,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   </div>
                 </>
               )}
-              {turnsMessage && <p className="text-xs text-rose-700">{turnsMessage}</p>}
+              {paymentInfo && <p className="text-xs text-rose-700">{paymentInfo}</p>}
               {blockedByDeadline && (
                 <p className="text-xs text-rose-700">Bloqueada por no activarse antes de la fecha del primer pago ({APP_BUSINESS_TIMEZONE}).</p>
               )}
@@ -502,6 +487,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               <p>{personal.progressLabel}</p>
             </div>
             <Button onClick={() => router.push(`/juntas/${junta.id}/registrar-pago`)}>Pagar ahora →</Button>
+            {paymentInfo && <p className="text-xs text-amber-700">{paymentInfo}</p>}
           </Card>
 
           <Card className="space-y-2 p-4">

@@ -54,7 +54,6 @@ async function fetchPublicJuntasFallback() {
     .eq('visibilidad', 'publica')
     .in('estado', ['borrador', 'activa'])
     .eq('bloqueada', false)
-    .eq('cerrar_inscripciones', false)
     .order('created_at', { ascending: false })
     .limit(200);
 
@@ -154,21 +153,6 @@ export async function createJuntaRecord(junta: Junta) {
   return { ok: true as const, source: 'supabase' as const };
 }
 
-export async function fetchPublicJuntaBySlug(slug: string) {
-  if (!hasSupabase || !supabase) return { ok: true as const, data: null as Junta | null };
-
-  const { data, error } = await supabase
-    .schema('public')
-    .from('juntas')
-    .select('id,admin_id,nombre,descripcion,visibilidad,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,slug,created_at,integrantes_actuales,moneda')
-    .eq('slug', slug)
-    .eq('visibilidad', 'publica')
-    .maybeSingle();
-
-  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
-  return { ok: true as const, data: (data as Junta | null) ?? null };
-}
-
 export async function fetchMyJuntas(adminId: string) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Junta[] };
 
@@ -198,6 +182,9 @@ export async function fetchPublicJuntas() {
 
   const rpcResult = await supabase.schema('public').rpc('catalog_juntas_public_light');
   if (!rpcResult.error && Array.isArray(rpcResult.data)) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[fetchPublicJuntas] source=rpc rows', rpcResult.data.length);
+    }
     return { ok: true as const, data: rpcResult.data as Junta[] };
   }
 
@@ -212,11 +199,13 @@ export async function fetchPublicJuntas() {
     .eq('visibilidad', 'publica')
     .in('estado', ['borrador', 'activa'])
     .eq('bloqueada', false)
-    .eq('cerrar_inscripciones', false)
     .order('created_at', { ascending: false })
     .limit(200);
 
   if (!directResult.error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[fetchPublicJuntas] source=direct rows', (directResult.data ?? []).length);
+    }
     return { ok: true as const, data: (directResult.data ?? []) as Junta[] };
   }
 
