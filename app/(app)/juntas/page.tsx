@@ -65,10 +65,7 @@ export default function JuntasDisponiblesPage() {
     setLoading(true);
     setError(null);
 
-    const [catalogResult, snapshotResult] = await Promise.all([
-      fetchPublicJuntas(),
-      fetchUserJuntaSnapshot(user.id)
-    ]);
+    const catalogResult = await fetchPublicJuntas();
 
     if (!catalogResult.ok) {
       console.error('[Juntas disponibles] error loading catalog', catalogResult.message);
@@ -77,21 +74,21 @@ export default function JuntasDisponiblesPage() {
       return;
     }
 
-    setData({
-      juntas: catalogResult.data,
-      ...(snapshotResult.ok
-        ? {
-          members: snapshotResult.data.members,
-          schedules: snapshotResult.data.schedules,
-          payments: snapshotResult.data.payments,
-          payouts: snapshotResult.data.payouts
-        }
-        : {})
-    });
+    setData({ juntas: catalogResult.data });
+    setLoading(false);
+
+    const snapshotResult = await fetchUserJuntaSnapshot(user.id);
     if (!snapshotResult.ok) {
       console.error('[Juntas disponibles] error loading snapshot', snapshotResult.message);
+      return;
     }
-    setLoading(false);
+
+    setData({
+      members: snapshotResult.data.members,
+      schedules: snapshotResult.data.schedules,
+      payments: snapshotResult.data.payments,
+      payouts: snapshotResult.data.payouts
+    });
   }, [user, setData]);
 
   useEffect(() => {
@@ -181,20 +178,6 @@ export default function JuntasDisponiblesPage() {
       return;
     }
 
-    const snapshot = await fetchUserJuntaSnapshot(user.id);
-    if (snapshot.ok) {
-      setData({
-        members: snapshot.data.members,
-        schedules: snapshot.data.schedules,
-        payments: snapshot.data.payments,
-        payouts: snapshot.data.payouts
-      });
-    } else {
-      setData({
-        members: [...allMembers, result.data],
-        juntas: allJuntas.map((j) => (j.id === juntaId ? { ...j, integrantes_actuales: Number(j.integrantes_actuales ?? 0) + 1 } : j))
-      });
-    }
     const joinedJunta = allJuntas.find((item) => item.id === juntaId);
     addNotification({
       profile_id: user.id,
@@ -232,20 +215,6 @@ export default function JuntasDisponiblesPage() {
       return;
     }
 
-    const snapshot = await fetchUserJuntaSnapshot(user.id);
-    if (snapshot.ok) {
-      setData({
-        members: snapshot.data.members,
-        schedules: snapshot.data.schedules,
-        payments: snapshot.data.payments,
-        payouts: snapshot.data.payouts
-      });
-    } else {
-      setData({
-        members: allMembers.filter((member) => !(member.junta_id === juntaId && member.profile_id === user.id)),
-        juntas: allJuntas.map((item) => (item.id === juntaId ? { ...item, integrantes_actuales: Math.max(Number(item.integrantes_actuales ?? 0) - 1, 0) } : item))
-      });
-    }
     await reloadCatalog();
     setLeavingId(null);
   };
