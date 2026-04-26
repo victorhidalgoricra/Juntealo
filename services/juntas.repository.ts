@@ -154,6 +154,21 @@ export async function createJuntaRecord(junta: Junta) {
   return { ok: true as const, source: 'supabase' as const };
 }
 
+export async function fetchPublicJuntaBySlug(slug: string) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: null as Junta | null };
+
+  const { data, error } = await supabase
+    .schema('public')
+    .from('juntas')
+    .select('id,admin_id,nombre,descripcion,visibilidad,tipo_junta,cuota_base,monto_cuota,frecuencia_pago,fecha_inicio,estado,participantes_max,slug,created_at,integrantes_actuales,moneda')
+    .eq('slug', slug)
+    .eq('visibilidad', 'publica')
+    .maybeSingle();
+
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  return { ok: true as const, data: (data as Junta | null) ?? null };
+}
+
 export async function fetchMyJuntas(adminId: string) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Junta[] };
 
