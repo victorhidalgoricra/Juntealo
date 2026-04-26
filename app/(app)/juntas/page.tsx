@@ -417,8 +417,8 @@ export default function JuntasDisponiblesPage() {
             const isBlocked = isJuntaBlockedByDeadline(j);
             const roleState = isOwner ? 'owner' : isMember ? 'member' : 'visitor';
             const isActive = isJuntaActive(j.estado);
-            const canActivate = roleState === 'owner' && !isActive && !isBlocked;
-            const canDelete = roleState === 'owner' && !isBlocked;
+            const canActivate = roleState === 'owner' && !isActive && !isBlocked && cupoCompleto;
+            const canDelete = roleState === 'owner' && j.estado === 'borrador' && !isBlocked;
             const canLeave = roleState === 'member' && !isActive && !isBlocked;
             const canJoinPublic = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'publica' && !isBlocked;
             const canAccessPrivate = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'privada' && !isBlocked;
@@ -476,7 +476,7 @@ export default function JuntasDisponiblesPage() {
                         {activatingId === juntaId ? 'Activando...' : 'Activar junta'}
                       </Button>
                     )}
-                    {roleState === 'owner' && !isActive && canDelete && (
+                    {roleState === 'owner' && canDelete && (
                       <Button
                         variant="destructive"
                         disabled={deletingId === juntaId}
@@ -501,6 +501,11 @@ export default function JuntasDisponiblesPage() {
                     )}
                   </div>
                   {isBlocked && <p className="text-xs text-rose-700">No se permiten nuevas uniones ni activación.</p>}
+                  {roleState === 'owner' && !isActive && !isBlocked && !cupoCompleto && (
+                    <p className="text-xs text-amber-700">
+                      Faltan {j.participantes_max - miembrosActuales} integrante(s) para poder activar.
+                    </p>
+                  )}
                   {roleState === 'owner' && activationFeedbackByJunta[juntaId] && (
                     <p className="text-xs text-amber-700">{activationFeedbackByJunta[juntaId]}</p>
                   )}

@@ -2,18 +2,37 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { PublicNav } from '@/components/marketing/public-nav';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { fetchPublicJuntas } from '@/services/juntas.repository';
+import { Badge } from '@/components/ui/badge';
+import { fetchMyActiveMembership, fetchPublicJuntaBySlug } from '@/services/juntas.repository';
 import { Junta } from '@/types/domain';
 import { useAuthStore } from '@/store/auth-store';
+import { saveExploreJoinIntent } from '@/lib/explore-join-intent';
+
+const FRECUENCIA_LABEL: Record<string, string> = {
+  semanal: 'Semanal',
+  quincenal: 'Quincenal',
+  mensual: 'Mensual'
+};
+
+const ESTADO_LABEL: Record<string, string> = {
+  borrador: 'En formación',
+  activa: 'Activa',
+  cerrada: 'Cerrada'
+};
+
+type UserRelation = 'creator' | 'member' | 'visitor';
 
 export default function JuntaPublicPage({ params }: { params: { slug: string } }) {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [junta, setJunta] = useState<Junta | null>(null);
+  const [userRelation, setUserRelation] = useState<UserRelation>('visitor');
 
   useEffect(() => {
     let mounted = true;
@@ -21,7 +40,7 @@ export default function JuntaPublicPage({ params }: { params: { slug: string } }
     const load = async () => {
       setLoading(true);
       setError(null);
-      const result = await fetchPublicJuntas();
+      const result = await fetchPublicJuntaBySlug(params.slug);
       if (!mounted) return;
 
       if (!result.ok) {
@@ -30,48 +49,166 @@ export default function JuntaPublicPage({ params }: { params: { slug: string } }
         return;
       }
 
-      const found = result.data.find((item) => item.slug === params.slug) ?? null;
-      setJunta(found);
+      setJunta(result.data);
       setLoading(false);
     };
 
     load();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [params.slug]);
+
+  useEffect(() => {
+    if (!junta) return;
+
+    if (!user?.id) {
+      setUserRelation('visitor');
+      return;
+    }
+
+    if (junta.admin_id === user.id) {
+      setUserRelation('creator');
+      return;
+    }
+
+    fetchMyActiveMembership({ juntaId: junta.id, profileId: user.id }).then((result) => {
+      setUserRelation(result.ok && result.isActiveMember ? 'member' : 'visitor');
+    });
+  }, [junta?.id, user?.id]);
 
   const integrantes = useMemo(() => Number(junta?.integrantes_actuales ?? 0), [junta?.integrantes_actuales]);
   const participantesMax = Number(junta?.participantes_max ?? 0);
   const plazas = Math.max(0, participantesMax - integrantes);
+  const cupoCompleto = junta ? integrantes >= participantesMax : false;
+  const juntaIniciada = junta?.estado === 'activa';
+
+  const handleCTA = () => {
+    if (!junta) return;
+
+    if (userRelation === 'creator' || userRelation === 'member') {
+      router.push(`/juntas/${junta.id}`);
+      return;
+    }
+
+    if (!user?.id) {
+      saveExploreJoinIntent(junta.id);
+      router.push(`/login?redirect=${encodeURIComponent('/juntas')}`);
+      return;
+    }
+
+    router.push('/juntas');
+  };
+
+  const ctaLabel = userRelation === 'creator'
+    ? 'Ver mi junta'
+    : userRelation === 'member'
+      ? 'Ir a mi junta'
+      : user
+        ? 'Ir a juntas para unirme'
+        : 'Iniciar sesión para unirme';
+
+  const showCTA = userRelation === 'creator' || userRelation === 'member' || (!juntaIniciada && !cupoCompleto);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <PublicNav />
-      <main className="mx-auto max-w-3xl px-4 py-10">
-        {loading && <Card>Cargando detalle de la junta...</Card>}
-        {!loading && error && <Card><p className="text-red-600">{error}</p></Card>}
-        {!loading && !error && !junta && <Card>Esta junta no está disponible públicamente.</Card>}
+      <main className="mx-auto max-w-2xl px-4 py-10">
+        {loading && (
+          <Card className="animate-pulse space-y-3">
+            <div className="h-6 w-2/3 rounded bg-slate-200" />
+            <div className="h-4 w-1/2 rounded bg-slate-100" />
+            <div className="h-4 w-3/4 rounded bg-slate-100" />
+          </Card>
+        )}
+
+        {!loading && error && (
+          <Card>
+            <p className="text-red-600">{error}</p>
+          </Card>
+        )}
+
+        {!loading && !error && !junta && (
+          <Card className="space-y-2 text-center">
+            <p className="text-lg font-semibold">Junta no encontrada</p>
+            <p className="text-sm text-slate-500">Esta junta no está disponible públicamente o el enlace es incorrecto.</p>
+            <Link href="/explorar"><Button variant="outline">Ver juntas disponibles</Button></Link>
+          </Card>
+        )}
 
         {!loading && !error && junta && (
-          <Card className="space-y-3">
-            <h1 className="text-2xl font-bold">{junta.nombre}</h1>
-            <p className="text-slate-600">Monto por cuota: {junta.moneda ?? 'PEN'} {junta.cuota_base ?? junta.monto_cuota}</p>
-            <p className="text-slate-600">Frecuencia: {junta.frecuencia_pago}</p>
-            <p className="text-slate-600">Tipo: {junta.tipo_junta ?? 'normal'}</p>
-            <p className="text-slate-600">Estado: {junta.estado}</p>
-            <p className="text-slate-600">Participantes: {integrantes}/{participantesMax}</p>
-            <p className="text-slate-600">Plazas disponibles: {plazas}</p>
-            {user ? (
-              <Link href="/juntas">
-                <Button>Ir a juntas para unirme</Button>
-              </Link>
-            ) : (
-              <Link href={`/login?redirect=${encodeURIComponent('/juntas')}`}>
-                <Button>Iniciar sesión para unirme</Button>
-              </Link>
-            )}
-          </Card>
+          <div className="space-y-4">
+            <Card className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h1 className="text-2xl font-bold">{junta.nombre}</h1>
+                  {junta.descripcion && (
+                    <p className="mt-1 text-sm text-slate-600">{junta.descripcion}</p>
+                  )}
+                </div>
+                <Badge>{ESTADO_LABEL[junta.estado] ?? junta.estado}</Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Cuota por turno</p>
+                  <p className="text-lg font-semibold">{junta.moneda ?? 'PEN'} {(junta.cuota_base ?? junta.monto_cuota).toFixed(2)}</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Frecuencia</p>
+                  <p className="text-lg font-semibold">{FRECUENCIA_LABEL[junta.frecuencia_pago] ?? junta.frecuencia_pago}</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Integrantes</p>
+                  <p className="text-lg font-semibold">{integrantes}/{participantesMax}</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Plazas disponibles</p>
+                  <p className="text-lg font-semibold">{cupoCompleto ? '—' : plazas}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+                <span>Inicio: {junta.fecha_inicio}</span>
+                <span>·</span>
+                <span>Tipo: {junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</span>
+              </div>
+
+              {(userRelation === 'creator' || userRelation === 'member') && (
+                <div className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-700">
+                  {userRelation === 'creator' ? 'Eres el creador de esta junta.' : 'Ya formas parte de esta junta.'}
+                </div>
+              )}
+
+              {cupoCompleto && userRelation === 'visitor' && (
+                <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-700">
+                  Esta junta ya no tiene cupo disponible.
+                </div>
+              )}
+
+              {juntaIniciada && !cupoCompleto && userRelation === 'visitor' && (
+                <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-700">
+                  Esta junta ya está en curso. Las nuevas uniones no están disponibles.
+                </div>
+              )}
+
+              {showCTA && (
+                <Button className="w-full" onClick={handleCTA}>
+                  {ctaLabel}
+                </Button>
+              )}
+
+              {user && userRelation === 'visitor' && (
+                <p className="text-center text-xs text-slate-500">
+                  Conectado como {user.nombre}.{' '}
+                  <Link href="/juntas" className="underline">Ver mis juntas</Link>
+                </p>
+              )}
+            </Card>
+
+            <p className="text-center text-xs text-slate-400">
+              ¿No conoces las juntas?{' '}
+              <Link href="/explorar" className="underline">Explorar más juntas disponibles</Link>
+            </p>
+          </div>
         )}
       </main>
     </div>
