@@ -53,6 +53,12 @@ export default function JuntasDisponiblesPage() {
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterId>('todas');
+  const todayIsoDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const hasStarted = useCallback((fechaInicio?: string | null) => {
+    if (!fechaInicio) return false;
+    return fechaInicio <= todayIsoDate;
+  }, [todayIsoDate]);
 
   const reloadCatalog = useCallback(async () => {
     if (!user) return;
@@ -254,6 +260,23 @@ export default function JuntasDisponiblesPage() {
     setActivationFeedbackByJunta((prev) => ({ ...prev, [juntaId]: '' }));
     setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: '' }));
 
+    if (junta.admin_id !== user.id) {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Solo el creador puede activar esta junta.' }));
+      return;
+    }
+    if (junta.estado !== 'borrador') {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Solo puedes activar juntas en borrador.' }));
+      return;
+    }
+    if (hasStarted(junta.fecha_inicio)) {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'No puedes activar una junta que ya inició.' }));
+      return;
+    }
+    if (isJuntaBlockedByDeadline(junta)) {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'No puedes activar una junta bloqueada.' }));
+      return;
+    }
+
     if (!cupoCompleto) {
       setActivationFeedbackByJunta((prev) => ({
         ...prev,
@@ -295,6 +318,20 @@ export default function JuntasDisponiblesPage() {
 
     const confirmDelete = window.confirm('¿Seguro que deseas eliminar esta junta? Esta acción no se puede deshacer.');
     if (!confirmDelete) return;
+
+    const juntaToDelete = allJuntas.find((item) => item.id === juntaId);
+    if (!juntaToDelete) {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'No pudimos cargar la junta para eliminarla.' }));
+      return;
+    }
+    if (juntaToDelete.admin_id !== currentProfileId) {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Solo el creador puede eliminar esta junta.' }));
+      return;
+    }
+    if (juntaToDelete.estado !== 'borrador' || hasStarted(juntaToDelete.fecha_inicio)) {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Solo puedes eliminar una junta borrador antes de su inicio.' }));
+      return;
+    }
 
     setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: '' }));
     setDeletingId(juntaId);
@@ -417,8 +454,9 @@ export default function JuntasDisponiblesPage() {
             const isBlocked = isJuntaBlockedByDeadline(j);
             const roleState = isOwner ? 'owner' : isMember ? 'member' : 'visitor';
             const isActive = isJuntaActive(j.estado);
-            const canActivate = roleState === 'owner' && !isActive && !isBlocked;
-            const canDelete = roleState === 'owner' && !isBlocked;
+            const started = hasStarted(j.fecha_inicio);
+            const canActivate = roleState === 'owner' && j.estado === 'borrador' && cupoCompleto && !isBlocked && !started;
+            const canDelete = roleState === 'owner' && j.estado === 'borrador' && !isBlocked && !started;
             const canLeave = roleState === 'member' && !isActive && !isBlocked;
             const canJoinPublic = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'publica' && !isBlocked;
             const canAccessPrivate = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'privada' && !isBlocked;
@@ -468,7 +506,7 @@ export default function JuntasDisponiblesPage() {
                 <div className="space-y-2">
                   <div className="flex flex-wrap gap-2">
                     <Link href={`/juntas/${juntaId}`}><Button variant="outline">Ver detalle</Button></Link>
-                    {roleState === 'owner' && !isActive && (
+                    {roleState === 'owner' && (
                       <Button
                         disabled={!canActivate || activatingId === juntaId}
                         onClick={() => handleActivate(juntaId)}
@@ -476,7 +514,7 @@ export default function JuntasDisponiblesPage() {
                         {activatingId === juntaId ? 'Activando...' : 'Activar junta'}
                       </Button>
                     )}
-                    {roleState === 'owner' && !isActive && canDelete && (
+                    {roleState === 'owner' && canDelete && (
                       <Button
                         variant="destructive"
                         disabled={deletingId === juntaId}

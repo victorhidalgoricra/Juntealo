@@ -129,9 +129,11 @@ export default function ExplorarPage() {
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {juntas.map((j) => {
-              const integrantes = Number(j.integrantes_actuales ?? 0);
+              const isOwner = Boolean(user?.id) && j.admin_id === user?.id;
+              const integrantesBase = Number(j.integrantes_actuales ?? 0);
+              const integrantes = isOwner ? Math.max(1, integrantesBase) : integrantesBase;
               const cupoCompleto = integrantes >= j.participantes_max;
-              const isMember = memberIds.has(j.id);
+              const isMember = isOwner || memberIds.has(j.id);
               const juntaIniciada = resolveIsStarted(j);
               const joinDisabled = (!isMember && (juntaIniciada || cupoCompleto)) || (Boolean(user?.id) && membershipLoading);
               const actionLabel = isMember
