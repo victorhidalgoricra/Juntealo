@@ -2,9 +2,16 @@ import { Junta, JuntaMember } from '@/types/domain';
 
 export function getActiveMembersForJunta(junta: Junta, members: JuntaMember[]) {
   const active = members.filter((member) => member.junta_id === junta.id && member.estado === 'activo');
-  const hasCreator = active.some((member) => member.profile_id === junta.admin_id);
+  const dedupByProfile = new Map<string, JuntaMember>();
+  active.forEach((member) => {
+    if (!dedupByProfile.has(member.profile_id)) {
+      dedupByProfile.set(member.profile_id, member);
+    }
+  });
+  const uniqueActive = Array.from(dedupByProfile.values());
+  const hasCreator = uniqueActive.some((member) => member.profile_id === junta.admin_id);
 
-  if (hasCreator) return active;
+  if (hasCreator) return uniqueActive;
 
   return [
     {
@@ -15,7 +22,7 @@ export function getActiveMembersForJunta(junta: Junta, members: JuntaMember[]) {
       rol: 'admin' as const,
       orden_turno: 1
     },
-    ...active
+    ...uniqueActive
   ];
 }
 
