@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 58" fill="none">
-  
-  <circle cx="16" cy="6.5" r="5.5" fill="#2d5be3"></circle>
-  <path d="M 16 13 L 16 41 Q 16 53 8 53 Q 2 53 2 46" stroke="#2d5be3" stroke-width="7" stroke-linecap="round" fill="none"></path>
-  
-  <text x="36" y="43" font-family="&#39;DM Sans&#39;, system-ui, sans-serif" font-weight="700" font-size="30" letter-spacing="-1" fill="#141412">juntealo</text>
-</svg>
