@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Juntas Digitales — UI Kit</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="Components.jsx"></script>
+<script type="text/babel" src="Dashboard.jsx"></script>
+<script type="text/babel" src="JuntasList.jsx"></script>
+<script type="text/babel" src="Auth.jsx"></script>
+<script type="text/babel" src="Landing.jsx"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #fafaf8; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const DEMO_USER = { name: 'María Fernández', initials: 'MF', score: 87 };
+
+function App() {
+  const [screen, setScreen] = React.useState('landing');
+  const [selectedJunta, setSelectedJunta] = React.useState(null);
+  const [appNav, setAppNav] = React.useState('dashboard');
+
+  const goApp = (nav) => {
+    setScreen('app');
+    setAppNav(nav || 'dashboard');
+  };
+
+  const handleJuntaSelect = (j) => {
+    setSelectedJunta(j);
+    setScreen('junta-detail');
+  };
+
+  // Auth screens
+  if (screen === 'login') {
+    return <LoginScreen onLogin={() => goApp('dashboard')} onGoRegister={() => setScreen('register')} />;
+  }
+  if (screen === 'register') {
+    return <RegisterScreen onRegister={() => goApp('dashboard')} onGoLogin={() => setScreen('login')} />;
+  }
+
+  // Landing
+  if (screen === 'landing') {
+    return <LandingScreen onRegister={() => setScreen('register')} onLogin={() => setScreen('login')} />;
+  }
+
+  // Junta detail (full-page)
+  if (screen === 'junta-detail') {
+    return (
+      <AppShell activeScreen={appNav} onNav={(id) => { setAppNav(id); setScreen('app'); }} user={DEMO_USER}>
+        <JuntaDetailScreen junta={selectedJunta} onBack={() => { setScreen('app'); setAppNav('juntas'); }} />
+      </AppShell>
+    );
+  }
+
+  // Main app
+  const renderContent = () => {
+    switch (appNav) {
+      case 'dashboard':
+        return <DashboardScreen user={DEMO_USER} onNav={(id) => { setAppNav(id); }} onJuntaSelect={handleJuntaSelect} />;
+      case 'juntas':
+        return <JuntasListScreen onJuntaSelect={handleJuntaSelect} />;
+      case 'new':
+        return <CreateJuntaScreen />;
+      case 'account':
+        return <AccountScreen user={DEMO_USER} />;
+      default:
+        return <DashboardScreen user={DEMO_USER} onNav={setAppNav} onJuntaSelect={handleJuntaSelect} />;
+    }
+  };
+
+  return (
+    <AppShell activeScreen={appNav} onNav={setAppNav} user={DEMO_USER}>
+      {renderContent()}
+    </AppShell>
+  );
+}
+
+// ─── Create Junta (simplified form) ──────────────────────────────────────────
+function CreateJuntaScreen() {
+  const [form, setForm] = React.useState({ nombre: '', descripcion: '', cuota: '', participantes: '', frecuencia: 'semanal', visibilidad: 'publica' });
+  const set = k => v => setForm(f => ({ ...f, [k]: v }));
+
+  return (
+    <div style={{ maxWidth: 620 }}>
+      <h1 style={{ fontSize: 26, fontWeight: 700, color: T.text, marginBottom: 6 }}>Crear nueva junta</h1>
+      <p style={{ fontSize: 14, color: T.muted, marginBottom: 28 }}>Define los detalles de tu grupo de ahorro.</p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <Input label="Nombre de la junta" placeholder="Ej: Taxistas Norte, Familia Ríos..." value={form.nombre} onChange={set('nombre')} hint="Escoge un nombre que identifique bien a tu grupo" />
+        <div>
+          <label style={{ fontSize: 13, fontWeight: 600, color: T.text, display: 'block', marginBottom: 5 }}>Descripción</label>
+          <textarea placeholder="Describe el propósito de la junta..." value={form.descripcion} onChange={e => set('descripcion')(e.target.value)}
+            style={{ width: '100%', fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: T.text, background: '#fff', border: `1px solid ${T.border}`, borderRadius: 8, padding: '9px 12px', resize: 'vertical', minHeight: 80, outline: 'none' }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <Input label="Cuota base (S/)" placeholder="Ej: 200" value={form.cuota} onChange={set('cuota')} />
+          <Input label="Número de participantes" placeholder="Ej: 10" value={form.participantes} onChange={set('participantes')} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: T.text, display: 'block', marginBottom: 5 }}>Frecuencia de pago</label>
+            <select value={form.frecuencia} onChange={e => set('frecuencia')(e.target.value)}
+              style={{ width: '100%', fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: T.text, background: '#fff', border: `1px solid ${T.border}`, borderRadius: 8, padding: '9px 12px', outline: 'none' }}>
+              <option value="semanal">Semanal</option>
+              <option value="quincenal">Quincenal</option>
+              <option value="mensual">Mensual</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: T.text, display: 'block', marginBottom: 5 }}>Visibilidad</label>
+            <select value={form.visibilidad} onChange={e => set('visibilidad')(e.target.value)}
+              style={{ width: '100%', fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: T.text, background: '#fff', border: `1px solid ${T.border}`, borderRadius: 8, padding: '9px 12px', outline: 'none' }}>
+              <option value="publica">Pública</option>
+              <option value="privada">Privada</option>
+            </select>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, paddingTop: 8 }}>
+          <Button>Crear junta</Button>
+          <Button variant="outline">Cancelar</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Account (simplified) ─────────────────────────────────────────────────────
+function AccountScreen({ user }) {
+  return (
+    <div style={{ maxWidth: 560 }}>
+      <h1 style={{ fontSize: 26, fontWeight: 700, color: T.text, marginBottom: 24 }}>Mi cuenta</h1>
+      <Card style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, padding: 20 }}>
+        <Avatar initials={user.initials} size={56} bg={T.accent} color="#fff" />
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: T.text }}>{user.name}</div>
+          <div style={{ fontSize: 13, color: T.muted, marginTop: 2 }}>maria.fernandez@gmail.com · 987 654 321</div>
+          <div style={{ marginTop: 8 }}><Badge variant="dark" style={{ background: T.accentBg, color: T.accent }}>Score: {user.score}/100 · Élite</Badge></div>
+        </div>
+      </Card>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {[['Perfil personal', 'Nombre, DNI, celular, foto'], ['Método de cobro', 'Yape, Plin, cuenta bancaria'], ['Seguridad', 'Contraseña, 2FA'], ['Notificaciones', 'Recordatorios, alertas de pago']].map(([title, sub]) => (
+          <Card key={title} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '14px 18px' }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: T.text }}>{title}</div>
+              <div style={{ fontSize: 13, color: T.muted, marginTop: 2 }}>{sub}</div>
+            </div>
+            <span style={{ fontSize: 18, color: T.faint }}>›</span>
+          </Card>
+        ))}
+      </div>
+      <div style={{ marginTop: 20 }}>
+        <Button variant="outline">Cerrar sesión</Button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
