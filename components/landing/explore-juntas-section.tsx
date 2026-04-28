@@ -31,7 +31,7 @@ export function ExploreJuntasSection() {
               </div>
 
               <div className="text-right">
-                <p className="font-[var(--mono)] text-sm font-medium text-[var(--text)]">{junta.fee}</p>
+                <p className="font-mono text-sm font-medium text-[var(--text)]">{junta.fee}</p>
                 <p className="mt-1 text-xs text-[var(--muted)]">{junta.slots}</p>
                 <button
                   type="button"

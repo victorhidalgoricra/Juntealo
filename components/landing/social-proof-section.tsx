@@ -49,7 +49,7 @@ function CountUp({ stat }: { stat: Stat }) {
 
   const text = useMemo(() => `${stat.prefix ?? ''}${value.toLocaleString('es-PE')}${stat.suffix ?? ''}`, [stat.prefix, stat.suffix, value]);
 
-  return <p ref={ref} className="font-[var(--mono)] text-4xl font-bold text-[var(--text)] md:text-[40px]">{text}</p>;
+  return <p ref={ref} className="font-mono text-4xl font-bold text-[var(--text)] md:text-[40px]">{text}</p>;
 }
 
 export function SocialProofSection() {

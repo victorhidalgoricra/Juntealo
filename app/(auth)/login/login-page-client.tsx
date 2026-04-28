@@ -22,7 +22,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="text-xs text-red-500">{message}</p>;
+  return <p className="text-[11px] text-destructive">{message}</p>;
 }
 
 export function LoginPageClient() {
@@ -153,37 +153,37 @@ export function LoginPageClient() {
 
   return (
     <Card className="w-full max-w-md space-y-5 p-6 sm:p-7">
-      <div className="space-y-1 text-left">
-        <h1 className="text-xl font-semibold">Iniciar sesión</h1>
-        <p className="text-sm text-slate-500">Ingresa para gestionar tus juntas de forma segura.</p>
+      <div className="space-y-1">
+        <h1 className="text-xl font-bold text-fg">Iniciar sesión</h1>
+        <p className="text-sm text-muted">Ingresa para gestionar tus juntas de forma segura.</p>
       </div>
 
       <form className="space-y-4" onSubmit={onSubmit}>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Correo</label>
+          <label className="text-[13px] font-semibold text-fg">Correo</label>
           <Input placeholder="correo@ejemplo.com" autoComplete="email" {...register('email')} />
           <FieldError message={formState.errors.email?.message} />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Contraseña</label>
+          <label className="text-[13px] font-semibold text-fg">Contraseña</label>
           <Input placeholder="Tu contraseña" type="password" autoComplete="current-password" {...register('password')} />
           <FieldError message={formState.errors.password?.message} />
         </div>
 
         {authError && <FieldError message={authError} />}
-        {signupMsg && <p className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-700">{signupMsg}</p>}
-        {confirmedMsg && <p className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-700">{confirmedMsg}</p>}
+        {signupMsg && <p className="rounded-[var(--r-sm)] bg-green-bg p-2.5 text-[11px] text-green">{signupMsg}</p>}
+        {confirmedMsg && <p className="rounded-[var(--r-sm)] bg-green-bg p-2.5 text-[11px] text-green">{confirmedMsg}</p>}
 
         <Button className="w-full" type="submit" disabled={loading}>
           {loading ? 'Ingresando...' : 'Entrar'}
         </Button>
 
         <div className="flex flex-col gap-2 pt-1 text-sm">
-          <Link className="text-slate-700 hover:text-slate-900 hover:underline" href={`/register?redirect=${encodeURIComponent(redirect)}`}>
+          <Link className="text-muted hover:text-fg hover:underline" href={`/register?redirect=${encodeURIComponent(redirect)}`}>
             Crear cuenta
           </Link>
-          <Link className="text-slate-700 hover:text-slate-900 hover:underline" href="/forgot-password">
+          <Link className="text-muted hover:text-fg hover:underline" href="/forgot-password">
             Olvidé mi contraseña
           </Link>
         </div>

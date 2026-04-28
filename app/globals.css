@@ -4,26 +4,66 @@
 
 :root {
   color-scheme: light;
-  --bg: #fafaf8;
+
+  /* Backgrounds */
+  --bg:      #fafaf8;
   --surface: #ffffff;
+
+  /* Borders */
   --border: #e8e6df;
-  --text: #141412;
+
+  /* Text */
+  --text:  #141412;
   --muted: #7a7872;
   --faint: #c8c6bf;
-  --accent: #2d5be3;
-  --accent-bg: #eef2fd;
-  --accent-dark: #1e3fa8;
-  --green: #16a34a;
+
+  /* Accent — Blue */
+  --accent:       #2d5be3;
+  --accent-bg:    #eef2fd;
+  --accent-dark:  #1e3fa8;
+  --accent-light: #5a80f0;
+
+  /* Status — Green */
+  --green:    #16a34a;
   --green-bg: #dcfce7;
-  --amber: #d97706;
+
+  /* Status — Amber */
+  --amber:    #d97706;
   --amber-bg: #fef3c7;
-  --mono: 'DM Mono', monospace;
-  --r: 14px;
-  --r-sm: 8px;
+
+  /* Status — Red */
+  --destructive:    #dc2626;
+  --destructive-bg: #fee2e2;
+
+  /* Dark surfaces (score card, hero) */
+  --dark-1:    #141412;
+  --dark-2:    #171717;
+  --dark-3:    #1e1c19;
+  --dark-4:    #2b2823;
+  --dark-muted: #9d9992;
+  --dark-text:  #c8c6bf;
+
+  /* Typography */
+  --font-sans: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+  --font-mono: var(--font-dm-mono), 'DM Mono', monospace;
+
+  /* Border radius */
+  --r:    14px;
+  --r-sm:  8px;
+  --r-xl: 20px;
+  --r-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow:    0 1px 3px 0 rgb(0 0 0 / 0.10), 0 1px 2px -1px rgb(0 0 0 / 0.10);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.10), 0 4px 6px -4px rgb(0 0 0 / 0.10);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.10), 0 8px 10px -6px rgb(0 0 0 / 0.10);
 }
 
 body {
-  font-family: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+  font-family: var(--font-sans);
   background: var(--bg);
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }

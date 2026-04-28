@@ -18,7 +18,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="text-xs text-red-500">{message}</p>;
+  return <p className="text-[11px] text-destructive">{message}</p>;
 }
 
 export function RegisterPageClient() {
@@ -31,9 +31,9 @@ export function RegisterPageClient() {
 
   return (
     <Card className="w-full space-y-5 p-6 sm:p-7">
-      <div>
-        <h1 className="text-xl font-semibold">Crea tu cuenta</h1>
-        <p className="text-sm text-slate-500">Regístrate para crear y unirte a juntas digitales.</p>
+      <div className="space-y-1">
+        <h1 className="text-xl font-bold text-fg">Crea tu cuenta</h1>
+        <p className="text-sm text-muted">Regístrate para crear y unirte a juntas digitales.</p>
       </div>
       <form
         className="space-y-4"
@@ -115,33 +115,33 @@ export function RegisterPageClient() {
         })}
       >
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Nombre completo</label>
+          <label className="text-[13px] font-semibold text-fg">Nombre completo</label>
           <Input placeholder="Nombre y apellido" {...register('nombre')} />
           <FieldError message={formState.errors.nombre?.message} />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">DNI</label>
+          <label className="text-[13px] font-semibold text-fg">DNI</label>
           <Input placeholder="12345678" inputMode="numeric" autoComplete="off" {...register('dni')} />
           <FieldError message={formState.errors.dni?.message} />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Celular</label>
+          <label className="text-[13px] font-semibold text-fg">Celular</label>
           <Input placeholder="987654321" inputMode="tel" autoComplete="tel" {...register('celular')} />
           <FieldError message={formState.errors.celular?.message} />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Correo</label>
+          <label className="text-[13px] font-semibold text-fg">Correo</label>
           <Input placeholder="correo@ejemplo.com" autoComplete="email" {...register('email')} />
           <FieldError message={formState.errors.email?.message} />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Contraseña</label>
+          <label className="text-[13px] font-semibold text-fg">Contraseña</label>
           <Input placeholder="Mínimo 8 caracteres" type="password" autoComplete="new-password" {...register('password')} />
           <FieldError message={formState.errors.password?.message} />
         </div>
         {authError && <FieldError message={authError} />}
         <Button className="w-full" disabled={loading}>{loading ? 'Creando cuenta...' : 'Crear cuenta'}</Button>
-        <Link className="text-sm text-slate-700 hover:text-slate-900 hover:underline" href={`/login?redirect=${encodeURIComponent(redirect)}`}>
+        <Link className="text-sm text-muted hover:text-fg hover:underline" href={`/login?redirect=${encodeURIComponent(redirect)}`}>
           Ya tengo cuenta
         </Link>
       </form>

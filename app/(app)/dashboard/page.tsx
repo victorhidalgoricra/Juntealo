@@ -209,19 +209,18 @@ function DashboardHeader({ displayName }: { displayName: string }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="flex items-center gap-3">
-        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
           {getInitials(displayName)}
         </div>
         <div>
-          <p className="text-sm text-slate-500">Buenos días</p>
-          <h1 className="text-2xl font-semibold text-slate-900">{displayName}</h1>
+          <p className="text-sm text-muted">Buenos días</p>
+          <h1 className="text-2xl font-semibold text-fg">{displayName}</h1>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Link href="/account?tab=notifications" aria-label="Ir a notificaciones" className="rounded-full border border-slate-200 bg-white p-2 text-lg">
+        <Link href="/account?tab=notifications" aria-label="Ir a notificaciones" className="rounded-full border border-border bg-surface p-2 text-lg">
           🔔
         </Link>
-        <button type="button" className="rounded-full border border-slate-200 bg-white p-2 text-lg">⋯</button>
       </div>
     </div>
   );
@@ -257,21 +256,21 @@ function PendingPaymentBanner({ data }: { data: PaymentAlertState }) {
 
 function JuntaScoreCard({ score }: { score: UserJuntaScoreResult }) {
   return (
-    <Card className="rounded-3xl border-0 bg-[#171717] p-6 text-white shadow-lg">
+    <Card dark className="text-white">
       <div className="grid gap-4 md:grid-cols-[100px_1fr] md:items-center">
-        <div className="mx-auto flex h-24 w-24 flex-col items-center justify-center rounded-full border-[6px] border-emerald-400">
-          <p className="text-4xl font-bold leading-none">{score.score}</p>
-          <p className="text-xs text-slate-300">/100</p>
+        <div className="mx-auto flex h-24 w-24 flex-col items-center justify-center rounded-full border-[5px] border-emerald-400">
+          <p className="font-mono text-4xl font-bold leading-none">{score.score}</p>
+          <p className="text-[10px] text-[var(--dark-muted)]">/100</p>
         </div>
         <div className="space-y-2">
-          <Badge className="bg-emerald-500/20 text-emerald-300">{getScoreBadge(score.level)}</Badge>
-          <h2 className="text-3xl font-semibold">Tu score de junta</h2>
-          <p className="text-sm text-slate-300">Pagos a tiempo, ciclos completados y referencias acumulan tu reputación financiera en la plataforma.</p>
+          <Badge variant="dark">{getScoreBadge(score.level)}</Badge>
+          <h2 className="text-2xl font-bold">Tu score de junta</h2>
+          <p className="text-sm text-[var(--dark-muted)]">Pagos a tiempo, ciclos completados y referencias acumulan tu reputación financiera en la plataforma.</p>
           <div className="flex items-center gap-3">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-emerald-400" style={{ width: `${score.progressToNextLevel}%` }} />
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-emerald-400 transition-[width] duration-700" style={{ width: `${score.progressToNextLevel}%` }} />
             </div>
-            <p className="text-xs text-slate-300">
+            <p className="text-[11px] text-[var(--dark-muted)]">
               {score.pointsToNextLevel} pts para <span className="font-semibold text-white">{score.nextLevel ?? 'Élite'}</span>
             </p>
           </div>
@@ -285,9 +284,21 @@ function JuntaScoreCard({ score }: { score: UserJuntaScoreResult }) {
 function DashboardKpis({ paymentsOnTime, completedCycles, referredActive }: { paymentsOnTime: number; completedCycles: number; referredActive: number }) {
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <Card className="p-4 text-center"><p className="text-xl">📅</p><p className="text-3xl font-semibold text-emerald-600">{paymentsOnTime}%</p><p className="text-sm text-slate-500">Pagos a tiempo</p></Card>
-      <Card className="p-4 text-center"><p className="text-xl">🔄</p><p className="text-3xl font-semibold">{completedCycles}</p><p className="text-sm text-slate-500">Ciclos completados</p></Card>
-      <Card className="p-4 text-center"><p className="text-xl">👥</p><p className="text-3xl font-semibold">{referredActive}</p><p className="text-sm text-slate-500">Referidos activos</p></Card>
+      <Card className="p-4 text-center">
+        <p className="text-xl">📅</p>
+        <p className="font-mono text-3xl font-bold text-green">{paymentsOnTime}%</p>
+        <p className="text-sm text-muted">Pagos a tiempo</p>
+      </Card>
+      <Card className="p-4 text-center">
+        <p className="text-xl">🔄</p>
+        <p className="font-mono text-3xl font-bold text-fg">{completedCycles}</p>
+        <p className="text-sm text-muted">Ciclos completados</p>
+      </Card>
+      <Card className="p-4 text-center">
+        <p className="text-xl">👥</p>
+        <p className="font-mono text-3xl font-bold text-fg">{referredActive}</p>
+        <p className="text-sm text-muted">Referidos activos</p>
+      </Card>
     </div>
   );
 }
@@ -295,10 +306,10 @@ function DashboardKpis({ paymentsOnTime, completedCycles, referredActive }: { pa
 function UpcomingPayoutCard({ data }: { data: UpcomingPayoutData }) {
   return (
     <Link href={`/juntas/${data.juntaId}`}>
-      <Card className="border border-emerald-300 bg-emerald-100 p-4 hover:border-emerald-400">
-        <p className="text-sm text-emerald-700">Tu próximo cobro</p>
-        <p className="text-4xl font-semibold text-emerald-900">{money(data.amount)}</p>
-        <p className="text-sm text-emerald-800">
+      <Card tint="green" hover className="p-4">
+        <p className="text-sm font-semibold text-[#065f46]">Tu próximo cobro</p>
+        <p className="font-mono text-4xl font-bold text-[#065f46]">{money(data.amount)}</p>
+        <p className="text-sm text-[#065f46]/80">
           Turno #{data.ronda} · {data.juntaNombre} · {data.fecha ? format(data.fecha, 'dd MMM yyyy', { locale: es }) : 'fecha por confirmar'}
         </p>
       </Card>
@@ -308,33 +319,31 @@ function UpcomingPayoutCard({ data }: { data: UpcomingPayoutData }) {
 
 function ContributionSummaryCards({ summary }: { summary: ContributionSummaryData }) {
   return (
-    <div className="grid gap-3">
-      <Card className="border-0 bg-blue-600 p-5 text-white">
-        <p className="text-sm text-blue-100">Total aportado</p>
-        <p className="text-4xl font-semibold">{money(summary.totalAportado)}</p>
-        <p className="text-sm text-blue-100">{summary.periodLabel}</p>
-      </Card>
-    </div>
+    <Card className="border-0 bg-accent p-5 text-white">
+      <p className="text-sm text-white/70">Total aportado</p>
+      <p className="font-mono text-4xl font-bold">{money(summary.totalAportado)}</p>
+      <p className="text-sm text-white/70">{summary.periodLabel}</p>
+    </Card>
   );
 }
 
 function JuntaListItem({ item }: { item: JuntaCardData }) {
   return (
     <Link href={`/juntas/${item.id}`}>
-      <Card className="flex items-center justify-between gap-3 p-4 hover:border-slate-300">
+      <Card hover className="flex items-center justify-between gap-3 p-4">
         <div className="flex items-center gap-3">
           <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">🚕</div>
           <div>
-            <p className="font-semibold text-slate-900">{item.nombre}</p>
-            <p className="text-sm text-slate-500">{item.miembros} integrantes · {money(item.cuota)}/{item.frecuencia} · {item.tipo === 'incentivo' ? 'con incentivos' : 'normal'}</p>
+            <p className="font-semibold text-fg">{item.nombre}</p>
+            <p className="text-sm text-muted">{item.miembros} integrantes · {money(item.cuota)}/{item.frecuencia} · {item.tipo === 'incentivo' ? 'con incentivos' : 'normal'}</p>
           </div>
         </div>
         <div className="text-right">
-          <p className="font-semibold text-blue-700">{item.turno ? `Turno #${item.turno}` : 'Turno pendiente'}</p>
-          <p className="text-xs text-slate-500">{item.nextDate ? format(item.nextDate, 'dd MMM', { locale: es }) : 'Sin fecha'}</p>
-          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${item.status === 'pendiente' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+          <p className="font-semibold text-accent">{item.turno ? `Turno #${item.turno}` : 'Turno pendiente'}</p>
+          <p className="text-xs text-muted">{item.nextDate ? format(item.nextDate, 'dd MMM', { locale: es }) : 'Sin fecha'}</p>
+          <Badge variant={item.status === 'pendiente' ? 'pendiente' : 'pagada'}>
             {item.status === 'pendiente' ? 'Pago pendiente' : 'Al día'}
-          </span>
+          </Badge>
         </div>
       </Card>
     </Link>
@@ -348,17 +357,17 @@ function ActiveJuntasSection({ active, history }: { active: JuntaCardData[]; his
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-900">Mis juntas activas</h2>
-        <Link className="text-sm font-medium text-blue-700" href="/juntas">Ver todas →</Link>
+        <h2 className="text-xl font-semibold text-fg">Mis juntas activas</h2>
+        <Link className="text-sm font-medium text-accent" href="/juntas">Ver todas →</Link>
       </div>
 
       <div className="flex gap-2">
-        <button type="button" onClick={() => setTab('activas')} className={`rounded-xl border px-4 py-1.5 text-sm ${tab === 'activas' ? 'border-blue-600 text-blue-700' : 'border-slate-300 text-slate-600'}`}>Activas</button>
-        <button type="button" onClick={() => setTab('historial')} className={`rounded-xl border px-4 py-1.5 text-sm ${tab === 'historial' ? 'border-blue-600 text-blue-700' : 'border-slate-300 text-slate-600'}`}>Historial</button>
+        <button type="button" onClick={() => setTab('activas')} className={`rounded-[var(--r-sm)] border px-4 py-1.5 text-sm transition-colors ${tab === 'activas' ? 'border-accent text-accent' : 'border-border text-muted'}`}>Activas</button>
+        <button type="button" onClick={() => setTab('historial')} className={`rounded-[var(--r-sm)] border px-4 py-1.5 text-sm transition-colors ${tab === 'historial' ? 'border-accent text-accent' : 'border-border text-muted'}`}>Historial</button>
       </div>
 
       {data.length === 0 ? (
-        <Card className="p-5 text-sm text-slate-500">{tab === 'activas' ? 'Aún no tienes juntas activas. Únete o crea una junta para empezar.' : 'Todavía no tienes historial de juntas finalizadas.'}</Card>
+        <Card className="p-5 text-sm text-muted">{tab === 'activas' ? 'Aún no tienes juntas activas. Únete o crea una junta para empezar.' : 'Todavía no tienes historial de juntas finalizadas.'}</Card>
       ) : (
         <div className="space-y-2">
           {data.map((item) => <JuntaListItem key={`${tab}-${item.id}`} item={item} />)}
@@ -374,37 +383,37 @@ function NextLevelSection({ data }: { data: NextLevelData }) {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-xl font-semibold text-slate-900">{data.title}</h2>
-      <Card className="border-blue-200 bg-blue-50 p-4">
+      <h2 className="text-xl font-semibold text-fg">{data.title}</h2>
+      <Card tint="blue" className="p-4">
         <div className="flex items-start gap-3">
-          <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white">⭐</div>
+          <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white">⭐</div>
           <div className="flex-1">
-            <p className="text-sm text-blue-900">{data.benefitText}</p>
+            <p className="text-sm text-accent-dark">{data.benefitText}</p>
             <div className="mt-3 flex items-center gap-3">
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-blue-200">
-                <div className="h-full rounded-full bg-blue-600" style={{ width: `${progressPct}%` }} />
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent-bg">
+                <div className="h-full rounded-full bg-accent transition-[width] duration-700" style={{ width: `${progressPct}%` }} />
               </div>
-              <p className="text-xs font-medium text-blue-700">{data.currentScore}/{data.targetScore}</p>
+              <p className="text-[11px] font-medium text-accent">{data.currentScore}/{data.targetScore}</p>
             </div>
           </div>
         </div>
       </Card>
 
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{data.mission.title}</p>
-        <p className="mt-1 text-sm text-slate-700">{data.mission.description}</p>
-        <p className="mt-1 text-xs text-emerald-700">Recompensa: +{data.mission.rewardPoints} pts</p>
+        <p className="text-sm font-semibold text-fg">{data.mission.title}</p>
+        <p className="mt-1 text-sm text-fg/80">{data.mission.description}</p>
+        <p className="mt-1 text-xs text-green">Recompensa: +{data.mission.rewardPoints} pts</p>
         <div className="mt-3 flex items-center gap-3">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
-            <div className="h-full rounded-full bg-slate-500" style={{ width: `${missionPct}%` }} />
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
+            <div className="h-full rounded-full bg-muted transition-[width] duration-700" style={{ width: `${missionPct}%` }} />
           </div>
-          <p className="text-xs text-slate-500">{data.mission.progressCurrent}/{data.mission.progressTarget}</p>
+          <p className="text-[11px] text-muted">{data.mission.progressCurrent}/{data.mission.progressTarget}</p>
         </div>
-        <p className="mt-3 text-xs text-blue-700">{data.gainText}</p>
-        <p className="mt-1 text-xs text-amber-700">{data.lossText}</p>
-        {data.warning && <p className="mt-2 text-xs font-medium text-rose-700">{data.warning}</p>}
+        <p className="mt-3 text-xs text-accent">{data.gainText}</p>
+        <p className="mt-1 text-xs text-amber">{data.lossText}</p>
+        {data.warning && <p className="mt-2 text-xs font-medium text-destructive">{data.warning}</p>}
         {data.unlocks && (
-          <p className="mt-2 text-xs text-slate-600">
+          <p className="mt-2 text-xs text-muted">
             Próximos desbloqueos: {data.unlocks.maxJuntaMembers} integrantes · aporte hasta S/ {data.unlocks.maxContributionPerRound.toLocaleString('es-PE')} · {data.unlocks.incentiveJuntasEnabled ? 'juntas con incentivo' : 'sin juntas con incentivo'}.
           </p>
         )}

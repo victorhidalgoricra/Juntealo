@@ -68,13 +68,13 @@ export function LandingHero() {
         </div>
       </div>
 
-      <div className="relative rounded-[20px] bg-[#141412] p-7 text-white shadow-xl">
+      <div className="relative rounded-[var(--r-xl)] bg-[var(--dark-1)] p-7 text-white shadow-xl">
         <span className="absolute right-6 top-6 inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
           ● Activa
         </span>
-        <p className="text-[11px] uppercase tracking-[0.12em] text-[#9D9992]">Junta de ejemplo</p>
+        <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--dark-muted)]">Junta de ejemplo</p>
         <h2 className="mt-2 text-2xl font-semibold">Taxistas Norte</h2>
-        <p className="mt-1 text-sm text-[#A9A69E]">Ahorro semanal con turnos automáticos</p>
+        <p className="mt-1 text-sm text-[var(--dark-muted)]">Ahorro semanal con turnos automáticos</p>
 
         <div className="mt-5 grid grid-cols-2 gap-3">
           {[
@@ -83,27 +83,27 @@ export function LandingHero() {
             ['Score', '94/100'],
             ['Semana actual', '5 de 10']
           ].map(([label, value]) => (
-            <div key={label} className="rounded-[var(--r-sm)] bg-[#1E1C19] p-3">
-              <p className="text-[11px] text-[#9D9992]">{label}</p>
-              <p className="mt-1 text-sm font-semibold">{value}</p>
+            <div key={label} className="rounded-[var(--r-sm)] bg-[var(--dark-3)] p-3">
+              <p className="text-[11px] text-[var(--dark-muted)]">{label}</p>
+              <p className="mt-1 font-mono text-sm font-semibold">{value}</p>
             </div>
           ))}
         </div>
 
         <div className="mt-5 flex items-center gap-2">
           {['JV', 'RM', 'SL', 'PC', 'AG'].map((member) => (
-            <span key={member} className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#2B2823] text-[11px] font-semibold">
+            <span key={member} className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--dark-4)] text-[11px] font-semibold">
               {member}
             </span>
           ))}
-          <span className="inline-flex h-8 items-center justify-center rounded-full border border-[#3D3933] px-3 text-xs text-[#C8C6BF]">+5</span>
+          <span className="inline-flex h-8 items-center justify-center rounded-full border border-[var(--dark-4)] px-3 text-xs text-[var(--dark-text)]">+5</span>
         </div>
 
         <div className="mt-5">
-          <div className="h-2 rounded-full bg-[#2B2823]">
-            <div className="h-2 rounded-full bg-[var(--green)] transition-all duration-300" style={progressStyle} />
+          <div className="h-1.5 rounded-full bg-[var(--dark-4)]">
+            <div className="h-1.5 rounded-full bg-[var(--green)] transition-[width] duration-700" style={progressStyle} />
           </div>
-          <p className="mt-2 text-xs text-[#B7B2A8]">Semana 5 / 5 de 10 pagaron ✓</p>
+          <p className="mt-2 text-xs text-[var(--dark-text)]">Semana 5 / 5 de 10 pagaron ✓</p>
         </div>
       </div>
     </RevealOnScroll>
