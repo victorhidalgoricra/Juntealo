@@ -1,19 +1,42 @@
 import { HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
-const styles: Record<string, string> = {
-  pendiente: 'bg-amber-100 text-amber-700',
-  pagada: 'bg-emerald-100 text-emerald-700',
-  vencida: 'bg-red-100 text-red-700',
-  moroso: 'bg-red-100 text-red-700',
-  activo: 'bg-blue-100 text-blue-700',
-  invitado: 'bg-slate-200 text-slate-700'
+type BadgeVariant =
+  | 'pendiente' | 'pagada' | 'vencida' | 'moroso'
+  | 'activo' | 'invitado' | 'publica' | 'privada'
+  | 'green' | 'amber' | 'dark';
+
+const variantStyles: Record<BadgeVariant, string> = {
+  pendiente: 'bg-amber-bg text-[#92400e]',
+  pagada:    'bg-green-bg text-[#065f46]',
+  vencida:   'bg-destructive-bg text-[#991b1b]',
+  moroso:    'bg-destructive-bg text-[#991b1b]',
+  activo:    'bg-accent-bg text-accent-dark',
+  invitado:  'bg-slate-100 text-slate-600',
+  publica:   'bg-accent-bg text-accent',
+  privada:   'bg-slate-100 text-slate-600',
+  green:     'bg-green-bg text-[#065f46]',
+  amber:     'bg-amber-bg text-[#92400e]',
+  dark:      'bg-emerald-500/15 text-emerald-400',
 };
 
-export function Badge({ className, children, ...props }: HTMLAttributes<HTMLSpanElement>) {
-  const content = String(children).toLowerCase();
+type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
+  variant?: BadgeVariant;
+};
+
+export function Badge({ className, children, variant, ...props }: BadgeProps) {
+  const contentKey = String(children).toLowerCase() as BadgeVariant;
+  const resolved = variant ?? (variantStyles[contentKey] ? contentKey : undefined);
+
   return (
-    <span className={cn('inline-flex rounded-full px-2 py-1 text-xs font-medium', styles[content] ?? 'bg-slate-100', className)} {...props}>
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full px-[10px] py-[3px] text-[11px] font-semibold leading-none',
+        resolved ? variantStyles[resolved] : 'bg-slate-100 text-slate-600',
+        className
+      )}
+      {...props}
+    >
       {children}
     </span>
   );

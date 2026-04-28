@@ -40,7 +40,7 @@ const features = [
     title: 'Para cualquier grupo',
     description: 'Taxistas, universitarios, familias y emprendedores en un mismo sistema.',
     icon: '🤝',
-    cardClass: 'bg-[#FEE2E2] text-[var(--text)]',
+    cardClass: 'bg-[var(--destructive-bg)] text-[var(--text)]',
     descClass: 'text-[var(--muted)]'
   }
 ];
