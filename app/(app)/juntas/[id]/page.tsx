@@ -90,8 +90,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
       try {
         const storedJunta = juntas.find((j) => j.id === params.id) ?? null;
+        const hasFullData = storedJunta != null && storedJunta.turn_assignment_mode != null;
         const [detailResult, membersResult, membershipResult] = await Promise.all([
-          storedJunta ? Promise.resolve({ ok: true as const, data: storedJunta }) : fetchJuntaById(params.id),
+          hasFullData ? Promise.resolve({ ok: true as const, data: storedJunta! }) : fetchJuntaById(params.id),
           fetchMembersByJuntaIds([params.id]),
           fetchMyActiveMembership({ juntaId: params.id, profileId: user.id })
         ]);
@@ -231,7 +232,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     incentivoRegla: junta.incentivo_regla
   });
 
-  const canOperateTurns = !juntaActiva && junta.turn_assignment_mode === 'manual' && !blockedByDeadline;
+  const isOwner = user?.id === junta.admin_id;
+  const canManualAssign = isOwner && !juntaActiva && junta.turn_assignment_mode === 'manual' && !blockedByDeadline;
+  const canShuffle = isOwner && !juntaActiva && !blockedByDeadline;
+  const memberCount = junta.integrantes_actuales ?? juntaMembers.length;
   const isCurrentReceiver = user?.id === summary.receiver?.profile_id;
 
   const handleConfirmPayout = async () => {
@@ -263,7 +267,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               <Badge>{juntaActiva ? 'Activa' : 'En formación'}</Badge>
               {blockedByDeadline && <Badge>Bloqueada</Badge>}
               <Badge>{junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</Badge>
-              <Badge>{juntaMembers.length}/{junta.participantes_max} integrantes</Badge>
+              <Badge>{memberCount}/{junta.participantes_max} integrantes</Badge>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -413,7 +417,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                             className="rounded-md border px-2 py-1 text-sm"
                             value={manualTurns[member.profile_id] ?? member.orden_turno}
                             onChange={(event) => setManualTurns((prev) => ({ ...prev, [member.profile_id]: Number(event.target.value) }))}
-                            disabled={!canOperateTurns}
+                            disabled={!canManualAssign}
                           >
                             {Array.from({ length: juntaMembers.length }).map((_, turnIdx) => <option key={turnIdx + 1} value={turnIdx + 1}>{turnIdx + 1}</option>)}
                           </select>
@@ -424,7 +428,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
-                      disabled={!canOperateTurns}
+                      disabled={!canShuffle}
                       onClick={() => {
                         const shuffled = [...juntaMembers].sort(() => Math.random() - 0.5);
                         const next: Record<string, number> = {};
@@ -436,9 +440,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                       Sortear aleatoriamente
                     </Button>
                     <Button
-                      disabled={juntaMembers.length < junta.participantes_max}
+                      disabled={!isOwner || memberCount < junta.participantes_max}
                       onClick={async () => {
-                        if (canOperateTurns) {
+                        if (canManualAssign) {
                           const assignedTurns = juntaMembers.map((member) => manualTurns[member.profile_id] ?? member.orden_turno);
                           const uniqueTurns = new Set(assignedTurns);
                           if (uniqueTurns.size !== juntaMembers.length) {
