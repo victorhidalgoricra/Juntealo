@@ -442,7 +442,9 @@ export default function JuntasDisponiblesPage() {
           {visibleJuntas.map((j) => {
             const juntaId = j.id;
             const isOwner = j.admin_id === user.id;
-            const isMember = isUserMember({ juntaId, userId: user.id, members: allMembers });
+            const isMember =
+              Boolean(j.is_member_current_user) ||
+              isUserMember({ juntaId, userId: user.id, members: allMembers });
             const description = j.descripcion?.trim() || 'Junta sin descripción aún.';
             const miembrosActuales = Math.max(
               countByJunta.get(juntaId) ?? 0,
