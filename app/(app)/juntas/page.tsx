@@ -17,7 +17,7 @@ import { getActiveMemberCountByJunta, isUserMember } from '@/lib/junta-members';
 import {
   activateJuntaIfReady,
   deleteDraftJunta,
-  fetchPublicJuntas,
+  fetchAvailableJuntas,
   fetchUserJuntaSnapshot,
   findJuntaByAccessCode,
   joinJuntaAsParticipant,
@@ -65,7 +65,10 @@ export default function JuntasDisponiblesPage() {
     setLoading(true);
     setError(null);
 
-    const catalogResult = await fetchPublicJuntas();
+    const [catalogResult, snapshotResult] = await Promise.all([
+      fetchAvailableJuntas(user.id),
+      fetchUserJuntaSnapshot(user.id)
+    ]);
 
     if (!catalogResult.ok) {
       console.error('[Juntas disponibles] error loading catalog', catalogResult.message);
@@ -74,21 +77,21 @@ export default function JuntasDisponiblesPage() {
       return;
     }
 
-    setData({ juntas: catalogResult.data });
-    setLoading(false);
+    setData({
+      juntas: catalogResult.data,
+      ...(snapshotResult.ok ? {
+        members: snapshotResult.data.members,
+        schedules: snapshotResult.data.schedules,
+        payments: snapshotResult.data.payments,
+        payouts: snapshotResult.data.payouts
+      } : {})
+    });
 
-    const snapshotResult = await fetchUserJuntaSnapshot(user.id);
     if (!snapshotResult.ok) {
       console.error('[Juntas disponibles] error loading snapshot', snapshotResult.message);
-      return;
     }
 
-    setData({
-      members: snapshotResult.data.members,
-      schedules: snapshotResult.data.schedules,
-      payments: snapshotResult.data.payments,
-      payouts: snapshotResult.data.payouts
-    });
+    setLoading(false);
   }, [user, setData]);
 
   useEffect(() => {
