@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { JuntealoLogo } from '@/components/ui/juntealo-logo';
 
 const navLinks = [
   { href: '/', label: 'Inicio' },
@@ -9,7 +10,7 @@ export function LandingNavbar() {
   return (
     <header className="sticky top-0 z-[100] border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface)]/85">
       <div className="mx-auto flex h-[60px] w-full max-w-6xl items-center justify-between px-4 md:px-6">
-        <Link href="/" className="text-lg font-bold text-[var(--accent)]">Juntas Digitales</Link>
+        <JuntealoLogo size="md" />
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-[var(--text)] md:flex">
           {navLinks.map((link) => (

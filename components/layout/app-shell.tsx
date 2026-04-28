@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth-store';
 import { isBackofficeAdmin } from '@/services/auth-role.service';
+import { JuntealoLogo } from '@/components/ui/juntealo-logo';
 
 type NavItem = {
   href: string;
@@ -50,7 +51,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="flex flex-col border-b border-border bg-surface px-3 py-5 md:min-h-screen md:border-b-0 md:border-r">
         {/* Brand */}
-        <p className="mb-6 px-2 text-[17px] font-bold text-accent">Juntas Digitales</p>
+        <div className="mb-6 px-2">
+          <JuntealoLogo size="sm" />
+        </div>
 
         {process.env.NODE_ENV === 'development' && (
           <p className="mb-2 px-2 text-[11px] text-muted">Rol: {user?.global_role ?? 'user'}</p>
