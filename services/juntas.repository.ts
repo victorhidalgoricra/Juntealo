@@ -471,6 +471,29 @@ export async function updateJuntaMemberTurns(params: { juntaId: string; turnsByP
   return { ok: true as const };
 }
 
+export async function confirmPayout(params: {
+  juntaId: string;
+  profileId: string;
+  roundNumber: number;
+  amount: number;
+}) {
+  if (!hasSupabase || !supabase) return { ok: true as const };
+
+  const { error } = await supabase
+    .schema('public')
+    .from('payouts')
+    .insert({
+      junta_id: params.juntaId,
+      profile_id: params.profileId,
+      ronda_numero: params.roundNumber,
+      monto_pozo: params.amount,
+      entregado_en: new Date().toISOString()
+    });
+
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  return { ok: true as const };
+}
+
 export type AdminJuntaListItem = {
   id: string;
   nombre: string;
