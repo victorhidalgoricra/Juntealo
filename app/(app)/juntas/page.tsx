@@ -535,7 +535,7 @@ export default function JuntasDisponiblesPage() {
                         {leavingId === juntaId ? 'Retirándome...' : 'Retirarme'}
                       </Button>
                     )}
-                    {roleState === 'visitor' && !isActive && (
+                    {roleState === 'visitor' && !isActive && !isBlocked && (
                       j.visibilidad === 'privada'
                         ? <Button disabled={!canAccessPrivate || joiningId === juntaId} onClick={() => handleAccessPrivate(juntaId)}>{joiningId === juntaId ? 'Validando...' : 'Acceder con código'}</Button>
                         : <Button disabled={!canJoinPublic || joiningId === juntaId} onClick={() => handleJoin(juntaId)}>{joiningId === juntaId ? 'Uniéndome...' : 'Unirme'}</Button>
