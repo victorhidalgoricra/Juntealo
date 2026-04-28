@@ -178,6 +178,25 @@ export default function JuntasDisponiblesPage() {
       return;
     }
 
+    const joinedMember = result.data;
+    setData({
+      members: [
+        ...allMembers.filter((member) => !(member.junta_id === juntaId && member.profile_id === user.id)),
+        joinedMember
+      ],
+      juntas: allJuntas.map((item) => (
+        item.id === juntaId
+          ? {
+              ...item,
+              integrantes_actuales: Math.min(
+                item.participantes_max,
+                Number(item.integrantes_actuales ?? 0) + 1
+              )
+            }
+          : item
+      ))
+    });
+
     const joinedJunta = allJuntas.find((item) => item.id === juntaId);
     addNotification({
       profile_id: user.id,
@@ -185,8 +204,8 @@ export default function JuntasDisponiblesPage() {
       mensaje: `Ahora participas en ${joinedJunta?.nombre ?? 'tu nueva junta'}.`,
       leida: false
     });
-    await reloadCatalog();
     setJoiningId(null);
+    await reloadCatalog();
   };
 
   const handleAccessPrivate = async (juntaId: string) => {
@@ -215,8 +234,16 @@ export default function JuntasDisponiblesPage() {
       return;
     }
 
-    await reloadCatalog();
+    setData({
+      members: allMembers.filter((member) => !(member.junta_id === juntaId && member.profile_id === user.id)),
+      juntas: allJuntas.map((item) => (
+        item.id === juntaId
+          ? { ...item, integrantes_actuales: Math.max(0, Number(item.integrantes_actuales ?? 0) - 1) }
+          : item
+      ))
+    });
     setLeavingId(null);
+    await reloadCatalog();
   };
 
   const handleActivate = async (juntaId: string) => {
@@ -415,9 +442,14 @@ export default function JuntasDisponiblesPage() {
           {visibleJuntas.map((j) => {
             const juntaId = j.id;
             const isOwner = j.admin_id === user.id;
-            const isMember = isUserMember({ juntaId, userId: user.id, members: allMembers });
+            const isMember =
+              Boolean(j.is_member_current_user) ||
+              isUserMember({ juntaId, userId: user.id, members: allMembers });
             const description = j.descripcion?.trim() || 'Junta sin descripción aún.';
-            const miembrosActuales = countByJunta.get(juntaId) ?? 0;
+            const miembrosActuales = Math.max(
+              countByJunta.get(juntaId) ?? 0,
+              Number(j.integrantes_actuales ?? 0)
+            );
             const cupoCompleto = miembrosActuales >= j.participantes_max;
             const estadoVisual = isJuntaActive(j.estado) ? 'activa' : cupoCompleto ? 'completa' : 'borrador';
             const isBlocked = isJuntaBlockedByDeadline(j);
@@ -426,7 +458,7 @@ export default function JuntasDisponiblesPage() {
             const started = hasStarted(j.fecha_inicio);
             const canActivate = roleState === 'owner' && j.estado === 'borrador' && cupoCompleto && !isBlocked && !started;
             const canDelete = roleState === 'owner' && j.estado === 'borrador' && !isBlocked && !started;
-            const canLeave = roleState === 'member' && !isActive && !isBlocked;
+            const canLeave = roleState === 'member' && j.estado === 'borrador' && !started && !isBlocked;
             const canJoinPublic = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'publica' && !isBlocked;
             const canAccessPrivate = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'privada' && !isBlocked;
             const actionBranch = roleState === 'owner' ? 'owner-actions' : roleState === 'member' ? 'member-actions' : 'visitor-actions';
@@ -474,7 +506,9 @@ export default function JuntasDisponiblesPage() {
 
                 <div className="space-y-2">
                   <div className="flex flex-wrap gap-2">
-                    <Link href={`/juntas/${juntaId}`}><Button variant="outline">Ver detalle</Button></Link>
+                    {roleState !== 'visitor' && (
+                      <Link href={`/juntas/${juntaId}`}><Button variant="outline">Ver detalle</Button></Link>
+                    )}
                     {roleState === 'owner' && (
                       <Button
                         disabled={!canActivate || activatingId === juntaId}
@@ -492,7 +526,7 @@ export default function JuntasDisponiblesPage() {
                         {deletingId === juntaId ? 'Eliminando...' : 'Eliminar junta'}
                       </Button>
                     )}
-                    {roleState === 'member' && !isActive && (
+                    {roleState === 'member' && (
                       <Button
                         variant="ghost"
                         disabled={!canLeave || leavingId === juntaId}
@@ -516,6 +550,9 @@ export default function JuntasDisponiblesPage() {
                   )}
                   {roleState === 'visitor' && !isActive && cupoCompleto && (
                     <p className="text-xs text-slate-600">Cupo completo</p>
+                  )}
+                  {roleState === 'member' && !canLeave && (isActive || started || j.estado !== 'borrador') && (
+                    <p className="text-xs text-slate-600">Esta junta ya está activa o iniciada y no permite retirarte.</p>
                   )}
                   {joinErrorByJunta[juntaId] && !(roleState === 'owner' && joinErrorByJunta[juntaId].includes('creador no puede retirarse')) && (
                     <p className="text-xs text-red-600">{joinErrorByJunta[juntaId]}</p>
