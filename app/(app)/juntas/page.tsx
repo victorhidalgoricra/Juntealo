@@ -417,7 +417,10 @@ export default function JuntasDisponiblesPage() {
             const isOwner = j.admin_id === user.id;
             const isMember = isUserMember({ juntaId, userId: user.id, members: allMembers });
             const description = j.descripcion?.trim() || 'Junta sin descripción aún.';
-            const miembrosActuales = countByJunta.get(juntaId) ?? 0;
+            const miembrosActuales = Math.max(
+              countByJunta.get(juntaId) ?? 0,
+              Number(j.integrantes_actuales ?? 0)
+            );
             const cupoCompleto = miembrosActuales >= j.participantes_max;
             const estadoVisual = isJuntaActive(j.estado) ? 'activa' : cupoCompleto ? 'completa' : 'borrador';
             const isBlocked = isJuntaBlockedByDeadline(j);
@@ -501,7 +504,7 @@ export default function JuntasDisponiblesPage() {
                         {leavingId === juntaId ? 'Retirándome...' : 'Retirarme'}
                       </Button>
                     )}
-                    {roleState === 'visitor' && !isActive && (
+                    {roleState === 'visitor' && !isActive && !isBlocked && (
                       j.visibilidad === 'privada'
                         ? <Button disabled={!canAccessPrivate || joiningId === juntaId} onClick={() => handleAccessPrivate(juntaId)}>{joiningId === juntaId ? 'Validando...' : 'Acceder con código'}</Button>
                         : <Button disabled={!canJoinPublic || joiningId === juntaId} onClick={() => handleJoin(juntaId)}>{joiningId === juntaId ? 'Uniéndome...' : 'Unirme'}</Button>
