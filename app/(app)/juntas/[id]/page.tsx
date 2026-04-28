@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, fetchAvailableJuntas, fetchJuntaById, fetchMembersByJuntaIds, fetchMyActiveMembership, fetchUserJuntaSnapshot, updateJuntaMemberTurns } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaById, fetchMembersByJuntaIds, fetchMyActiveMembership, fetchUserJuntaSnapshot, updateJuntaMemberTurns } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -62,7 +62,7 @@ function JuntaPaymentStatusRow({ row, showPayAction, onPay }: { row: WeeklyMembe
 export default function JuntaDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { juntas, members, payments, schedules, setData } = useAppStore();
+  const { juntas, members, payments, schedules, payouts, setData } = useAppStore();
 
   const [mainView, setMainView] = useState<MainView>('general');
   const [generalTab, setGeneralTab] = useState<GeneralTab>('integrantes');
@@ -196,7 +196,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
   const juntaActiva = isJuntaActive(junta.estado);
   const blockedByDeadline = isJuntaBlockedByDeadline(junta);
-  const currentWeek = Math.max(1, Math.min(simulation.rows.length, Math.max(juntaMembers.length, 1)));
+  const completedPayouts = payouts.filter((p) => p.junta_id === junta.id).length;
+  const currentWeek = Math.min(completedPayouts + 1, simulation.rows.length);
   const summary = getCurrentWeekSummary({
     junta,
     members: juntaMembers,
@@ -231,6 +232,23 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   });
 
   const canOperateTurns = !juntaActiva && junta.turn_assignment_mode === 'manual' && !blockedByDeadline;
+  const isCurrentReceiver = user?.id === summary.receiver?.profile_id;
+
+  const handleConfirmPayout = async () => {
+    if (!isCurrentReceiver || !junta) return;
+    const amount = (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length;
+    const result = await confirmPayout({
+      juntaId: junta.id,
+      profileId: user!.id,
+      roundNumber: currentWeek,
+      amount
+    });
+    if (!result.ok) {
+      setPaymentInfo(result.message);
+      return;
+    }
+    await refreshSnapshot();
+  };
 
   const headerSubtitle = `Semana ${currentWeek} · ${junta.frecuencia_pago} · ${junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}`;
 
@@ -315,7 +333,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   <div className="flex items-center gap-2">
                     <JuntaScoreBadge score={summary.rows.find((row) => row.isReceiver)?.score ?? 70} />
                     <Badge>{summary.pending === 0 ? 'Listo para confirmar' : 'Esperando pagos'}</Badge>
-                    {summary.pending === 0 && <Button variant="outline">Confirmar recibo</Button>}
+                    {summary.pending === 0 && isCurrentReceiver && (
+                      <Button variant="outline" onClick={handleConfirmPayout}>Confirmar recibo</Button>
+                    )}
                   </div>
                 </div>
               </div>
