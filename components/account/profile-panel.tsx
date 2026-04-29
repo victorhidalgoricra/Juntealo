@@ -24,10 +24,10 @@ type PersonalField = {
 const personalFields: PersonalField[] = [
   { key: 'first_name', label: 'Primer nombre', placeholder: 'Ej. María' },
   { key: 'second_name', label: 'Segundo nombre', placeholder: 'Opcional', optional: true },
-  { key: 'paternal_last_name', label: 'Apellido paterno', placeholder: 'Opcional', optional: true },
-  { key: 'celular', label: 'Celular', placeholder: 'Ej. 987654321', type: 'tel' },
+  { key: 'paternal_last_name', label: 'Apellido paterno', placeholder: 'Ej. García' },
+  { key: 'celular', label: 'Celular', type: 'tel', disabled: true },
   { key: 'email', label: 'Correo', disabled: true },
-  { key: 'dni', label: 'DNI', placeholder: 'Opcional', optional: true }
+  { key: 'dni', label: 'DNI', disabled: true }
 ];
 
 function composeDisplayName(user: Profile, patch?: Partial<Profile>) {
@@ -148,6 +148,9 @@ function LabeledInput({
         placeholder={placeholder}
         onChange={(event) => onChange?.(event.target.value)}
       />
+      {disabled && (
+        <p className="text-xs text-slate-400">Este dato no puede modificarse desde la app.</p>
+      )}
     </div>
   );
 }
@@ -180,7 +183,7 @@ export function ProfilePanel() {
   };
 
   const updatePersonalField = (field: PersonalField['key'], value: string) => {
-    if (field === 'email') return;
+    if (field === 'email' || field === 'celular' || field === 'dni') return;
     const patch = { [field]: value } as Partial<Profile>;
     if (field === 'first_name' || field === 'second_name' || field === 'paternal_last_name') {
       patch.nombre = composeDisplayName(user, patch);
@@ -252,6 +255,16 @@ export function ProfilePanel() {
         type="button"
         disabled={saving}
         onClick={async () => {
+          const firstName = user.first_name?.trim() ?? '';
+          const paternalLastName = user.paternal_last_name?.trim() ?? '';
+          if (!firstName) {
+            setFeedback({ type: 'error', message: 'El primer nombre es obligatorio.' });
+            return;
+          }
+          if (!paternalLastName) {
+            setFeedback({ type: 'error', message: 'El apellido paterno es obligatorio.' });
+            return;
+          }
           try {
             setFeedback(null);
             setSaving(true);
