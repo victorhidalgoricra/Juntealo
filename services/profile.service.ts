@@ -106,7 +106,7 @@ export async function fetchReceiverPayoutInfo(params: { juntaId: string; profile
   return { ok: true as const, data: (row as Partial<Profile> | null) ?? null };
 }
 
-export async function updateProfile(input: Profile, savedDni?: string | null) {
+export async function updateProfile(input: Profile) {
   if (!hasSupabase || !supabase) return { ok: true as const, source: 'mock' as const };
 
   const payload: Record<string, unknown> = {
@@ -122,14 +122,6 @@ export async function updateProfile(input: Profile, savedDni?: string | null) {
     payout_cci: input.payout_cci?.trim() || null,
     payout_notes: input.payout_notes?.trim() || null
   };
-
-  if (input.celular?.trim()) payload.celular = input.celular.trim();
-
-  // DNI solo se envía si no tenía valor previo en DB (primera vez que se completa)
-  if (!savedDni && input.dni?.trim()) {
-    const normalized = normalizeDni(input.dni);
-    if (normalized) payload.dni = normalized;
-  }
 
   const { error } = await supabase
     .schema('public')
