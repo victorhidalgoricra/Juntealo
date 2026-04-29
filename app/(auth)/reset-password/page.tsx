@@ -26,6 +26,19 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     if (!hasSupabase || !supabase) return;
 
+    // Check URL hash immediately — if there's no recovery token, fail fast
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const hasRecoveryParams = params.get('type') === 'recovery' && !!params.get('access_token');
+
+    if (!hasRecoveryParams) {
+      // No recovery params in URL; check for an existing valid session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) setRecoveryState('invalid');
+        // If there's a session, wait for PASSWORD_RECOVERY event or timeout
+      });
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setRecoveryState('ready');
@@ -41,6 +54,17 @@ export default function ResetPasswordPage() {
       clearTimeout(timer);
     };
   }, []);
+
+  if (recoveryState === 'verifying') {
+    return (
+      <Card className="w-full space-y-4">
+        <div>
+          <h1 className="text-xl font-semibold">Verificando enlace...</h1>
+          <p className="text-sm text-slate-500">Por favor espera un momento.</p>
+        </div>
+      </Card>
+    );
+  }
 
   if (recoveryState === 'invalid') {
     return (
@@ -66,7 +90,6 @@ export default function ResetPasswordPage() {
       <form
         className="space-y-3"
         onSubmit={handleSubmit(async (values) => {
-          if (recoveryState !== 'ready') return;
           setMessage(null);
           setErrorMessage(null);
           const parsed = resetPasswordSchema.safeParse(values);
@@ -97,7 +120,6 @@ export default function ResetPasswordPage() {
           type="password"
           placeholder="Mínimo 8 caracteres"
           autoComplete="new-password"
-          disabled={recoveryState === 'verifying'}
           {...register('password')}
         />
         <label className="text-sm font-medium">Confirmar contraseña</label>
@@ -105,11 +127,10 @@ export default function ResetPasswordPage() {
           type="password"
           placeholder="Repite tu contraseña"
           autoComplete="new-password"
-          disabled={recoveryState === 'verifying'}
           {...register('confirmPassword')}
         />
-        <Button className="w-full" disabled={loading || recoveryState === 'verifying'}>
-          {loading ? 'Guardando...' : recoveryState === 'verifying' ? 'Verificando enlace...' : 'Guardar nueva contraseña'}
+        <Button className="w-full" disabled={loading}>
+          {loading ? 'Guardando...' : 'Guardar nueva contraseña'}
         </Button>
       </form>
 
