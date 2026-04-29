@@ -173,8 +173,13 @@ export default function AdminJuntasPage() {
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-2">
                       <Link href={`/admin/juntas/${row.id}`}><Button variant="outline">Ver detalle</Button></Link>
-                      <Button variant="destructive" disabled={isRowBlocked(row)} onClick={() => setCandidate(row)}>
-                        {isRowBlocked(row) ? 'Deshabilitada' : 'Eliminar'}
+                      <Button
+                        variant="destructive"
+                        disabled={isRowBlocked(row)}
+                        title={isRowBlocked(row) ? 'Esta junta ya fue eliminada' : undefined}
+                        onClick={() => { if (isRowBlocked(row)) return; setCandidate(row); }}
+                      >
+                        {isRowBlocked(row) ? 'Eliminada' : 'Eliminar'}
                       </Button>
                     </div>
                   </td>
@@ -210,6 +215,7 @@ export default function AdminJuntasPage() {
                 variant="destructive"
                 disabled={submittingDelete}
                 onClick={async () => {
+                  if (!candidate || isRowBlocked(candidate)) return;
                   try {
                     setSubmittingDelete(true);
                     const result = await adminSoftDeleteJunta({ juntaId: candidate.id });
