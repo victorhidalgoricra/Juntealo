@@ -35,8 +35,13 @@ export async function ensureProfileExists(input: {
 
   const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
   if (error) {
-    if (error.code === '23505' || error.message.toLowerCase().includes('dni')) {
+    console.error('[ensureProfileExists] upsert error:', error);
+    const msg = error.message.toLowerCase();
+    if (error.code === '23505' && (msg.includes('dni') || msg.includes('profiles_dni'))) {
       return { ok: false as const, message: 'Este DNI ya está registrado.' };
+    }
+    if (error.code === '23505' && (msg.includes('celular') || msg.includes('profiles_celular'))) {
+      return { ok: false as const, message: 'Este celular ya está registrado.' };
     }
     return { ok: false as const, message: error.message };
   }
@@ -53,18 +58,24 @@ export async function checkProfileConflicts(input: { dni: string; celular: strin
     return { ok: false as const, message: 'Debes ingresar un DNI válido.' };
   }
 
-  const { data, error } = await supabase.rpc('check_profile_conflicts', {
-    p_dni: normalizedDni,
-    p_celular: normalizedCelular
-  });
+  const [dniResult, celularResult] = await Promise.all([
+    supabase.from('profiles').select('id').eq('dni', normalizedDni).limit(1),
+    supabase.from('profiles').select('id').eq('celular', normalizedCelular).limit(1)
+  ]);
 
-  if (error) return { ok: false as const, message: error.message };
+  if (dniResult.error) {
+    console.error('[checkProfileConflicts] DNI query error:', dniResult.error);
+    return { ok: false as const, message: dniResult.error.message };
+  }
+  if (celularResult.error) {
+    console.error('[checkProfileConflicts] celular query error:', celularResult.error);
+    return { ok: false as const, message: celularResult.error.message };
+  }
 
-  const row = Array.isArray(data) ? data[0] : data;
   return {
     ok: true as const,
-    existsDni: Boolean(row?.exists_dni),
-    existsCelular: Boolean(row?.exists_celular)
+    existsDni: (dniResult.data?.length ?? 0) > 0,
+    existsCelular: (celularResult.data?.length ?? 0) > 0
   };
 }
 
