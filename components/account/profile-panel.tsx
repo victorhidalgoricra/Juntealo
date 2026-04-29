@@ -13,7 +13,7 @@ import { hasSupabase } from '@/lib/env';
 type PayoutMethod = NonNullable<Profile['preferred_payout_method']>;
 
 type PersonalField = {
-  key: 'first_name' | 'second_name' | 'paternal_last_name' | 'celular' | 'email' | 'dni';
+  key: 'nombre' | 'celular' | 'email' | 'dni';
   label: string;
   placeholder?: string;
   optional?: boolean;
@@ -21,21 +21,11 @@ type PersonalField = {
 };
 
 const personalFields: PersonalField[] = [
-  { key: 'first_name', label: 'Primer nombre', placeholder: 'Ej. María' },
-  { key: 'second_name', label: 'Segundo nombre', placeholder: 'Opcional', optional: true },
-  { key: 'paternal_last_name', label: 'Apellido paterno', placeholder: 'Ej. García' },
+  { key: 'nombre', label: 'Nombre completo', placeholder: 'Ej. María García Pérez' },
   { key: 'celular', label: 'Celular', type: 'tel' },
   { key: 'email', label: 'Correo', type: 'email' },
   { key: 'dni', label: 'DNI', placeholder: 'Ej. 12345678' }
 ];
-
-function composeDisplayName(user: Profile, patch?: Partial<Profile>) {
-  const firstName = (patch?.first_name ?? user.first_name ?? '').trim();
-  const secondName = (patch?.second_name ?? user.second_name ?? '').trim();
-  const paternalLastName = (patch?.paternal_last_name ?? user.paternal_last_name ?? '').trim();
-  const fullName = [firstName, secondName, paternalLastName].filter(Boolean).join(' ').trim();
-  return fullName || user.nombre;
-}
 
 function PaymentMethodFields({ user, onUserChange }: { user: Profile; onUserChange: (patch: Partial<Profile>) => void }) {
   const method = user.preferred_payout_method;
@@ -199,11 +189,7 @@ export function ProfilePanel() {
   };
 
   const updatePersonalField = (field: PersonalField['key'], value: string) => {
-    const patch = { [field]: value } as Partial<Profile>;
-    if (field === 'first_name' || field === 'second_name' || field === 'paternal_last_name') {
-      patch.nombre = composeDisplayName(user, patch);
-    }
-    updateUser(patch);
+    updateUser({ [field]: value } as Partial<Profile>);
   };
 
   return (
@@ -239,7 +225,7 @@ export function ProfilePanel() {
             };
             const isReadOnly = field.key in readOnlyHints;
             return (
-              <div key={field.key} className={field.key === 'email' ? 'sm:col-span-2' : ''}>
+              <div key={field.key} className={field.key === 'email' || field.key === 'nombre' ? 'sm:col-span-2' : ''}>
                 <LabeledInput
                   label={field.label}
                   optional={field.optional}
@@ -279,14 +265,8 @@ export function ProfilePanel() {
         type="button"
         disabled={saving}
         onClick={async () => {
-          const firstName = user.first_name?.trim() ?? '';
-          const paternalLastName = user.paternal_last_name?.trim() ?? '';
-          if (!firstName) {
-            setFeedback({ type: 'error', message: 'El primer nombre es obligatorio.' });
-            return;
-          }
-          if (!paternalLastName) {
-            setFeedback({ type: 'error', message: 'El apellido paterno es obligatorio.' });
+          if (!user.nombre?.trim()) {
+            setFeedback({ type: 'error', message: 'El nombre completo es obligatorio.' });
             return;
           }
 
