@@ -11,7 +11,10 @@ import { normalizePaymentStatus, paymentStatusLabel } from '@/lib/payment-status
 import { isJuntaActive } from '@/lib/junta-status';
 import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
-import { fetchMembersByJuntaIds } from '@/services/juntas.repository';
+import type { JuntaMember, Profile } from '@/types/domain';
+import { fetchJuntaActiveMembers } from '@/services/juntas.repository';
+import { fetchProfileById } from '@/services/profile.service';
+import { getParticipantDisplayName, getReceiverPaymentDetails } from '@/lib/payment-instructions';
 import {
   PAYMENT_RECEIPT_ACCEPT,
   PaymentReceiptUploadError,
@@ -25,7 +28,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
-  const { juntas, schedules, payments, members, setData } = useAppStore();
+  const { juntas, schedules, payments, setData } = useAppStore();
 
   const junta = juntas.find((item) => item.id === params.id);
   const juntaSchedules = schedules
@@ -39,7 +42,16 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
     ?? juntaSchedules.find((item) => item.fecha_vencimiento >= today)
     ?? juntaSchedules[0];
   const isCreator = Boolean(user?.id && junta?.admin_id && user.id === junta.admin_id);
-  const isMember = isCreator || members.some((member) => member.junta_id === params.id && member.profile_id === user?.id && member.estado === 'activo');
+
+  const [activeMembers, setActiveMembers] = useState<JuntaMember[] | null>(null);
+  const [loadingMembership, setLoadingMembership] = useState(true);
+  const [receiverProfile, setReceiverProfile] = useState<Profile | null>(null);
+
+  const isMember = isCreator || Boolean(activeMembers?.some((m) => m.profile_id === user?.id && m.estado === 'activo'));
+  const currentReceiverMember = activeMembers && currentSchedule
+    ? (activeMembers.find((m) => m.orden_turno === currentSchedule.cuota_numero) ?? null)
+    : null;
+  const isCurrentReceiver = Boolean(user?.id && currentReceiverMember?.profile_id && user.id === currentReceiverMember.profile_id);
 
   const existingPayment = payments.find(
     (payment) => payment.junta_id === params.id && payment.profile_id === user?.id && payment.schedule_id === currentSchedule?.id
@@ -89,16 +101,22 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   }, [junta, juntaSchedules.length, schedules, setData]);
 
   useEffect(() => {
-    if (!user || !junta) return;
-    if (isMember) return;
-    if (!hasSupabase) return;
-
-    fetchMembersByJuntaIds([junta.id]).then((result) => {
-      if (!result.ok) return;
-      if (result.data.length === 0) return;
-      setData({ members: [...members.filter((m) => m.junta_id !== junta.id), ...result.data] });
+    if (!user) {
+      setLoadingMembership(false);
+      return;
+    }
+    fetchJuntaActiveMembers(params.id).then((result) => {
+      setActiveMembers(result.ok ? result.data : []);
+      setLoadingMembership(false);
     });
-  }, [isMember, junta, members, setData, user]);
+  }, [params.id, user]);
+
+  useEffect(() => {
+    if (!currentReceiverMember?.profile_id) return;
+    fetchProfileById(currentReceiverMember.profile_id).then((result) => {
+      setReceiverProfile(result.ok ? result.data : null);
+    });
+  }, [currentReceiverMember?.profile_id]);
 
   useEffect(() => {
     if (!receiptFile || receiptFile.type === 'application/pdf') {
@@ -162,9 +180,11 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   }, [currentSchedule, existingPayment, isCreator, isMember, junta, user]);
 
   if (!user) return <Card>Debes iniciar sesión.</Card>;
+  if (loadingMembership) return <Card>Verificando membresía...</Card>;
   if (!isMember) return <Card>Solo los integrantes activos de esta junta pueden registrar pagos.</Card>;
   if (!junta || !currentSchedule) return <Card>No encontramos una cuota/ronda pendiente para esta junta.</Card>;
   if (!isJuntaActive(junta.estado)) return <Card>Aún no puedes registrar pagos porque la junta no está activa.</Card>;
+  if (isCurrentReceiver) return <Card>Eres el receptor de esta semana. Los demás integrantes están pagando a tu favor.</Card>;
 
   const uploadReceiptIfNeeded = async () => {
     if (!receiptFile) return fileName || undefined;
@@ -186,10 +206,6 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
     }
     if (monto !== expectedAmount) {
       setMessage('Solo puedes registrar el monto completo de la cuota');
-      return;
-    }
-    if (!receiptFile && !fileName) {
-      setMessage('Debes subir un voucher para enviar tu pago');
       return;
     }
     if (!canSubmitPayment) {
@@ -250,6 +266,9 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const receiverPaymentDetails = getReceiverPaymentDetails(receiverProfile);
+  const receiverDisplayName = getParticipantDisplayName(receiverProfile) || currentReceiverMember?.nombre || 'Receptor del turno';
+
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Card className="space-y-2">
@@ -262,6 +281,32 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         {alreadyPaid && <p className="text-sm font-medium text-emerald-700">Pago ya registrado</p>}
         {isUnderValidation && <p className="text-sm font-medium text-blue-700">Tu pago está en validación</p>}
       </Card>
+
+      {currentReceiverMember && (
+        <Card className="space-y-2 border-blue-200 bg-blue-50">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Destinatario del pozo</p>
+          <p className="font-semibold text-slate-800">Paga a: {receiverDisplayName}</p>
+          <p className="text-sm text-slate-600">Turno: <span className="font-medium">#{currentSchedule.cuota_numero}</span></p>
+          <p className="text-sm text-slate-600">Monto: <span className="font-medium">S/ {currentSchedule.monto.toFixed(2)}</span></p>
+          {receiverPaymentDetails.isConfigured ? (
+            <div className="space-y-1 border-t border-blue-200 pt-2">
+              <p className="text-sm font-medium text-slate-700">Método sugerido: {receiverPaymentDetails.methodLabel}</p>
+              {receiverPaymentDetails.destinationLabel && receiverPaymentDetails.destinationValue && (
+                <p className="text-sm text-slate-600">{receiverPaymentDetails.destinationLabel}: <span className="font-medium">{receiverPaymentDetails.destinationValue}</span></p>
+              )}
+              {receiverPaymentDetails.secondaryLabel && receiverPaymentDetails.secondaryValue && (
+                <p className="text-sm text-slate-600">{receiverPaymentDetails.secondaryLabel}: <span className="font-medium">{receiverPaymentDetails.secondaryValue}</span></p>
+              )}
+              {receiverPaymentDetails.notes && (
+                <p className="text-sm text-slate-500">Nota: {receiverPaymentDetails.notes}</p>
+              )}
+              <p className="pt-1 text-xs font-medium text-blue-700">Transfiere a este destinatario y luego registra tu pago abajo.</p>
+            </div>
+          ) : (
+            <p className="border-t border-blue-200 pt-2 text-sm text-amber-700">El receptor aún no configuró sus datos de pago. Coordina con él antes de registrar el pago.</p>
+          )}
+        </Card>
+      )}
 
       <form onSubmit={submitVoucher} className="space-y-3">
         <Card className="space-y-3">
@@ -280,7 +325,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
           <label className="text-sm font-medium">Número de operación (opcional)</label>
           <Input value={operationNumber} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setOperationNumber(event.target.value)} />
 
-          <label className="text-sm font-medium">Voucher / comprobante (obligatorio · JPG, PNG o PDF)</label>
+          <label className="text-sm font-medium">Voucher / comprobante (opcional · JPG, PNG o PDF)</label>
           <Input
             type="file"
             accept={PAYMENT_RECEIPT_ACCEPT}
