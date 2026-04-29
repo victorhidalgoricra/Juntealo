@@ -17,7 +17,6 @@ type PersonalField = {
   label: string;
   placeholder?: string;
   optional?: boolean;
-  disabled?: boolean;
   type?: InputHTMLAttributes<HTMLInputElement>['type'];
 };
 
@@ -25,9 +24,9 @@ const personalFields: PersonalField[] = [
   { key: 'first_name', label: 'Primer nombre', placeholder: 'Ej. María' },
   { key: 'second_name', label: 'Segundo nombre', placeholder: 'Opcional', optional: true },
   { key: 'paternal_last_name', label: 'Apellido paterno', placeholder: 'Ej. García' },
-  { key: 'celular', label: 'Celular', type: 'tel', disabled: true },
-  { key: 'email', label: 'Correo', disabled: true },
-  { key: 'dni', label: 'DNI', disabled: true }
+  { key: 'celular', label: 'Celular', type: 'tel' },
+  { key: 'email', label: 'Correo', type: 'email' },
+  { key: 'dni', label: 'DNI' }
 ];
 
 function composeDisplayName(user: Profile, patch?: Partial<Profile>) {
@@ -125,6 +124,7 @@ function LabeledInput({
   placeholder,
   disabled,
   optional,
+  hint,
   type = 'text'
 }: {
   label: string;
@@ -133,6 +133,7 @@ function LabeledInput({
   placeholder?: string;
   disabled?: boolean;
   optional?: boolean;
+  hint?: string;
   type?: InputHTMLAttributes<HTMLInputElement>['type'];
 }) {
   return (
@@ -148,8 +149,8 @@ function LabeledInput({
         placeholder={placeholder}
         onChange={(event) => onChange?.(event.target.value)}
       />
-      {disabled && (
-        <p className="text-xs text-slate-400">Este dato no puede modificarse desde la app.</p>
+      {hint && (
+        <p className="text-xs text-slate-400">{hint}</p>
       )}
     </div>
   );
@@ -160,6 +161,8 @@ export function ProfilePanel() {
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  // DNI guardado en DB: si tiene valor, no se puede modificar
+  const [savedDni, setSavedDni] = useState<string | null>(null);
   const userId = user?.id;
 
   useEffect(() => {
@@ -171,6 +174,8 @@ export function ProfilePanel() {
         if (!result.ok || !result.data) return;
         const currentRole = useAuthStore.getState().user?.global_role;
         setUser({ ...result.data, global_role: currentRole ?? result.data.global_role });
+        // Guardar el DNI persistido para protegerlo de edición
+        setSavedDni(result.data.dni?.trim() || null);
       })
       .finally(() => setLoadingProfile(false));
   }, [setUser, userId]);
@@ -183,7 +188,8 @@ export function ProfilePanel() {
   };
 
   const updatePersonalField = (field: PersonalField['key'], value: string) => {
-    if (field === 'email' || field === 'celular' || field === 'dni') return;
+    // DNI solo se puede editar si está vacío en el perfil guardado
+    if (field === 'dni' && savedDni) return;
     const patch = { [field]: value } as Partial<Profile>;
     if (field === 'first_name' || field === 'second_name' || field === 'paternal_last_name') {
       patch.nombre = composeDisplayName(user, patch);
@@ -216,19 +222,23 @@ export function ProfilePanel() {
       <section className="space-y-3 rounded-md border border-slate-200 p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Datos personales</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          {personalFields.map((field) => (
-            <div key={field.key} className={field.key === 'email' ? 'sm:col-span-2' : ''}>
-              <LabeledInput
-                label={field.label}
-                optional={field.optional}
-                disabled={field.disabled}
-                placeholder={field.placeholder}
-                type={field.type}
-                value={field.key === 'email' ? user.email : (user[field.key] ?? '')}
-                onChange={(value) => updatePersonalField(field.key, value)}
-              />
-            </div>
-          ))}
+          {personalFields.map((field) => {
+            const isDniLocked = field.key === 'dni' && Boolean(savedDni);
+            return (
+              <div key={field.key} className={field.key === 'email' ? 'sm:col-span-2' : ''}>
+                <LabeledInput
+                  label={field.label}
+                  optional={field.optional}
+                  disabled={isDniLocked}
+                  hint={isDniLocked ? 'El DNI no puede modificarse después de guardarlo.' : undefined}
+                  placeholder={field.placeholder}
+                  type={field.type}
+                  value={field.key === 'email' ? user.email : (user[field.key] ?? '')}
+                  onChange={(value) => updatePersonalField(field.key, value)}
+                />
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -257,6 +267,8 @@ export function ProfilePanel() {
         onClick={async () => {
           const firstName = user.first_name?.trim() ?? '';
           const paternalLastName = user.paternal_last_name?.trim() ?? '';
+          const celular = user.celular?.trim() ?? '';
+          const email = user.email?.trim() ?? '';
           if (!firstName) {
             setFeedback({ type: 'error', message: 'El primer nombre es obligatorio.' });
             return;
@@ -265,10 +277,23 @@ export function ProfilePanel() {
             setFeedback({ type: 'error', message: 'El apellido paterno es obligatorio.' });
             return;
           }
+          if (!celular) {
+            setFeedback({ type: 'error', message: 'El celular es obligatorio.' });
+            return;
+          }
+          if (!email) {
+            setFeedback({ type: 'error', message: 'El correo es obligatorio.' });
+            return;
+          }
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(email)) {
+            setFeedback({ type: 'error', message: 'Ingresa un correo con formato válido.' });
+            return;
+          }
           try {
             setFeedback(null);
             setSaving(true);
-            const result = await upsertProfile(user);
+            const result = await upsertProfile(user, savedDni);
             if (!result.ok) {
               setFeedback({ type: 'error', message: 'No pudimos guardar tus cambios. Inténtalo nuevamente.' });
               return;

@@ -101,15 +101,17 @@ export async function fetchReceiverPayoutInfo(params: { juntaId: string; profile
   return { ok: true as const, data: (row as Partial<Profile> | null) ?? null };
 }
 
-export async function upsertProfile(input: Profile) {
+export async function upsertProfile(input: Profile, savedDni?: string | null) {
   if (!hasSupabase || !supabase) return { ok: true as const, source: 'mock' as const };
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     id: input.id,
     nombre: input.nombre.trim() || input.email.split('@')[0],
     first_name: input.first_name?.trim() || null,
     second_name: input.second_name?.trim() || null,
     paternal_last_name: input.paternal_last_name?.trim() || null,
+    email: input.email.trim(),
+    celular: input.celular.trim(),
     preferred_payout_method: input.preferred_payout_method ?? null,
     payout_account_name: input.payout_account_name?.trim() || null,
     payout_phone_number: input.payout_phone_number?.trim() || null,
@@ -118,6 +120,11 @@ export async function upsertProfile(input: Profile) {
     payout_cci: input.payout_cci?.trim() || null,
     payout_notes: input.payout_notes?.trim() || null
   };
+
+  // DNI solo se envía si no tenía valor previo en DB (primera vez que se completa)
+  if (!savedDni && input.dni?.trim()) {
+    payload.dni = normalizeDni(input.dni) || input.dni.trim();
+  }
 
   const { error } = await supabase.schema('public').from('profiles').upsert(payload, { onConflict: 'id' });
   if (error) return { ok: false as const, message: error.message };
