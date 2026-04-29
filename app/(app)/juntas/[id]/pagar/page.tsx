@@ -11,7 +11,8 @@ import { normalizePaymentStatus, paymentStatusLabel } from '@/lib/payment-status
 import { isJuntaActive } from '@/lib/junta-status';
 import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
-import { fetchMembersByJuntaIds } from '@/services/juntas.repository';
+import type { JuntaMember } from '@/types/domain';
+import { fetchJuntaActiveMembers } from '@/services/juntas.repository';
 import {
   PAYMENT_RECEIPT_ACCEPT,
   PaymentReceiptUploadError,
@@ -25,7 +26,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
-  const { juntas, schedules, payments, members, setData } = useAppStore();
+  const { juntas, schedules, payments, setData } = useAppStore();
 
   const junta = juntas.find((item) => item.id === params.id);
   const juntaSchedules = schedules
@@ -39,7 +40,15 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
     ?? juntaSchedules.find((item) => item.fecha_vencimiento >= today)
     ?? juntaSchedules[0];
   const isCreator = Boolean(user?.id && junta?.admin_id && user.id === junta.admin_id);
-  const isMember = isCreator || members.some((member) => member.junta_id === params.id && member.profile_id === user?.id && member.estado === 'activo');
+
+  const [activeMembers, setActiveMembers] = useState<JuntaMember[] | null>(null);
+  const [loadingMembership, setLoadingMembership] = useState(true);
+
+  const isMember = isCreator || Boolean(activeMembers?.some((m) => m.profile_id === user?.id && m.estado === 'activo'));
+  const currentReceiverMember = activeMembers && currentSchedule
+    ? (activeMembers.find((m) => m.orden_turno === currentSchedule.cuota_numero) ?? null)
+    : null;
+  const isCurrentReceiver = Boolean(user?.id && currentReceiverMember?.profile_id && user.id === currentReceiverMember.profile_id);
 
   const existingPayment = payments.find(
     (payment) => payment.junta_id === params.id && payment.profile_id === user?.id && payment.schedule_id === currentSchedule?.id
@@ -89,16 +98,15 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   }, [junta, juntaSchedules.length, schedules, setData]);
 
   useEffect(() => {
-    if (!user || !junta) return;
-    if (isMember) return;
-    if (!hasSupabase) return;
-
-    fetchMembersByJuntaIds([junta.id]).then((result) => {
-      if (!result.ok) return;
-      if (result.data.length === 0) return;
-      setData({ members: [...members.filter((m) => m.junta_id !== junta.id), ...result.data] });
+    if (!user) {
+      setLoadingMembership(false);
+      return;
+    }
+    fetchJuntaActiveMembers(params.id).then((result) => {
+      setActiveMembers(result.ok ? result.data : []);
+      setLoadingMembership(false);
     });
-  }, [isMember, junta, members, setData, user]);
+  }, [params.id, user]);
 
   useEffect(() => {
     if (!receiptFile || receiptFile.type === 'application/pdf') {
@@ -162,9 +170,11 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   }, [currentSchedule, existingPayment, isCreator, isMember, junta, user]);
 
   if (!user) return <Card>Debes iniciar sesión.</Card>;
+  if (loadingMembership) return <Card>Verificando membresía...</Card>;
   if (!isMember) return <Card>Solo los integrantes activos de esta junta pueden registrar pagos.</Card>;
   if (!junta || !currentSchedule) return <Card>No encontramos una cuota/ronda pendiente para esta junta.</Card>;
   if (!isJuntaActive(junta.estado)) return <Card>Aún no puedes registrar pagos porque la junta no está activa.</Card>;
+  if (isCurrentReceiver) return <Card>Eres el receptor de esta semana. Los demás integrantes están pagando a tu favor.</Card>;
 
   const uploadReceiptIfNeeded = async () => {
     if (!receiptFile) return fileName || undefined;
@@ -186,10 +196,6 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
     }
     if (monto !== expectedAmount) {
       setMessage('Solo puedes registrar el monto completo de la cuota');
-      return;
-    }
-    if (!receiptFile && !fileName) {
-      setMessage('Debes subir un voucher para enviar tu pago');
       return;
     }
     if (!canSubmitPayment) {
@@ -280,7 +286,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
           <label className="text-sm font-medium">Número de operación (opcional)</label>
           <Input value={operationNumber} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setOperationNumber(event.target.value)} />
 
-          <label className="text-sm font-medium">Voucher / comprobante (obligatorio · JPG, PNG o PDF)</label>
+          <label className="text-sm font-medium">Voucher / comprobante (opcional · JPG, PNG o PDF)</label>
           <Input
             type="file"
             accept={PAYMENT_RECEIPT_ACCEPT}
