@@ -26,19 +26,14 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     if (!hasSupabase || !supabase) return;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setRecoveryState('ready');
-    });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+      if (event === 'PASSWORD_RECOVERY') {
         setRecoveryState('ready');
       }
     });
 
-    const timer = setTimeout(async () => {
-      const { data } = await supabase!.auth.getSession();
-      setRecoveryState((prev) => (prev === 'ready' ? 'ready' : data.session ? 'ready' : 'invalid'));
+    const timer = setTimeout(() => {
+      setRecoveryState((prev) => (prev === 'ready' ? 'ready' : 'invalid'));
     }, 3000);
 
     return () => {
@@ -51,12 +46,12 @@ export default function ResetPasswordPage() {
     return (
       <Card className="w-full space-y-4">
         <div>
-          <h1 className="text-xl font-semibold">Enlace inválido</h1>
-          <p className="text-sm text-slate-500">Este enlace expiró o ya fue usado. Solicita uno nuevo.</p>
+          <h1 className="text-xl font-semibold">Enlace no válido</h1>
+          <p className="text-sm text-slate-500">Este enlace no es válido o ha expirado.</p>
         </div>
-        <Link href="/forgot-password" className="text-sm text-muted hover:text-fg hover:underline">
+        <Button className="w-full" onClick={() => router.push('/forgot-password')}>
           Solicitar nuevo enlace
-        </Link>
+        </Button>
       </Card>
     );
   }
@@ -71,6 +66,7 @@ export default function ResetPasswordPage() {
       <form
         className="space-y-3"
         onSubmit={handleSubmit(async (values) => {
+          if (recoveryState !== 'ready') return;
           setMessage(null);
           setErrorMessage(null);
           const parsed = resetPasswordSchema.safeParse(values);
