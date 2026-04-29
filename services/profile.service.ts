@@ -110,8 +110,6 @@ export async function upsertProfile(input: Profile, savedDni?: string | null) {
     first_name: input.first_name?.trim() || null,
     second_name: input.second_name?.trim() || null,
     paternal_last_name: input.paternal_last_name?.trim() || null,
-    email: input.email.trim(),
-    celular: input.celular.trim(),
     preferred_payout_method: input.preferred_payout_method ?? null,
     payout_account_name: input.payout_account_name?.trim() || null,
     payout_phone_number: input.payout_phone_number?.trim() || null,
@@ -121,12 +119,17 @@ export async function upsertProfile(input: Profile, savedDni?: string | null) {
     payout_notes: input.payout_notes?.trim() || null
   };
 
+  if (input.celular?.trim()) payload.celular = input.celular.trim();
+
   // DNI solo se envía si no tenía valor previo en DB (primera vez que se completa)
   if (!savedDni && input.dni?.trim()) {
     payload.dni = normalizeDni(input.dni) || input.dni.trim();
   }
 
   const { error } = await supabase.schema('public').from('profiles').upsert(payload, { onConflict: 'id' });
-  if (error) return { ok: false as const, message: error.message };
+  if (error) {
+    console.error('[upsertProfile] Supabase error:', error);
+    return { ok: false as const, message: error.message };
+  }
   return { ok: true as const, source: 'supabase' as const };
 }
