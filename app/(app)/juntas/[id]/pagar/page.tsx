@@ -11,8 +11,10 @@ import { normalizePaymentStatus, paymentStatusLabel } from '@/lib/payment-status
 import { isJuntaActive } from '@/lib/junta-status';
 import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
-import type { JuntaMember } from '@/types/domain';
+import type { JuntaMember, Profile } from '@/types/domain';
 import { fetchJuntaActiveMembers } from '@/services/juntas.repository';
+import { fetchProfileById } from '@/services/profile.service';
+import { getParticipantDisplayName, getReceiverPaymentDetails } from '@/lib/payment-instructions';
 import {
   PAYMENT_RECEIPT_ACCEPT,
   PaymentReceiptUploadError,
@@ -43,6 +45,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
 
   const [activeMembers, setActiveMembers] = useState<JuntaMember[] | null>(null);
   const [loadingMembership, setLoadingMembership] = useState(true);
+  const [receiverProfile, setReceiverProfile] = useState<Profile | null>(null);
 
   const isMember = isCreator || Boolean(activeMembers?.some((m) => m.profile_id === user?.id && m.estado === 'activo'));
   const currentReceiverMember = activeMembers && currentSchedule
@@ -107,6 +110,13 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
       setLoadingMembership(false);
     });
   }, [params.id, user]);
+
+  useEffect(() => {
+    if (!currentReceiverMember?.profile_id) return;
+    fetchProfileById(currentReceiverMember.profile_id).then((result) => {
+      setReceiverProfile(result.ok ? result.data : null);
+    });
+  }, [currentReceiverMember?.profile_id]);
 
   useEffect(() => {
     if (!receiptFile || receiptFile.type === 'application/pdf') {
@@ -256,6 +266,9 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const receiverPaymentDetails = getReceiverPaymentDetails(receiverProfile);
+  const receiverDisplayName = getParticipantDisplayName(receiverProfile) || currentReceiverMember?.nombre || 'Receptor del turno';
+
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Card className="space-y-2">
@@ -268,6 +281,32 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         {alreadyPaid && <p className="text-sm font-medium text-emerald-700">Pago ya registrado</p>}
         {isUnderValidation && <p className="text-sm font-medium text-blue-700">Tu pago está en validación</p>}
       </Card>
+
+      {currentReceiverMember && (
+        <Card className="space-y-2 border-blue-200 bg-blue-50">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Destinatario del pozo</p>
+          <p className="font-semibold text-slate-800">Paga a: {receiverDisplayName}</p>
+          <p className="text-sm text-slate-600">Turno: <span className="font-medium">#{currentSchedule.cuota_numero}</span></p>
+          <p className="text-sm text-slate-600">Monto: <span className="font-medium">S/ {currentSchedule.monto.toFixed(2)}</span></p>
+          {receiverPaymentDetails.isConfigured ? (
+            <div className="space-y-1 border-t border-blue-200 pt-2">
+              <p className="text-sm font-medium text-slate-700">Método sugerido: {receiverPaymentDetails.methodLabel}</p>
+              {receiverPaymentDetails.destinationLabel && receiverPaymentDetails.destinationValue && (
+                <p className="text-sm text-slate-600">{receiverPaymentDetails.destinationLabel}: <span className="font-medium">{receiverPaymentDetails.destinationValue}</span></p>
+              )}
+              {receiverPaymentDetails.secondaryLabel && receiverPaymentDetails.secondaryValue && (
+                <p className="text-sm text-slate-600">{receiverPaymentDetails.secondaryLabel}: <span className="font-medium">{receiverPaymentDetails.secondaryValue}</span></p>
+              )}
+              {receiverPaymentDetails.notes && (
+                <p className="text-sm text-slate-500">Nota: {receiverPaymentDetails.notes}</p>
+              )}
+              <p className="pt-1 text-xs font-medium text-blue-700">Transfiere a este destinatario y luego registra tu pago abajo.</p>
+            </div>
+          ) : (
+            <p className="border-t border-blue-200 pt-2 text-sm text-amber-700">El receptor aún no configuró sus datos de pago. Coordina con él antes de registrar el pago.</p>
+          )}
+        </Card>
+      )}
 
       <form onSubmit={submitVoucher} className="space-y-3">
         <Card className="space-y-3">
