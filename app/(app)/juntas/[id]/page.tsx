@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaById, fetchMembersByJuntaIds, fetchMyActiveMembership, fetchUserJuntaSnapshot, updateJuntaMemberTurns } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchUserJuntaSnapshot, updateJuntaMemberTurns } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -62,7 +62,7 @@ function JuntaPaymentStatusRow({ row, showPayAction, onPay }: { row: WeeklyMembe
 export default function JuntaDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { juntas, members, payments, schedules, payouts, setData } = useAppStore();
+  const { juntas, payments, schedules, payouts, setData } = useAppStore();
 
   const [mainView, setMainView] = useState<MainView>('general');
   const [generalTab, setGeneralTab] = useState<GeneralTab>('integrantes');
@@ -71,7 +71,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [accessState, setAccessState] = useState<'checking' | 'allowed' | 'unauthorized' | 'blocked' | 'not_found'>('checking');
   const [phaseTwoLoading, setPhaseTwoLoading] = useState(false);
-  const [detailMembers, setDetailMembers] = useState<typeof members>([]);
+  const [detailMembers, setDetailMembers] = useState<import('@/types/domain').JuntaMember[]>([]);
   const [detailPayments, setDetailPayments] = useState<typeof payments>([]);
   const [detailSchedules, setDetailSchedules] = useState<typeof schedules>([]);
   const [paymentInfo, setPaymentInfo] = useState<string | null>(null);
@@ -93,13 +93,12 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
         const hasFullData = storedJunta != null && storedJunta.turn_assignment_mode != null;
         const [detailResult, membersResult, membershipResult] = await Promise.all([
           hasFullData ? Promise.resolve({ ok: true as const, data: storedJunta! }) : fetchJuntaById(params.id),
-          fetchMembersByJuntaIds([params.id]),
+          fetchJuntaActiveMembers(params.id),
           fetchMyActiveMembership({ juntaId: params.id, profileId: user.id })
         ]);
 
         let resolvedJunta = detailResult.ok ? detailResult.data : null;
-        const activeMembers = membersResult.ok ? membersResult.data.filter((member) => member.estado === 'activo') : [];
-        if (membersResult.ok) setData({ members: membersResult.data });
+        const activeMembers = membersResult.ok ? membersResult.data : [];
 
         if (!resolvedJunta) {
           // Fallback only when direct detail fetch fails; keep it as last attempt to avoid heavy catalog queries on happy path.
@@ -131,6 +130,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           return;
         }
 
+        setDetailMembers(membersResult.ok ? membersResult.data : []);
         setAccessState('allowed');
       } catch (error) {
         setLoadError(error instanceof Error ? error.message : 'No se pudo cargar la junta.');
@@ -144,11 +144,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   useEffect(() => {
     if (accessState !== 'allowed' || !junta) return;
     setPhaseTwoLoading(true);
-    setDetailMembers(members.filter((member) => member.junta_id === junta.id && member.estado === 'activo'));
     setDetailPayments(payments.filter((payment) => payment.junta_id === junta.id));
     setDetailSchedules(schedules.filter((schedule) => schedule.junta_id === junta.id));
     setPhaseTwoLoading(false);
-  }, [accessState, junta, members, payments, schedules]);
+  }, [accessState, junta, payments, schedules]);
 
   const juntaMembers = useMemo(() => {
     if (!junta) return detailMembers;
@@ -171,21 +170,26 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
   const refreshSnapshot = async () => {
     if (!user?.id) return;
-    const result = await fetchUserJuntaSnapshot(user.id);
-    if (!result.ok) return;
-    setData({
-      juntas: result.data.juntas,
-      members: result.data.members,
-      schedules: result.data.schedules,
-      payments: result.data.payments,
-      payouts: result.data.payouts
-    });
+    const [snapshotResult, membersResult] = await Promise.all([
+      fetchUserJuntaSnapshot(user.id),
+      fetchJuntaActiveMembers(params.id)
+    ]);
 
-    const refreshedJunta = result.data.juntas.find((item) => item.id === params.id) ?? null;
-    if (refreshedJunta) setJunta(refreshedJunta);
-    setDetailMembers(result.data.members.filter((member) => member.junta_id === params.id && member.estado === 'activo'));
-    setDetailPayments(result.data.payments.filter((payment) => payment.junta_id === params.id));
-    setDetailSchedules(result.data.schedules.filter((schedule) => schedule.junta_id === params.id));
+    if (snapshotResult.ok) {
+      setData({
+        juntas: snapshotResult.data.juntas,
+        members: snapshotResult.data.members,
+        schedules: snapshotResult.data.schedules,
+        payments: snapshotResult.data.payments,
+        payouts: snapshotResult.data.payouts
+      });
+      const refreshedJunta = snapshotResult.data.juntas.find((item) => item.id === params.id) ?? null;
+      if (refreshedJunta) setJunta(refreshedJunta);
+      setDetailPayments(snapshotResult.data.payments.filter((payment) => payment.junta_id === params.id));
+      setDetailSchedules(snapshotResult.data.schedules.filter((schedule) => schedule.junta_id === params.id));
+    }
+
+    if (membersResult.ok) setDetailMembers(membersResult.data);
   };
 
   if (loadingJunta) return <Card>Cargando junta...</Card>;
@@ -408,9 +412,13 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               ) : (
                 <>
                   <div className="space-y-2">
-                    {juntaMembers.map((member, index) => (
+                    {juntaMembers.map((member, index) => {
+                      const displayName = member.profile_id === user?.id
+                        ? `Tú${member.nombre ? ` (${member.nombre.split(' ')[0]})` : ''}`
+                        : member.nombre ?? (member.profile_id === junta.admin_id ? 'Creador' : `Integrante ${index + 1}`);
+                      return (
                       <div key={member.id} className="flex items-center justify-between rounded-md border p-2">
-                        <p className="text-sm">{member.profile_id === user?.id ? 'Tú' : member.profile_id === junta.admin_id ? 'Creador' : `Integrante ${index + 1}`}</p>
+                        <p className="text-sm">{displayName}</p>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-slate-500">Turno</span>
                           <select
@@ -423,7 +431,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                           </select>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
