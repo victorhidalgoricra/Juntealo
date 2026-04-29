@@ -26,7 +26,7 @@ const personalFields: PersonalField[] = [
   { key: 'paternal_last_name', label: 'Apellido paterno', placeholder: 'Ej. García' },
   { key: 'celular', label: 'Celular', type: 'tel' },
   { key: 'email', label: 'Correo', type: 'email' },
-  { key: 'dni', label: 'DNI' }
+  { key: 'dni', label: 'DNI', placeholder: 'Ej. 12345678' }
 ];
 
 function composeDisplayName(user: Profile, patch?: Partial<Profile>) {
@@ -229,8 +229,14 @@ export function ProfilePanel() {
                 <LabeledInput
                   label={field.label}
                   optional={field.optional}
-                  disabled={isDniLocked}
-                  hint={isDniLocked ? 'El DNI no puede modificarse después de guardarlo.' : undefined}
+                  disabled={isDniLocked || field.key === 'email'}
+                  hint={
+                    isDniLocked
+                      ? 'El DNI no puede modificarse después de guardarlo.'
+                      : field.key === 'email'
+                        ? 'El correo no puede modificarse desde aquí.'
+                        : undefined
+                  }
                   placeholder={field.placeholder}
                   type={field.type}
                   value={field.key === 'email' ? user.email : (user[field.key] ?? '')}
@@ -268,7 +274,6 @@ export function ProfilePanel() {
           const firstName = user.first_name?.trim() ?? '';
           const paternalLastName = user.paternal_last_name?.trim() ?? '';
           const celular = user.celular?.trim() ?? '';
-          const email = user.email?.trim() ?? '';
           if (!firstName) {
             setFeedback({ type: 'error', message: 'El primer nombre es obligatorio.' });
             return;
@@ -281,25 +286,18 @@ export function ProfilePanel() {
             setFeedback({ type: 'error', message: 'El celular es obligatorio.' });
             return;
           }
-          if (!email) {
-            setFeedback({ type: 'error', message: 'El correo es obligatorio.' });
-            return;
-          }
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(email)) {
-            setFeedback({ type: 'error', message: 'Ingresa un correo con formato válido.' });
-            return;
-          }
           try {
             setFeedback(null);
             setSaving(true);
             const result = await upsertProfile(user, savedDni);
             if (!result.ok) {
-              setFeedback({ type: 'error', message: 'No pudimos guardar tus cambios. Inténtalo nuevamente.' });
+              console.error('[ProfilePanel] upsertProfile failed:', result.message);
+              setFeedback({ type: 'error', message: result.message ?? 'No pudimos guardar tus cambios. Inténtalo nuevamente.' });
               return;
             }
             setFeedback({ type: 'success', message: 'Tus datos fueron actualizados correctamente.' });
-          } catch {
+          } catch (err) {
+            console.error('[ProfilePanel] unexpected error:', err);
             setFeedback({ type: 'error', message: 'No pudimos guardar tus cambios. Inténtalo nuevamente.' });
           } finally {
             setSaving(false);
