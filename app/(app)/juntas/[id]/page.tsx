@@ -77,6 +77,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [paymentInfo, setPaymentInfo] = useState<string | null>(null);
   const [manualTurns, setManualTurns] = useState<Record<string, number>>({});
   const [activating, setActivating] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
   useEffect(() => {
     const load = async () => {
@@ -237,6 +238,21 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     incentivoRegla: junta.incentivo_regla
   });
 
+  const handleCopyLink = async () => {
+    const origin = window.location.origin;
+    const url =
+      junta.visibilidad === 'publica'
+        ? `${origin}/junta/${junta.slug}`
+        : `${origin}/juntas?code=${junta.access_code ?? ''}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopyStatus('copied');
+    } catch {
+      setCopyStatus('error');
+    }
+    setTimeout(() => setCopyStatus('idle'), 2000);
+  };
+
   const isOwner = user?.id === junta.admin_id;
   const canManualAssign = isOwner && !juntaActiva && junta.turn_assignment_mode === 'manual' && !blockedByDeadline;
   const canShuffle = isOwner && !juntaActiva && !blockedByDeadline;
@@ -278,14 +294,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => {
-                const shareUrl = `${window.location.origin}/junta/${junta.slug}`;
-                try { navigator.clipboard.writeText(shareUrl); } catch { /* ignore */ }
-              }}
+              onClick={handleCopyLink}
             >
-              Copiar enlace
+              {copyStatus === 'copied' ? 'Enlace copiado' : copyStatus === 'error' ? 'Error al copiar' : 'Copiar enlace'}
             </Button>
-            <Button variant="ghost">Opciones</Button>
           </div>
         </div>
 
