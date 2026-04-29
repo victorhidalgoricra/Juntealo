@@ -46,6 +46,14 @@ export function mapAuthErrorMessage(message: string) {
     return 'La contraseña debe tener al menos 6 caracteres.';
   }
 
+  if (normalized.includes('auth session missing') || normalized.includes('session_not_found') || normalized.includes('no active session')) {
+    return 'El enlace expiró o ya fue usado. Solicita un nuevo enlace de recuperación.';
+  }
+
+  if (normalized.includes('token has expired') || normalized.includes('otp expired') || normalized.includes('expired')) {
+    return 'El enlace de recuperación expiró. Solicita uno nuevo.';
+  }
+
   return message || 'No se pudo completar la autenticación. Intenta nuevamente.';
 }
 
