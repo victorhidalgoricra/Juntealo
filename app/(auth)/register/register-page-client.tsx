@@ -53,7 +53,7 @@ export function RegisterPageClient() {
               const conflictCheck = await checkProfileConflicts({ dni: normalized.dni, celular: normalized.celular });
               if (!conflictCheck.ok) throw new Error(conflictCheck.message);
               if (conflictCheck.existsDni) {
-                setError('dni', { message: 'Este DNI ya está registrado.' });
+                setError('dni', { message: 'No puedes registrarte. Este DNI ya está registrado.' });
                 return;
               }
               if (conflictCheck.existsCelular) {
