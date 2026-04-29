@@ -90,13 +90,10 @@ export async function upsertProfile(input: Profile) {
 
   const payload = {
     id: input.id,
-    email: input.email.trim(),
     nombre: input.nombre.trim() || input.email.split('@')[0],
     first_name: input.first_name?.trim() || null,
     second_name: input.second_name?.trim() || null,
     paternal_last_name: input.paternal_last_name?.trim() || null,
-    celular: normalizePhone(input.celular),
-    dni: normalizeDni(input.dni) || null,
     preferred_payout_method: input.preferred_payout_method ?? null,
     payout_account_name: input.payout_account_name?.trim() || null,
     payout_phone_number: input.payout_phone_number?.trim() || null,
