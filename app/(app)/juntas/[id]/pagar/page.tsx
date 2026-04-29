@@ -13,7 +13,7 @@ import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { JuntaMember, Profile } from '@/types/domain';
 import { fetchJuntaActiveMembers } from '@/services/juntas.repository';
-import { fetchProfileById } from '@/services/profile.service';
+import { fetchReceiverPayoutInfo } from '@/services/profile.service';
 import { getParticipantDisplayName, getReceiverPaymentDetails } from '@/lib/payment-instructions';
 import {
   PAYMENT_RECEIPT_ACCEPT,
@@ -45,7 +45,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
 
   const [activeMembers, setActiveMembers] = useState<JuntaMember[] | null>(null);
   const [loadingMembership, setLoadingMembership] = useState(true);
-  const [receiverProfile, setReceiverProfile] = useState<Profile | null>(null);
+  const [receiverProfile, setReceiverProfile] = useState<Partial<Profile> | null>(null);
 
   const isMember = isCreator || Boolean(activeMembers?.some((m) => m.profile_id === user?.id && m.estado === 'activo'));
   const currentReceiverMember = activeMembers && currentSchedule
@@ -113,10 +113,10 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (!currentReceiverMember?.profile_id) return;
-    fetchProfileById(currentReceiverMember.profile_id).then((result) => {
+    fetchReceiverPayoutInfo({ juntaId: params.id, profileId: currentReceiverMember.profile_id }).then((result) => {
       setReceiverProfile(result.ok ? result.data : null);
     });
-  }, [currentReceiverMember?.profile_id]);
+  }, [currentReceiverMember?.profile_id, params.id]);
 
   useEffect(() => {
     if (!receiptFile || receiptFile.type === 'application/pdf') {
