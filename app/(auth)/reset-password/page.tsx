@@ -26,19 +26,27 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     if (!hasSupabase || !supabase) return;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setRecoveryState('ready');
-    });
+    // Check URL hash immediately — if there's no recovery token, fail fast
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const hasRecoveryParams = params.get('type') === 'recovery' && !!params.get('access_token');
+
+    if (!hasRecoveryParams) {
+      // No recovery params in URL; check for an existing valid session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) setRecoveryState('invalid');
+        // If there's a session, wait for PASSWORD_RECOVERY event or timeout
+      });
+    }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+      if (event === 'PASSWORD_RECOVERY') {
         setRecoveryState('ready');
       }
     });
 
-    const timer = setTimeout(async () => {
-      const { data } = await supabase!.auth.getSession();
-      setRecoveryState((prev) => (prev === 'ready' ? 'ready' : data.session ? 'ready' : 'invalid'));
+    const timer = setTimeout(() => {
+      setRecoveryState((prev) => (prev === 'ready' ? 'ready' : 'invalid'));
     }, 3000);
 
     return () => {
@@ -47,16 +55,27 @@ export default function ResetPasswordPage() {
     };
   }, []);
 
+  if (recoveryState === 'verifying') {
+    return (
+      <Card className="w-full space-y-4">
+        <div>
+          <h1 className="text-xl font-semibold">Verificando enlace...</h1>
+          <p className="text-sm text-slate-500">Por favor espera un momento.</p>
+        </div>
+      </Card>
+    );
+  }
+
   if (recoveryState === 'invalid') {
     return (
       <Card className="w-full space-y-4">
         <div>
-          <h1 className="text-xl font-semibold">Enlace inválido</h1>
-          <p className="text-sm text-slate-500">Este enlace expiró o ya fue usado. Solicita uno nuevo.</p>
+          <h1 className="text-xl font-semibold">Enlace no válido</h1>
+          <p className="text-sm text-slate-500">Este enlace no es válido o ha expirado.</p>
         </div>
-        <Link href="/forgot-password" className="text-sm text-muted hover:text-fg hover:underline">
+        <Button className="w-full" onClick={() => router.push('/forgot-password')}>
           Solicitar nuevo enlace
-        </Link>
+        </Button>
       </Card>
     );
   }
@@ -101,7 +120,6 @@ export default function ResetPasswordPage() {
           type="password"
           placeholder="Mínimo 8 caracteres"
           autoComplete="new-password"
-          disabled={recoveryState === 'verifying'}
           {...register('password')}
         />
         <label className="text-sm font-medium">Confirmar contraseña</label>
@@ -109,11 +127,10 @@ export default function ResetPasswordPage() {
           type="password"
           placeholder="Repite tu contraseña"
           autoComplete="new-password"
-          disabled={recoveryState === 'verifying'}
           {...register('confirmPassword')}
         />
-        <Button className="w-full" disabled={loading || recoveryState === 'verifying'}>
-          {loading ? 'Guardando...' : recoveryState === 'verifying' ? 'Verificando enlace...' : 'Guardar nueva contraseña'}
+        <Button className="w-full" disabled={loading}>
+          {loading ? 'Guardando...' : 'Guardar nueva contraseña'}
         </Button>
       </form>
 
