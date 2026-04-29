@@ -85,6 +85,22 @@ export async function fetchProfileById(profileId: string) {
   return { ok: true as const, data: (data as Profile | null) ?? null };
 }
 
+export async function fetchReceiverPayoutInfo(params: { juntaId: string; profileId: string }) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: null as Partial<Profile> | null };
+
+  const { data, error } = await supabase
+    .schema('public')
+    .rpc('get_receiver_payout_info', {
+      p_junta_id: params.juntaId,
+      p_profile_id: params.profileId
+    });
+
+  if (error) return { ok: false as const, message: error.message };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return { ok: true as const, data: (row as Partial<Profile> | null) ?? null };
+}
+
 export async function upsertProfile(input: Profile) {
   if (!hasSupabase || !supabase) return { ok: true as const, source: 'mock' as const };
 
