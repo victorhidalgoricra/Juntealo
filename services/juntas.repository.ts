@@ -495,6 +495,19 @@ export async function updateJuntaMemberTurns(params: { juntaId: string; turnsByP
   return { ok: true as const };
 }
 
+export async function setJuntaAssignmentMode(params: { juntaId: string; mode: 'manual' | 'random' }) {
+  if (!hasSupabase || !supabase) return { ok: true as const };
+
+  const { error } = await supabase
+    .schema('public')
+    .from('juntas')
+    .update({ turn_assignment_mode: params.mode })
+    .eq('id', params.juntaId);
+
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  return { ok: true as const };
+}
+
 export async function confirmPayout(params: {
   juntaId: string;
   profileId: string;
