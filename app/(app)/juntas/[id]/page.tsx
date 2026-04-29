@@ -76,6 +76,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [detailSchedules, setDetailSchedules] = useState<typeof schedules>([]);
   const [paymentInfo, setPaymentInfo] = useState<string | null>(null);
   const [manualTurns, setManualTurns] = useState<Record<string, number>>({});
+  const [activating, setActivating] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -449,39 +450,51 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                       Sortear aleatoriamente
                     </Button>
                     <Button
-                      disabled={!isOwner || memberCount < junta.participantes_max}
+                      disabled={!isOwner || memberCount < junta.participantes_max || activating}
                       onClick={async () => {
-                        if (canManualAssign) {
-                          const assignedTurns = juntaMembers.map((member) => manualTurns[member.profile_id] ?? member.orden_turno);
-                          const uniqueTurns = new Set(assignedTurns);
-                          if (uniqueTurns.size !== juntaMembers.length) {
-                            setPaymentInfo('No puedes repetir turnos. Asigna un turno único por integrante.');
-                            return;
-                          }
-
-                          const turnsByProfileId = juntaMembers.reduce<Record<string, number>>((acc, member) => {
-                            acc[member.profile_id] = manualTurns[member.profile_id] ?? member.orden_turno;
-                            return acc;
-                          }, {});
-
-                          const saveTurnsResult = await updateJuntaMemberTurns({ juntaId: junta.id, turnsByProfileId });
-                          if (!saveTurnsResult.ok) {
-                            setPaymentInfo(saveTurnsResult.message);
-                            return;
-                          }
-                        }
-
-                        const result = await activateJuntaIfReady({ juntaId: junta.id });
-                        if (!result.ok) {
-                          setPaymentInfo(result.message);
-                          return;
-                        }
-
-                        await refreshSnapshot();
+                        setActivating(true);
                         setPaymentInfo(null);
+                        try {
+                          if (canManualAssign) {
+                            const assignedTurns = juntaMembers.map((member) => manualTurns[member.profile_id] ?? member.orden_turno);
+                            const uniqueTurns = new Set(assignedTurns);
+                            if (uniqueTurns.size !== juntaMembers.length) {
+                              setPaymentInfo('No puedes repetir turnos. Asigna un turno único por integrante.');
+                              return;
+                            }
+
+                            const turnsByProfileId = juntaMembers.reduce<Record<string, number>>((acc, member) => {
+                              acc[member.profile_id] = manualTurns[member.profile_id] ?? member.orden_turno;
+                              return acc;
+                            }, {});
+
+                            const saveTurnsResult = await updateJuntaMemberTurns({ juntaId: junta.id, turnsByProfileId });
+                            if (!saveTurnsResult.ok) {
+                              setPaymentInfo(saveTurnsResult.message);
+                              return;
+                            }
+                          }
+
+                          const result = await activateJuntaIfReady({ juntaId: junta.id });
+                          if (!result.ok) {
+                            setPaymentInfo(result.message);
+                            return;
+                          }
+
+                          const freshResult = await fetchJuntaById(params.id);
+                          if (freshResult.ok && freshResult.data) {
+                            setJunta(freshResult.data);
+                          }
+
+                          await refreshSnapshot();
+                        } catch {
+                          setPaymentInfo('Ocurrió un error al activar la junta. Intenta de nuevo.');
+                        } finally {
+                          setActivating(false);
+                        }
                       }}
                     >
-                      Activar junta
+                      {activating ? 'Activando…' : 'Activar junta'}
                     </Button>
                   </div>
                 </>
