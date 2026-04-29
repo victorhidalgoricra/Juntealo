@@ -58,24 +58,21 @@ export async function checkProfileConflicts(input: { dni: string; celular: strin
     return { ok: false as const, message: 'Debes ingresar un DNI válido.' };
   }
 
-  const [dniResult, celularResult] = await Promise.all([
-    supabase.from('profiles').select('id').eq('dni', normalizedDni).limit(1),
-    supabase.from('profiles').select('id').eq('celular', normalizedCelular).limit(1)
-  ]);
+  const { data, error } = await supabase.rpc('check_profile_conflicts', {
+    p_dni: normalizedDni,
+    p_celular: normalizedCelular
+  });
 
-  if (dniResult.error) {
-    console.error('[checkProfileConflicts] DNI query error:', dniResult.error);
-    return { ok: false as const, message: dniResult.error.message };
-  }
-  if (celularResult.error) {
-    console.error('[checkProfileConflicts] celular query error:', celularResult.error);
-    return { ok: false as const, message: celularResult.error.message };
+  if (error) {
+    console.error('[checkProfileConflicts] RPC error:', error);
+    return { ok: false as const, message: error.message };
   }
 
+  const row = Array.isArray(data) ? data[0] : data;
   return {
     ok: true as const,
-    existsDni: (dniResult.data?.length ?? 0) > 0,
-    existsCelular: (celularResult.data?.length ?? 0) > 0
+    existsDni: row?.exists_dni ?? false,
+    existsCelular: row?.exists_celular ?? false
   };
 }
 

@@ -57,10 +57,7 @@ export function mapRegisterErrorMessage(message: string) {
   }
 
   if (normalized.includes('profile_sync_failed')) {
-    const detail = message.split('profile_sync_failed: ').slice(1).join('');
-    return detail
-      ? `Se creó el usuario, pero el perfil falló: ${detail}`
-      : 'Se creó el usuario, pero no se pudo guardar su perfil. Intenta nuevamente.';
+    return 'Hubo un problema creando tu perfil. Intenta nuevamente.';
   }
 
   if (normalized.includes('invalid') || normalized.includes('validation')) {
