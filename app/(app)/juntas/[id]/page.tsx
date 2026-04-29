@@ -565,17 +565,37 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             </Card>
           )}
 
-          <Card className="space-y-3 p-4">
-            <h3 className="text-lg font-semibold">Esta semana · turno de {summary.receiver?.displayName ?? '—'}</h3>
-            <p className="text-4xl font-bold">S/{(personal.myRow?.amount ?? (junta.cuota_base ?? junta.monto_cuota)).toFixed(2)}</p>
-            <div className="text-sm text-slate-600">
-              <p>Base: S/{(junta.cuota_base ?? junta.monto_cuota).toFixed(2)}</p>
-              <p>Ajuste: {junta.tipo_junta === 'incentivo' ? incentiveLabel : 'No aplica'}</p>
-              <p>{personal.progressLabel}</p>
-            </div>
-            <Button onClick={() => router.push(`/juntas/${junta.id}/registrar-pago`)}>Pagar ahora →</Button>
-            {paymentInfo && <p className="text-xs text-amber-700">{paymentInfo}</p>}
-          </Card>
+          {isCurrentReceiver ? (
+            <Card className="space-y-3 p-4">
+              <h3 className="text-lg font-semibold">Esta semana · recibes el pozo</h3>
+              <p className="text-4xl font-bold text-emerald-600">S/{(personal.myTurnRow?.montoRecibido ?? (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(2)}</p>
+              <div className="text-sm text-slate-600">
+                <p>{summary.paid}/{juntaMembers.length - 1} pagos recibidos</p>
+              </div>
+              {summary.pending === 0 ? (
+                <Button onClick={handleConfirmPayout}>Confirmar recibo →</Button>
+              ) : (
+                <p className="text-sm text-slate-500">Esperando {summary.pending} pago(s) para liberar la bolsa.</p>
+              )}
+              {paymentInfo && <p className="text-xs text-amber-700">{paymentInfo}</p>}
+            </Card>
+          ) : (
+            <Card className="space-y-3 p-4">
+              <h3 className="text-lg font-semibold">Esta semana · turno de {summary.receiver?.displayName ?? '—'}</h3>
+              <p className="text-4xl font-bold">S/{(personal.myRow?.amount ?? (junta.cuota_base ?? junta.monto_cuota)).toFixed(2)}</p>
+              <div className="text-sm text-slate-600">
+                <p>Base: S/{(junta.cuota_base ?? junta.monto_cuota).toFixed(2)}</p>
+                <p>Ajuste: {junta.tipo_junta === 'incentivo' ? incentiveLabel : 'No aplica'}</p>
+                <p>{personal.progressLabel}</p>
+              </div>
+              {personal.myRow?.status !== 'Pagado' && personal.myRow?.status !== 'Validando' && (
+                <Button onClick={() => router.push(`/juntas/${junta.id}/registrar-pago`)}>Pagar ahora →</Button>
+              )}
+              {personal.myRow?.status === 'Pagado' && <p className="text-sm font-medium text-emerald-600">Ya enviaste tu pago.</p>}
+              {personal.myRow?.status === 'Validando' && <p className="text-sm font-medium text-blue-600">Tu pago está en validación.</p>}
+              {paymentInfo && <p className="text-xs text-amber-700">{paymentInfo}</p>}
+            </Card>
+          )}
 
           <Card className="space-y-2 p-4">
             <h4 className="text-sm font-semibold">Estado del grupo esta semana</h4>
