@@ -107,8 +107,9 @@ export function RegisterPageClient() {
 
             router.replace(`/login?signup=success&redirect=${encodeURIComponent(redirect)}`);
           } catch (error) {
-            console.error('[Register] auth error', error);
-            setAuthError(error instanceof Error ? mapRegisterErrorMessage(error.message) : 'No pudimos completar tu registro.');
+            const rawMsg = error instanceof Error ? error.message : String(error);
+            console.error('[Register] signUp error', rawMsg, error);
+            setAuthError(mapRegisterErrorMessage(rawMsg));
           } finally {
             setLoading(false);
           }
