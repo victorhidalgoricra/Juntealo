@@ -107,7 +107,12 @@ export default function NewJuntaPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successState, setSuccessState] = useState<SuccessState | null>(null);
-  const [firstHalfIncentives, setFirstHalfIncentives] = useState<number[]>([]);
+  const [incentiveInputs, setIncentiveInputs] = useState<string[]>([]);
+
+  const firstHalfIncentives = useMemo(
+    () => incentiveInputs.map((s) => { const n = parseInt(s, 10); return Number.isNaN(n) ? 0 : n; }),
+    [incentiveInputs]
+  );
 
   const { register, control, handleSubmit, setError, clearErrors, formState, getValues, trigger, setValue } = useForm<CreateJuntaValues>({
     defaultValues: {
@@ -132,12 +137,15 @@ export default function NewJuntaPage() {
 
   useEffect(() => {
     if (form.tipo_junta !== 'incentivo') {
-      if (firstHalfIncentives.length > 0) setFirstHalfIncentives([]);
+      if (incentiveInputs.length > 0) setIncentiveInputs([]);
       clearErrors('incentivo_porcentaje');
       return;
     }
-    setFirstHalfIncentives((previous) => previous.slice(0, firstHalfCount));
-  }, [clearErrors, firstHalfCount, form.tipo_junta, firstHalfIncentives.length]);
+    setIncentiveInputs((previous) => {
+      if (previous.length === firstHalfCount) return previous;
+      return Array.from({ length: firstHalfCount }, (_, i) => previous[i] ?? '');
+    });
+  }, [clearErrors, firstHalfCount, form.tipo_junta, incentiveInputs.length]);
 
   const completedSteps = useMemo(() => ({
     basic: (form.nombre ?? '').trim().length > 0,
@@ -473,7 +481,7 @@ export default function NewJuntaPage() {
                   <div className="space-y-3 rounded-md border border-slate-200 p-3">
                     <p className="text-sm font-medium">Configuración de incentivos por turno</p>
                     <p className="text-xs text-slate-600">
-                      Los primeros turnos pagan más por recibir antes. Los últimos turnos pagan menos por esperar más. El total se compensa automáticamente.
+                      Los primeros turnos pagan una cuota mayor por recibir antes. Ese diferencial permite que los últimos turnos paguen menos por esperar más. El total se compensa automáticamente.
                     </p>
 
                     <div className="grid gap-2 sm:grid-cols-2">
@@ -485,12 +493,14 @@ export default function NewJuntaPage() {
                             min={1}
                             max={20}
                             step={1}
-                            value={firstHalfIncentives[index] ?? ''}
+                            value={incentiveInputs[index] ?? ''}
                             onChange={(event) => {
-                              const raw = Number(event.target.value);
-                              setFirstHalfIncentives((previous) =>
-                                previous.map((value, currentIndex) => (currentIndex === index ? (Number.isNaN(raw) ? 0 : Math.trunc(raw)) : value))
-                              );
+                              const raw = event.target.value;
+                              setIncentiveInputs((previous) => {
+                                const next = [...previous];
+                                next[index] = raw;
+                                return next;
+                              });
                             }}
                           />
                         </div>
