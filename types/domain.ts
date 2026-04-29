@@ -74,6 +74,7 @@ export interface JuntaMember {
   estado: EstadoMiembro;
   rol?: 'admin' | 'participante';
   orden_turno: number;
+  nombre?: string;
 }
 
 export interface PaymentSchedule {

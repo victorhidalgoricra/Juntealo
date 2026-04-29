@@ -272,6 +272,30 @@ export async function fetchMembersByJuntaIds(juntaIds: string[]) {
   return { ok: true as const, data: (data ?? []) as JuntaMember[] };
 }
 
+export async function fetchJuntaActiveMembers(juntaId: string) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as JuntaMember[] };
+
+  const { data, error } = await supabase
+    .schema('public')
+    .rpc('get_junta_members_for_detail', { p_junta_id: juntaId });
+
+  if (error) {
+    // Fallback to direct query if migration 036 not yet applied
+    const fallback = await supabase
+      .schema('public')
+      .from('junta_members')
+      .select('id,junta_id,profile_id,estado,rol,orden_turno,created_at')
+      .eq('junta_id', juntaId)
+      .eq('estado', 'activo')
+      .order('orden_turno', { ascending: true, nullsFirst: false });
+
+    if (fallback.error) return { ok: false as const, message: mapSupabaseErrorMessage(fallback.error.message) };
+    return { ok: true as const, data: (fallback.data ?? []) as JuntaMember[] };
+  }
+
+  return { ok: true as const, data: (data ?? []) as JuntaMember[] };
+}
+
 export async function fetchMyActiveMembership(params: { juntaId: string; profileId: string }) {
   if (!hasSupabase || !supabase) return { ok: true as const, isActiveMember: false };
 
