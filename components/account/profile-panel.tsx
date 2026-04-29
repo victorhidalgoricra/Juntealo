@@ -161,8 +161,6 @@ export function ProfilePanel() {
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  // DNI guardado en DB: si tiene valor, no se puede modificar
-  const [savedDni, setSavedDni] = useState<string | null>(null);
   const userId = user?.id;
 
   useEffect(() => {
@@ -189,7 +187,6 @@ export function ProfilePanel() {
 
         const currentRole = useAuthStore.getState().user?.global_role;
         setUser({ ...result.data, global_role: currentRole ?? result.data.global_role });
-        setSavedDni(result.data.dni?.trim() || null);
       })
       .finally(() => setLoadingProfile(false));
   }, [setUser, userId]);
@@ -202,8 +199,6 @@ export function ProfilePanel() {
   };
 
   const updatePersonalField = (field: PersonalField['key'], value: string) => {
-    // DNI solo se puede editar si está vacío en el perfil guardado
-    if (field === 'dni' && savedDni) return;
     const patch = { [field]: value } as Partial<Profile>;
     if (field === 'first_name' || field === 'second_name' || field === 'paternal_last_name') {
       patch.nombre = composeDisplayName(user, patch);
@@ -237,23 +232,22 @@ export function ProfilePanel() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Datos personales</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {personalFields.map((field) => {
-            const isDniLocked = field.key === 'dni' && Boolean(savedDni);
+            const readOnlyHints: Partial<Record<PersonalField['key'], string>> = {
+              email: 'El correo no puede modificarse desde aquí.',
+              celular: 'El celular no puede modificarse desde aquí.',
+              dni: 'El DNI no puede modificarse desde aquí.'
+            };
+            const isReadOnly = field.key in readOnlyHints;
             return (
               <div key={field.key} className={field.key === 'email' ? 'sm:col-span-2' : ''}>
                 <LabeledInput
                   label={field.label}
                   optional={field.optional}
-                  disabled={isDniLocked || field.key === 'email'}
-                  hint={
-                    isDniLocked
-                      ? 'El DNI no puede modificarse después de guardarlo.'
-                      : field.key === 'email'
-                        ? 'El correo no puede modificarse desde aquí.'
-                        : undefined
-                  }
+                  disabled={isReadOnly}
+                  hint={readOnlyHints[field.key]}
                   placeholder={field.placeholder}
                   type={field.type}
-                  value={field.key === 'email' ? user.email : (user[field.key] ?? '')}
+                  value={user[field.key] ?? ''}
                   onChange={(value) => updatePersonalField(field.key, value)}
                 />
               </div>
@@ -287,7 +281,6 @@ export function ProfilePanel() {
         onClick={async () => {
           const firstName = user.first_name?.trim() ?? '';
           const paternalLastName = user.paternal_last_name?.trim() ?? '';
-          const celular = user.celular?.trim() ?? '';
           if (!firstName) {
             setFeedback({ type: 'error', message: 'El primer nombre es obligatorio.' });
             return;
@@ -296,31 +289,15 @@ export function ProfilePanel() {
             setFeedback({ type: 'error', message: 'El apellido paterno es obligatorio.' });
             return;
           }
-          if (!celular) {
-            setFeedback({ type: 'error', message: 'El celular es obligatorio.' });
-            return;
-          }
-          // Validar DNI si el usuario lo está completando por primera vez
-          if (!savedDni && user.dni?.trim()) {
-            const dniNormalized = user.dni.trim().replace(/\D/g, '');
-            if (!/^\d{8}$/.test(dniNormalized)) {
-              setFeedback({ type: 'error', message: 'Ingresa un DNI válido de 8 dígitos.' });
-              return;
-            }
-          }
 
           try {
             setFeedback(null);
             setSaving(true);
-            const result = await updateProfile(user, savedDni);
+            const result = await updateProfile(user);
             if (!result.ok) {
               console.error('[ProfilePanel] updateProfile failed:', result.message);
               setFeedback({ type: 'error', message: result.message ?? 'No pudimos guardar tus cambios. Inténtalo nuevamente.' });
               return;
-            }
-            // Si se guardó DNI por primera vez, bloquearlo de inmediato en el estado local
-            if (!savedDni && user.dni?.trim()) {
-              setSavedDni(user.dni.trim().replace(/\D/g, ''));
             }
             setFeedback({ type: 'success', message: 'Tus datos fueron actualizados correctamente.' });
           } catch (err) {
