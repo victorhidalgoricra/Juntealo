@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth-store';
 import { Profile } from '@/types/domain';
 import { InputHTMLAttributes, useEffect, useState } from 'react';
-import { fetchProfileById, upsertProfile } from '@/services/profile.service';
+import { ensureProfileExists, fetchProfileById, updateProfile } from '@/services/profile.service';
 import { hasSupabase } from '@/lib/env';
 
 type PayoutMethod = NonNullable<Profile['preferred_payout_method']>;
@@ -170,11 +170,25 @@ export function ProfilePanel() {
 
     setLoadingProfile(true);
     fetchProfileById(userId)
-      .then((result) => {
-        if (!result.ok || !result.data) return;
+      .then(async (result) => {
+        if (!result.ok) return;
+
+        // Si el perfil no existe en DB, crearlo antes de permitir edición
+        if (!result.data) {
+          const currentUser = useAuthStore.getState().user;
+          if (currentUser?.email) {
+            await ensureProfileExists({
+              id: userId,
+              email: currentUser.email,
+              nombre: currentUser.nombre,
+              celular: currentUser.celular
+            });
+          }
+          return;
+        }
+
         const currentRole = useAuthStore.getState().user?.global_role;
         setUser({ ...result.data, global_role: currentRole ?? result.data.global_role });
-        // Guardar el DNI persistido para protegerlo de edición
         setSavedDni(result.data.dni?.trim() || null);
       })
       .finally(() => setLoadingProfile(false));
@@ -286,14 +300,27 @@ export function ProfilePanel() {
             setFeedback({ type: 'error', message: 'El celular es obligatorio.' });
             return;
           }
+          // Validar DNI si el usuario lo está completando por primera vez
+          if (!savedDni && user.dni?.trim()) {
+            const dniNormalized = user.dni.trim().replace(/\D/g, '');
+            if (!/^\d{8}$/.test(dniNormalized)) {
+              setFeedback({ type: 'error', message: 'Ingresa un DNI válido de 8 dígitos.' });
+              return;
+            }
+          }
+
           try {
             setFeedback(null);
             setSaving(true);
-            const result = await upsertProfile(user, savedDni);
+            const result = await updateProfile(user, savedDni);
             if (!result.ok) {
-              console.error('[ProfilePanel] upsertProfile failed:', result.message);
+              console.error('[ProfilePanel] updateProfile failed:', result.message);
               setFeedback({ type: 'error', message: result.message ?? 'No pudimos guardar tus cambios. Inténtalo nuevamente.' });
               return;
+            }
+            // Si se guardó DNI por primera vez, bloquearlo de inmediato en el estado local
+            if (!savedDni && user.dni?.trim()) {
+              setSavedDni(user.dni.trim().replace(/\D/g, ''));
             }
             setFeedback({ type: 'success', message: 'Tus datos fueron actualizados correctamente.' });
           } catch (err) {
