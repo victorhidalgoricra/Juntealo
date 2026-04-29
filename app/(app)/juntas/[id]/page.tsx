@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchUserJuntaSnapshot, updateJuntaMemberTurns } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchUserJuntaSnapshot, setJuntaAssignmentMode, updateJuntaMemberTurns } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -254,9 +254,14 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   };
 
   const isOwner = user?.id === junta.admin_id;
-  const canManualAssign = isOwner && !juntaActiva && junta.turn_assignment_mode === 'manual' && !blockedByDeadline;
-  const canShuffle = isOwner && !juntaActiva && !blockedByDeadline;
   const memberCount = junta.integrantes_actuales ?? juntaMembers.length;
+  const canManualAssign = isOwner && !juntaActiva && !blockedByDeadline;
+  const canShuffle = isOwner && !juntaActiva && !blockedByDeadline && memberCount >= junta.participantes_max;
+  const allTurnsAssigned = juntaMembers.length > 0 && (() => {
+    const turns = juntaMembers.map((m) => manualTurns[m.profile_id] ?? m.orden_turno ?? 0);
+    const assigned = turns.filter((t) => t > 0);
+    return assigned.length === juntaMembers.length && new Set(assigned).size === juntaMembers.length;
+  })();
   const isCurrentReceiver = user?.id === summary.receiver?.profile_id;
 
   const handleConfirmPayout = async () => {
@@ -415,7 +420,6 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
           {generalTab === 'turnos' && (
             <Card className="space-y-3 p-4">
-              <p className="text-sm text-slate-600">Este modo solo está disponible antes de activar la junta. Arrastra o selecciona el turno de cada participante manualmente.</p>
               {juntaActiva || blockedByDeadline ? (
                 <p className="rounded-md bg-slate-100 p-3 text-sm text-slate-600">
                   {blockedByDeadline
@@ -424,80 +428,102 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                 </p>
               ) : (
                 <>
+                  {memberCount < junta.participantes_max && (
+                    <p className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+                      Faltan {junta.participantes_max - memberCount} integrante(s) para completar la junta. Los turnos se podrán asignar cuando el grupo esté completo.
+                    </p>
+                  )}
                   <div className="space-y-2">
                     {juntaMembers.map((member, index) => {
                       const displayName = member.profile_id === user?.id
                         ? `Tú${member.nombre ? ` (${member.nombre.split(' ')[0]})` : ''}`
                         : member.nombre ?? (member.profile_id === junta.admin_id ? 'Creador' : `Integrante ${index + 1}`);
                       return (
-                      <div key={member.id} className="flex items-center justify-between rounded-md border p-2">
-                        <p className="text-sm">{displayName}</p>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500">Turno</span>
-                          <select
-                            className="rounded-md border px-2 py-1 text-sm"
-                            value={manualTurns[member.profile_id] ?? member.orden_turno}
-                            onChange={(event) => setManualTurns((prev) => ({ ...prev, [member.profile_id]: Number(event.target.value) }))}
-                            disabled={!canManualAssign}
-                          >
-                            {Array.from({ length: juntaMembers.length }).map((_, turnIdx) => <option key={turnIdx + 1} value={turnIdx + 1}>{turnIdx + 1}</option>)}
-                          </select>
+                        <div key={member.id} className="flex items-center justify-between rounded-md border p-2">
+                          <p className="text-sm">{displayName}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">Turno</span>
+                            <select
+                              className="rounded-md border px-2 py-1 text-sm"
+                              value={manualTurns[member.profile_id] ?? member.orden_turno ?? ''}
+                              onChange={(event) => setManualTurns((prev) => ({ ...prev, [member.profile_id]: Number(event.target.value) }))}
+                              disabled={!canManualAssign}
+                            >
+                              <option value="">—</option>
+                              {Array.from({ length: juntaMembers.length }).map((_, turnIdx) => <option key={turnIdx + 1} value={turnIdx + 1}>{turnIdx + 1}</option>)}
+                            </select>
+                          </div>
                         </div>
-                      </div>
-                    );
+                      );
                     })}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
-                      disabled={!canShuffle}
-                      onClick={() => {
-                        const shuffled = [...juntaMembers].sort(() => Math.random() - 0.5);
-                        const next: Record<string, number> = {};
-                        shuffled.forEach((member, idx) => { next[member.profile_id] = idx + 1; });
-                        setManualTurns(next);
-                        setPaymentInfo(null);
-                      }}
-                    >
-                      Sortear aleatoriamente
-                    </Button>
-                    <Button
-                      disabled={!isOwner || memberCount < junta.participantes_max || activating}
+                      disabled={!canShuffle || activating}
                       onClick={async () => {
                         setActivating(true);
                         setPaymentInfo(null);
                         try {
-                          if (canManualAssign) {
-                            const assignedTurns = juntaMembers.map((member) => manualTurns[member.profile_id] ?? member.orden_turno);
-                            const uniqueTurns = new Set(assignedTurns);
-                            if (uniqueTurns.size !== juntaMembers.length) {
-                              setPaymentInfo('No puedes repetir turnos. Asigna un turno único por integrante.');
-                              return;
-                            }
+                          const shuffled = [...juntaMembers].sort(() => Math.random() - 0.5);
+                          const turnsByProfileId: Record<string, number> = {};
+                          shuffled.forEach((member, idx) => { turnsByProfileId[member.profile_id] = idx + 1; });
+                          setManualTurns(turnsByProfileId);
 
-                            const turnsByProfileId = juntaMembers.reduce<Record<string, number>>((acc, member) => {
-                              acc[member.profile_id] = manualTurns[member.profile_id] ?? member.orden_turno;
-                              return acc;
-                            }, {});
-
-                            const saveTurnsResult = await updateJuntaMemberTurns({ juntaId: junta.id, turnsByProfileId });
-                            if (!saveTurnsResult.ok) {
-                              setPaymentInfo(saveTurnsResult.message);
-                              return;
-                            }
+                          if (junta.turn_assignment_mode !== 'manual') {
+                            const modeResult = await setJuntaAssignmentMode({ juntaId: junta.id, mode: 'manual' });
+                            if (!modeResult.ok) { setPaymentInfo(modeResult.message); return; }
                           }
 
+                          const saveTurnsResult = await updateJuntaMemberTurns({ juntaId: junta.id, turnsByProfileId });
+                          if (!saveTurnsResult.ok) { setPaymentInfo(saveTurnsResult.message); return; }
+
                           const result = await activateJuntaIfReady({ juntaId: junta.id });
-                          if (!result.ok) {
-                            setPaymentInfo(result.message);
+                          if (!result.ok) { setPaymentInfo(result.message); return; }
+
+                          const freshResult = await fetchJuntaById(params.id);
+                          if (freshResult.ok && freshResult.data) setJunta(freshResult.data);
+                          await refreshSnapshot();
+                        } catch {
+                          setPaymentInfo('Ocurrió un error al sortear. Intenta de nuevo.');
+                        } finally {
+                          setActivating(false);
+                        }
+                      }}
+                    >
+                      {activating ? 'Sorteando…' : 'Sortear y activar'}
+                    </Button>
+                    <Button
+                      disabled={!isOwner || memberCount < junta.participantes_max || !allTurnsAssigned || activating}
+                      onClick={async () => {
+                        setActivating(true);
+                        setPaymentInfo(null);
+                        try {
+                          const assignedTurns = juntaMembers.map((member) => manualTurns[member.profile_id] ?? member.orden_turno ?? 0);
+                          const uniqueTurns = new Set(assignedTurns.filter((t) => t > 0));
+                          if (uniqueTurns.size !== juntaMembers.length) {
+                            setPaymentInfo('No puedes repetir turnos. Asigna un turno único por integrante.');
                             return;
                           }
 
-                          const freshResult = await fetchJuntaById(params.id);
-                          if (freshResult.ok && freshResult.data) {
-                            setJunta(freshResult.data);
+                          if (junta.turn_assignment_mode !== 'manual') {
+                            const modeResult = await setJuntaAssignmentMode({ juntaId: junta.id, mode: 'manual' });
+                            if (!modeResult.ok) { setPaymentInfo(modeResult.message); return; }
                           }
 
+                          const turnsByProfileId = juntaMembers.reduce<Record<string, number>>((acc, member) => {
+                            acc[member.profile_id] = manualTurns[member.profile_id] ?? member.orden_turno ?? 0;
+                            return acc;
+                          }, {});
+
+                          const saveTurnsResult = await updateJuntaMemberTurns({ juntaId: junta.id, turnsByProfileId });
+                          if (!saveTurnsResult.ok) { setPaymentInfo(saveTurnsResult.message); return; }
+
+                          const result = await activateJuntaIfReady({ juntaId: junta.id });
+                          if (!result.ok) { setPaymentInfo(result.message); return; }
+
+                          const freshResult = await fetchJuntaById(params.id);
+                          if (freshResult.ok && freshResult.data) setJunta(freshResult.data);
                           await refreshSnapshot();
                         } catch {
                           setPaymentInfo('Ocurrió un error al activar la junta. Intenta de nuevo.');
@@ -509,6 +535,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                       {activating ? 'Activando…' : 'Activar junta'}
                     </Button>
                   </div>
+                  {!allTurnsAssigned && memberCount >= junta.participantes_max && (
+                    <p className="text-xs text-slate-500">Asigna un turno único a cada integrante para poder activar la junta.</p>
+                  )}
                 </>
               )}
               {paymentInfo && <p className="text-xs text-rose-700">{paymentInfo}</p>}

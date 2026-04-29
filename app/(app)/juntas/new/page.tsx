@@ -116,7 +116,7 @@ export default function NewJuntaPage() {
       participantes_max: 8,
       monto_cuota: 20,
       tipo_junta: 'normal',
-      turn_assignment_mode: 'random',
+      turn_assignment_mode: 'manual',
       frecuencia_pago: 'semanal',
       fecha_inicio: '',
       visibilidad: 'privada'
@@ -170,9 +170,9 @@ export default function NewJuntaPage() {
   const hasMeaningfulInput = useMemo(() => {
     const hasNombre = (form.nombre ?? '').trim().length > 0;
     const hasDescripcion = (form.descripcion ?? '').trim().length > 0;
-    const hasStructureChanges = previewParticipantes !== 8 || previewCuota !== 20 || form.tipo_junta !== 'normal' || form.turn_assignment_mode !== 'random' || form.frecuencia_pago !== 'semanal';
+    const hasStructureChanges = previewParticipantes !== 8 || previewCuota !== 20 || form.tipo_junta !== 'normal' || form.frecuencia_pago !== 'semanal';
     return hasNombre || hasDescripcion || hasStructureChanges;
-  }, [form.descripcion, form.frecuencia_pago, form.nombre, form.tipo_junta, form.turn_assignment_mode, previewCuota, previewParticipantes]);
+  }, [form.descripcion, form.frecuencia_pago, form.nombre, form.tipo_junta, previewCuota, previewParticipantes]);
 
   useEffect(() => {
     if (!user) router.replace('/login?redirect=/juntas/new');
@@ -323,7 +323,7 @@ export default function NewJuntaPage() {
               const validBasics = await validateStep(1);
               const validStructure = await validateStep(2);
               const validIncentive = await validateStep(3);
-              const schemaOk = await trigger(['nombre', 'participantes_max', 'monto_cuota', 'fecha_inicio', 'visibilidad', 'tipo_junta', 'turn_assignment_mode', 'frecuencia_pago']);
+              const schemaOk = await trigger(['nombre', 'participantes_max', 'monto_cuota', 'fecha_inicio', 'visibilidad', 'tipo_junta', 'frecuencia_pago']);
               if (!validBasics || !validStructure || !validIncentive || !schemaOk) {
                 setStep((prev) => (prev < 4 ? prev : 1));
                 return;
@@ -464,33 +464,6 @@ export default function NewJuntaPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-sm font-medium">Reglas de turnos</label>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => setValue('turn_assignment_mode', 'random', { shouldDirty: true, shouldValidate: true })}
-                      className={`rounded-md border p-3 text-left ${form.turn_assignment_mode === 'random' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300'}`}
-                    >
-                      <p className="font-semibold">Asignación al azar</p>
-                      <p className="text-xs opacity-80">Cuando la junta inicie, los turnos se asignarán automáticamente de forma aleatoria entre los participantes.</p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setValue('turn_assignment_mode', 'manual', { shouldDirty: true, shouldValidate: true })}
-                      className={`rounded-md border p-3 text-left ${form.turn_assignment_mode === 'manual' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300'}`}
-                    >
-                      <p className="font-semibold">Asignación manual</p>
-                      <p className="text-xs opacity-80">Antes de iniciar la junta, el creador podrá definir manualmente el orden de turnos.</p>
-                    </button>
-                  </div>
-                  <p className="mt-2 text-xs text-slate-600">
-                    {form.turn_assignment_mode === 'manual'
-                      ? 'Podrás ordenar turnos desde Integrantes mientras la junta siga en borrador.'
-                      : 'El sistema sorteará el orden cuando la junta se active.'}
-                  </p>
-                  {formState.errors.turn_assignment_mode && <p className="text-xs text-red-600">{formState.errors.turn_assignment_mode.message}</p>}
-                </div>
               </div>
             )}
 
@@ -582,7 +555,6 @@ export default function NewJuntaPage() {
                   <p><span className="font-medium">Cuota base:</span> S/ {form.monto_cuota}</p>
                   <p><span className="font-medium">Frecuencia:</span> {form.frecuencia_pago}</p>
                   <p><span className="font-medium">Tipo:</span> {form.tipo_junta}</p>
-                  <p><span className="font-medium">Asignación de turnos:</span> {form.turn_assignment_mode === 'manual' ? 'Manual' : 'Al azar'}</p>
                   <p><span className="font-medium">Incentivo:</span> {getIncentiveSummary(form as CreateJuntaValues, completedSteps.incentives)}</p>
                   <p><span className="font-medium">Fecha inicio:</span> {form.fecha_inicio || '—'}</p>
                 </div>
@@ -614,7 +586,6 @@ export default function NewJuntaPage() {
             <span className="rounded-full bg-white/10 px-2 py-1 capitalize">{form.visibilidad}</span>
             <span className="rounded-full bg-white/10 px-2 py-1 capitalize">{form.frecuencia_pago}</span>
             <span className="rounded-full bg-white/10 px-2 py-1 capitalize">{form.tipo_junta}</span>
-            <span className="rounded-full bg-white/10 px-2 py-1">{form.turn_assignment_mode === 'manual' ? 'turnos manuales' : 'turnos al azar'}</span>
           </div>
 
           <div className="space-y-1 text-sm [font-family:'DM_Mono',monospace]">
