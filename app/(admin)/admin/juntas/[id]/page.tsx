@@ -11,7 +11,6 @@ import { isBackofficeAdmin } from '@/services/auth-role.service';
 import { adminSoftDeleteJunta, fetchJuntaById, fetchMembersByJuntaIds } from '@/services/juntas.repository';
 import { Junta } from '@/types/domain';
 import { formatCalendarDate } from '@/lib/calendar-date';
-import { canDeleteJunta } from '@/lib/junta-permissions';
 
 export default function AdminJuntaDetailPage({ params }: { params: { id: string } }) {
   const user = useAuthStore((s) => s.user);
@@ -94,13 +93,16 @@ export default function AdminJuntaDetailPage({ params }: { params: { id: string 
           <Card><p className="text-xs text-slate-500">Pagos registrados</p><p className="text-2xl font-semibold">{stats.paymentsCount}</p></Card>
         </div>
 
-        {canDeleteJunta(junta, user?.id) && (
+        {!junta.bloqueada && (
           <div className="pt-2">
             <Button
               variant="destructive"
               disabled={isDeleting}
               onClick={async () => {
-                if (!window.confirm('Esta acción marcará la junta como cancelada/bloqueada. ¿Deseas continuar?')) return;
+                const warning = junta.estado === 'activa'
+                  ? 'Esta junta se encuentra activa. Esta acción administrativa la eliminará del sistema y puede afectar participantes, turnos y trazabilidad. ¿Deseas continuar?'
+                  : 'Esta acción administrativa marcará la junta como cancelada/bloqueada. ¿Deseas continuar?';
+                if (!window.confirm(warning)) return;
 
                 setIsDeleting(true);
                 const result = await adminSoftDeleteJunta({ juntaId: junta.id });

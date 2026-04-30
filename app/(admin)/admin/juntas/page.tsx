@@ -9,7 +9,6 @@ import { isBackofficeAdmin } from '@/services/auth-role.service';
 import { AdminJuntaListItem, adminSoftDeleteJunta, fetchAdminJuntas } from '@/services/juntas.repository';
 import { useAuthStore } from '@/store/auth-store';
 import { formatCalendarDate } from '@/lib/calendar-date';
-import { canDeleteJunta } from '@/lib/junta-permissions';
 
 export default function AdminJuntasPage() {
   const user = useAuthStore((s) => s.user);
@@ -221,7 +220,7 @@ export default function AdminJuntasPage() {
                 variant="destructive"
                 disabled={submittingDelete}
                 onClick={async () => {
-                  if (!candidate || !canDeleteJunta(candidate, user?.id)) return;
+                  if (!candidate || isRowBlocked(candidate)) return;
                   try {
                     setSubmittingDelete(true);
                     const result = await adminSoftDeleteJunta({ juntaId: candidate.id });
