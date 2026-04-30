@@ -26,9 +26,7 @@ export default function AdminJuntasPage() {
   const [candidate, setCandidate] = useState<AdminJuntaListItem | null>(null);
   const [submittingDelete, setSubmittingDelete] = useState(false);
 
-  const isRowBlocked = useCallback((row: AdminJuntaListItem) => (
-    Boolean(row.bloqueada) || String(row.estado).toLowerCase() === 'bloqueada' || String(row.estado_visual ?? '').toLowerCase() === 'deshabilitada'
-  ), []);
+  const isRowBlocked = useCallback((row: AdminJuntaListItem) => Boolean(row.bloqueada), []);
 
   const getEstadoVisual = useCallback((row: AdminJuntaListItem) => (
     isRowBlocked(row) ? 'Deshabilitada' : (row.estado_visual ?? row.estado)
@@ -52,6 +50,11 @@ export default function AdminJuntasPage() {
       console.debug('[AdminJuntas] fetchAdminJuntas ok, count=', result.data.length);
     }
     setError(null);
+    if (process.env.NODE_ENV === 'development') {
+      result.data.forEach((row) => {
+        if (row.bloqueada) console.debug('[AdminJuntas row blocked]', { id: row.id, nombre: row.nombre, bloqueada: row.bloqueada, estado_visual: row.estado_visual });
+      });
+    }
     setRows(result.data);
     setLoading(false);
   }, [user?.id, user?.global_role]);

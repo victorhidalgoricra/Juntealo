@@ -553,18 +553,29 @@ export type AdminJuntaListItem = {
 export async function fetchAdminJuntas(params?: { includeBlocked?: boolean }) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as AdminJuntaListItem[] };
 
+  const includeBlocked = Boolean(params?.includeBlocked);
   const { data, error } = await supabase.schema('public').rpc('admin_list_juntas', {
-    p_include_blocked: Boolean(params?.includeBlocked)
+    p_include_blocked: includeBlocked
   });
+
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[fetchAdminJuntas] rpc raw', { includeBlocked, error: error?.message, rowCount: (data as unknown[])?.length ?? 0 });
+    if (Array.isArray(data) && data.length > 0) {
+      console.debug('[fetchAdminJuntas] first row keys:', Object.keys(data[0] as object));
+      (data as Record<string, unknown>[]).filter((r) => r.bloqueada).forEach((r) => {
+        console.debug('[fetchAdminJuntas] blocked row:', { id: r.id, nombre: r.nombre, bloqueada: r.bloqueada });
+      });
+    }
+  }
+
   if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
 
   const normalized = ((data ?? []) as Partial<AdminJuntaListItem>[]).map((row) => {
-    const estadoVisualRaw = String(row.estado_visual ?? '').toLowerCase();
-    const bloqueada = Boolean(row.bloqueada) || estadoVisualRaw === 'bloqueada' || estadoVisualRaw === 'deshabilitada';
+    const bloqueada = Boolean(row.bloqueada);
     return {
       ...row,
       bloqueada,
-      estado_visual: bloqueada ? 'deshabilitada' : row.estado
+      estado_visual: bloqueada ? 'deshabilitada' : String(row.estado ?? '')
     } as AdminJuntaListItem;
   });
 
