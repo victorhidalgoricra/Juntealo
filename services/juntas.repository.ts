@@ -375,7 +375,12 @@ export async function activateJuntaIfReady(params: { juntaId: string }) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: { estado: 'activa' as const } };
 
   const { data, error } = await supabase.schema('public').rpc('activate_junta_if_ready', { p_junta_id: params.juntaId });
-  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  if (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[activateJuntaIfReady]', error);
+    }
+    return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  }
 
   const junta = Array.isArray(data) ? (data[0] as Junta | undefined) : (data as Junta | null);
   if (!junta) return { ok: false as const, message: 'No se pudo activar la junta.' };
@@ -477,20 +482,26 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
 export async function updateJuntaMemberTurns(params: { juntaId: string; turnsByProfileId: Record<string, number> }) {
   if (!hasSupabase || !supabase) return { ok: true as const };
 
-  const updates = Object.entries(params.turnsByProfileId).map(([profileId, orden_turno]) => ({
-    junta_id: params.juntaId,
-    profile_id: profileId,
+  const turns = Object.entries(params.turnsByProfileId).map(([profile_id, orden_turno]) => ({
+    profile_id,
     orden_turno
   }));
 
-  if (updates.length === 0) return { ok: true as const };
+  if (turns.length === 0) return { ok: true as const };
 
   const { error } = await supabase
     .schema('public')
-    .from('junta_members')
-    .upsert(updates, { onConflict: 'junta_id,profile_id' });
+    .rpc('update_junta_member_turns', {
+      p_junta_id: params.juntaId,
+      p_turns: turns
+    });
 
-  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  if (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[updateJuntaMemberTurns]', error);
+    }
+    return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  }
 
   return { ok: true as const };
 }
