@@ -26,10 +26,12 @@ export default function AdminJuntasPage() {
   const [candidate, setCandidate] = useState<AdminJuntaListItem | null>(null);
   const [submittingDelete, setSubmittingDelete] = useState(false);
 
-  const isRowBlocked = useCallback((row: AdminJuntaListItem) => Boolean(row.bloqueada), []);
+  const isRowBlocked = useCallback((row: AdminJuntaListItem) => (
+    Boolean(row.bloqueada) || (row.estado as string) === 'bloqueada'
+  ), []);
 
   const getEstadoVisual = useCallback((row: AdminJuntaListItem) => (
-    isRowBlocked(row) ? 'Deshabilitada' : (row.estado_visual ?? row.estado)
+    isRowBlocked(row) ? 'Eliminada' : (row.estado_visual ?? row.estado)
   ), [isRowBlocked]);
 
   const loadRows = useCallback(async (includeBlocked: boolean) => {
@@ -176,14 +178,14 @@ export default function AdminJuntasPage() {
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-2">
                       <Link href={`/admin/juntas/${row.id}`}><Button variant="outline">Ver detalle</Button></Link>
-                      <Button
-                        variant="destructive"
-                        disabled={isRowBlocked(row)}
-                        title={isRowBlocked(row) ? 'Esta junta ya fue eliminada' : undefined}
-                        onClick={() => { if (isRowBlocked(row)) return; setCandidate(row); }}
-                      >
-                        {isRowBlocked(row) ? 'Eliminada' : 'Eliminar'}
-                      </Button>
+                      {!isRowBlocked(row) && (
+                        <Button
+                          variant="destructive"
+                          onClick={() => setCandidate(row)}
+                        >
+                          Eliminar
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -228,7 +230,7 @@ export default function AdminJuntasPage() {
                     }
                     setRows((prev) => (
                       showBlocked
-                        ? prev.map((row) => row.id === candidate.id ? { ...row, bloqueada: true, estado_visual: 'deshabilitada' } : row)
+                        ? prev.map((row) => row.id === candidate.id ? { ...row, bloqueada: true, estado_visual: 'eliminada' } : row)
                         : prev.filter((row) => row.id !== candidate.id)
                     ));
                     await loadRows(showBlocked);
