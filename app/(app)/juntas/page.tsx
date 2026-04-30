@@ -13,6 +13,7 @@ import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import { isJuntaActive } from '@/lib/junta-status';
 import { APP_BUSINESS_TIMEZONE, isJuntaBlockedByDeadline } from '@/lib/junta-blocking';
+import { canDeleteJunta } from '@/lib/junta-permissions';
 import { getActiveMemberCountByJunta, isUserMember } from '@/lib/junta-members';
 import {
   activateJuntaIfReady,
@@ -338,12 +339,8 @@ export default function JuntasDisponiblesPage() {
       setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'No pudimos cargar la junta para eliminarla.' }));
       return;
     }
-    if (juntaToDelete.admin_id !== currentProfileId) {
-      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Solo el creador puede eliminar esta junta.' }));
-      return;
-    }
-    if (juntaToDelete.estado !== 'borrador' || hasStarted(juntaToDelete.fecha_inicio)) {
-      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Solo puedes eliminar una junta borrador antes de su inicio.' }));
+    if (!canDeleteJunta(juntaToDelete, currentProfileId)) {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Solo puedes eliminar una junta que creaste y que aún no ha iniciado.' }));
       return;
     }
 
@@ -475,7 +472,7 @@ export default function JuntasDisponiblesPage() {
             const isActive = isJuntaActive(j.estado);
             const started = hasStarted(j.fecha_inicio);
             const canActivate = roleState === 'owner' && j.estado === 'borrador' && cupoCompleto && !isBlocked && !started;
-            const canDelete = roleState === 'owner' && j.estado === 'borrador' && !isBlocked && !started;
+            const canDelete = canDeleteJunta(j, user.id);
             const canLeave = roleState === 'member' && j.estado === 'borrador' && !started && !isBlocked;
             const canJoinPublic = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'publica' && !isBlocked;
             const canAccessPrivate = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'privada' && !isBlocked;
