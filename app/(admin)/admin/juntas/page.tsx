@@ -179,7 +179,7 @@ export default function AdminJuntasPage() {
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-2">
                       <Link href={`/admin/juntas/${row.id}`}><Button variant="outline">Ver detalle</Button></Link>
-                      {canDeleteJunta(row, user?.id) && (
+                      {!isRowBlocked(row) && (
                         <Button
                           variant="destructive"
                           onClick={() => setCandidate(row)}
