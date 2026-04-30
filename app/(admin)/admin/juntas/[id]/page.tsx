@@ -11,6 +11,7 @@ import { isBackofficeAdmin } from '@/services/auth-role.service';
 import { adminSoftDeleteJunta, fetchJuntaById, fetchMembersByJuntaIds } from '@/services/juntas.repository';
 import { Junta } from '@/types/domain';
 import { formatCalendarDate } from '@/lib/calendar-date';
+import { canDeleteJunta } from '@/lib/junta-permissions';
 
 export default function AdminJuntaDetailPage({ params }: { params: { id: string } }) {
   const user = useAuthStore((s) => s.user);
@@ -93,32 +94,31 @@ export default function AdminJuntaDetailPage({ params }: { params: { id: string 
           <Card><p className="text-xs text-slate-500">Pagos registrados</p><p className="text-2xl font-semibold">{stats.paymentsCount}</p></Card>
         </div>
 
-        <div className="pt-2">
-          <Button
-            variant="destructive"
-            disabled={isDeleting || Boolean(junta.bloqueada)}
-            onClick={async () => {
-              const warning = junta.estado === 'activa'
-                ? 'Esta junta se encuentra activa. Esta acción administrativa la eliminará del sistema y puede afectar participantes, turnos y trazabilidad. ¿Deseas continuar?'
-                : 'Esta acción administrativa marcará la junta como cancelada/bloqueada. ¿Deseas continuar?';
-              if (!window.confirm(warning)) return;
+        {canDeleteJunta(junta, user?.id) && (
+          <div className="pt-2">
+            <Button
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={async () => {
+                if (!window.confirm('Esta acción marcará la junta como cancelada/bloqueada. ¿Deseas continuar?')) return;
 
-              setIsDeleting(true);
-              const result = await adminSoftDeleteJunta({ juntaId: junta.id });
-              if (!result.ok) {
-                setError(result.message);
+                setIsDeleting(true);
+                const result = await adminSoftDeleteJunta({ juntaId: junta.id });
+                if (!result.ok) {
+                  setError(result.message);
+                  setIsDeleting(false);
+                  return;
+                }
+
+                setJunta((previous) => (previous ? { ...previous, bloqueada: true, cerrar_inscripciones: true } : previous));
+                setData({ juntas: [] });
                 setIsDeleting(false);
-                return;
-              }
-
-              setJunta((previous) => (previous ? { ...previous, bloqueada: true, cerrar_inscripciones: true } : previous));
-              setData({ juntas: [] });
-              setIsDeleting(false);
-            }}
-          >
-            {junta.bloqueada ? 'Junta deshabilitada' : isDeleting ? 'Eliminando...' : 'Eliminar junta'}
-          </Button>
-        </div>
+              }}
+            >
+              {isDeleting ? 'Eliminando...' : 'Eliminar junta'}
+            </Button>
+          </div>
+        )}
       </Card>
     </div>
   );
