@@ -272,6 +272,30 @@ export async function fetchMembersByJuntaIds(juntaIds: string[]) {
   return { ok: true as const, data: (data ?? []) as JuntaMember[] };
 }
 
+export async function fetchJuntaActiveMembers(juntaId: string) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as JuntaMember[] };
+
+  const { data, error } = await supabase
+    .schema('public')
+    .rpc('get_junta_members_for_detail', { p_junta_id: juntaId });
+
+  if (error) {
+    // Fallback to direct query if migration 036 not yet applied
+    const fallback = await supabase
+      .schema('public')
+      .from('junta_members')
+      .select('id,junta_id,profile_id,estado,rol,orden_turno,created_at')
+      .eq('junta_id', juntaId)
+      .eq('estado', 'activo')
+      .order('orden_turno', { ascending: true, nullsFirst: false });
+
+    if (fallback.error) return { ok: false as const, message: mapSupabaseErrorMessage(fallback.error.message) };
+    return { ok: true as const, data: (fallback.data ?? []) as JuntaMember[] };
+  }
+
+  return { ok: true as const, data: (data ?? []) as JuntaMember[] };
+}
+
 export async function fetchMyActiveMembership(params: { juntaId: string; profileId: string }) {
   if (!hasSupabase || !supabase) return { ok: true as const, isActiveMember: false };
 
@@ -425,7 +449,7 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
   }
 
   const [juntasResult, membersResult, schedulesResult, paymentsResult, payoutsResult] = await Promise.all([
-    supabase.schema('public').from('juntas').select('id,admin_id,slug,invite_token,access_code,bloqueada,tipo_junta,incentivo_porcentaje,incentivo_regla,turn_assignment_mode,cuota_base,bolsa_base,nombre,descripcion,moneda,participantes_max,monto_cuota,premio_primero_pct,descuento_ultimo_pct,fee_plataforma_pct,frecuencia_pago,fecha_inicio,dia_limite_pago,penalidad_mora,visibilidad,cerrar_inscripciones,estado,created_at').in('id', juntaIds),
+    supabase.schema('public').from('juntas').select('id,admin_id,slug,invite_token,access_code,bloqueada,tipo_junta,incentivo_porcentaje,incentivo_regla,turn_assignment_mode,cuota_base,bolsa_base,nombre,descripcion,moneda,participantes_max,monto_cuota,premio_primero_pct,descuento_ultimo_pct,fee_plataforma_pct,frecuencia_pago,fecha_inicio,dia_limite_pago,penalidad_mora,visibilidad,cerrar_inscripciones,estado,created_at,integrantes_actuales').in('id', juntaIds),
     supabase.schema('public').from('junta_members').select('id,junta_id,profile_id,estado,rol,orden_turno,created_at').in('junta_id', juntaIds),
     supabase.schema('public').from('payment_schedules').select('id,junta_id,cuota_numero,fecha_vencimiento,monto,estado').in('junta_id', juntaIds),
     supabase.schema('public').from('payments').select('id,junta_id,schedule_id,round_id,member_id,profile_id,expected_amount,submitted_amount,monto,estado,receipt_url,comprobante_url,payment_method,operation_number,participant_note,payment_status,submitted_at,internal_note,validated_at,validated_by,rejection_reason,pagado_en').in('junta_id', juntaIds),
@@ -471,6 +495,42 @@ export async function updateJuntaMemberTurns(params: { juntaId: string; turnsByP
   return { ok: true as const };
 }
 
+export async function setJuntaAssignmentMode(params: { juntaId: string; mode: 'manual' | 'random' }) {
+  if (!hasSupabase || !supabase) return { ok: true as const };
+
+  const { error } = await supabase
+    .schema('public')
+    .from('juntas')
+    .update({ turn_assignment_mode: params.mode })
+    .eq('id', params.juntaId);
+
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  return { ok: true as const };
+}
+
+export async function confirmPayout(params: {
+  juntaId: string;
+  profileId: string;
+  roundNumber: number;
+  amount: number;
+}) {
+  if (!hasSupabase || !supabase) return { ok: true as const };
+
+  const { error } = await supabase
+    .schema('public')
+    .from('payouts')
+    .insert({
+      junta_id: params.juntaId,
+      profile_id: params.profileId,
+      ronda_numero: params.roundNumber,
+      monto_pozo: params.amount,
+      entregado_en: new Date().toISOString()
+    });
+
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  return { ok: true as const };
+}
+
 export type AdminJuntaListItem = {
   id: string;
   nombre: string;
@@ -497,9 +557,21 @@ export type AdminJuntaListItem = {
 export async function fetchAdminJuntas(params?: { includeBlocked?: boolean }) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as AdminJuntaListItem[] };
 
+  const includeBlocked = Boolean(params?.includeBlocked);
   const { data, error } = await supabase.schema('public').rpc('admin_list_juntas', {
-    p_include_blocked: Boolean(params?.includeBlocked)
+    p_include_blocked: includeBlocked
   });
+
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[fetchAdminJuntas] rpc raw', { includeBlocked, error: error?.message, rowCount: (data as unknown[])?.length ?? 0 });
+    if (Array.isArray(data) && data.length > 0) {
+      console.debug('[fetchAdminJuntas] first row keys:', Object.keys(data[0] as object));
+      (data as Record<string, unknown>[]).filter((r) => r.bloqueada).forEach((r) => {
+        console.debug('[fetchAdminJuntas] blocked row:', { id: r.id, nombre: r.nombre, bloqueada: r.bloqueada });
+      });
+    }
+  }
+
   if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
 
   const normalized = ((data ?? []) as Partial<AdminJuntaListItem>[]).map((row) => {
@@ -523,7 +595,7 @@ export async function fetchAdminJuntas(params?: { includeBlocked?: boolean }) {
       blocked,
       deleted_at: deletedAt,
       bloqueada,
-      estado_visual: bloqueada ? 'deshabilitada' : row.estado
+      estado_visual: bloqueada ? 'deshabilitada' : String(row.estado ?? '')
     } as AdminJuntaListItem;
   });
 

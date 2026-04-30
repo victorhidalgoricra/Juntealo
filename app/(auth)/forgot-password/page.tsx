@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
               if (error) throw error;
             }
 
-            setMessage('Si el correo existe, te enviamos instrucciones para restablecer tu contraseña.');
+            setMessage('Te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada.');
           } catch (error) {
             console.error('[ForgotPassword] reset flow error', error);
             setErrorMessage(error instanceof Error ? mapAuthErrorMessage(error.message) : 'No pudimos iniciar la recuperación.');

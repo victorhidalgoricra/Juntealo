@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,7 @@ import { getActiveMemberCountByJunta, isUserMember } from '@/lib/junta-members';
 import {
   activateJuntaIfReady,
   deleteDraftJunta,
-  fetchPublicJuntas,
+  fetchAvailableJuntas,
   fetchUserJuntaSnapshot,
   findJuntaByAccessCode,
   joinJuntaAsParticipant,
@@ -35,6 +35,7 @@ type FilterId = (typeof filters)[number]['id'];
 
 export default function JuntasDisponiblesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const allJuntas = useAppStore((s) => (Array.isArray(s.juntas) ? s.juntas : []));
   const allMembers = useAppStore((s) => (Array.isArray(s.members) ? s.members : []));
@@ -53,6 +54,7 @@ export default function JuntasDisponiblesPage() {
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterId>('todas');
+  const autoJoinTriggered = useRef(false);
   const todayIsoDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const hasStarted = useCallback((fechaInicio?: string | null) => {
@@ -65,7 +67,10 @@ export default function JuntasDisponiblesPage() {
     setLoading(true);
     setError(null);
 
-    const catalogResult = await fetchPublicJuntas();
+    const [catalogResult, snapshotResult] = await Promise.all([
+      fetchAvailableJuntas(user.id),
+      fetchUserJuntaSnapshot(user.id)
+    ]);
 
     if (!catalogResult.ok) {
       console.error('[Juntas disponibles] error loading catalog', catalogResult.message);
@@ -74,26 +79,39 @@ export default function JuntasDisponiblesPage() {
       return;
     }
 
-    setData({ juntas: catalogResult.data });
-    setLoading(false);
+    setData({
+      juntas: catalogResult.data,
+      ...(snapshotResult.ok ? {
+        members: snapshotResult.data.members,
+        schedules: snapshotResult.data.schedules,
+        payments: snapshotResult.data.payments,
+        payouts: snapshotResult.data.payouts
+      } : {})
+    });
 
-    const snapshotResult = await fetchUserJuntaSnapshot(user.id);
     if (!snapshotResult.ok) {
       console.error('[Juntas disponibles] error loading snapshot', snapshotResult.message);
-      return;
     }
 
-    setData({
-      members: snapshotResult.data.members,
-      schedules: snapshotResult.data.schedules,
-      payments: snapshotResult.data.payments,
-      payouts: snapshotResult.data.payouts
-    });
+    setLoading(false);
   }, [user, setData]);
 
   useEffect(() => {
     reloadCatalog();
   }, [reloadCatalog]);
+
+  useEffect(() => {
+    const code = searchParams.get('code');
+    if (!code || !user || autoJoinTriggered.current) return;
+    autoJoinTriggered.current = true;
+    findJuntaByAccessCode(code.trim().toUpperCase()).then((result) => {
+      if (result.ok && result.data) {
+        window.location.href = `/juntas/${result.data.id}`;
+      } else {
+        setCodeError(result.ok ? 'Código inválido. Revisa el enlace e inténtalo de nuevo.' : result.message);
+      }
+    });
+  }, [searchParams, user]);
 
   const countByJunta = useMemo(() => getActiveMemberCountByJunta(allJuntas, allMembers), [allJuntas, allMembers]);
 
@@ -535,7 +553,7 @@ export default function JuntasDisponiblesPage() {
                         {leavingId === juntaId ? 'Retirándome...' : 'Retirarme'}
                       </Button>
                     )}
-                    {roleState === 'visitor' && !isActive && (
+                    {roleState === 'visitor' && !isActive && !isBlocked && (
                       j.visibilidad === 'privada'
                         ? <Button disabled={!canAccessPrivate || joiningId === juntaId} onClick={() => handleAccessPrivate(juntaId)}>{joiningId === juntaId ? 'Validando...' : 'Acceder con código'}</Button>
                         : <Button disabled={!canJoinPublic || joiningId === juntaId} onClick={() => handleJoin(juntaId)}>{joiningId === juntaId ? 'Uniéndome...' : 'Unirme'}</Button>
