@@ -9,7 +9,6 @@ import { isBackofficeAdmin } from '@/services/auth-role.service';
 import { AdminJuntaListItem, adminSoftDeleteJunta, fetchAdminJuntas } from '@/services/juntas.repository';
 import { useAuthStore } from '@/store/auth-store';
 import { formatCalendarDate } from '@/lib/calendar-date';
-import { canDeleteJunta } from '@/lib/junta-permissions';
 
 export default function AdminJuntasPage() {
   const user = useAuthStore((s) => s.user);
@@ -179,7 +178,7 @@ export default function AdminJuntasPage() {
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-2">
                       <Link href={`/admin/juntas/${row.id}`}><Button variant="outline">Ver detalle</Button></Link>
-                      {canDeleteJunta(row, user?.id) && (
+                      {!isRowBlocked(row) && (
                         <Button
                           variant="destructive"
                           onClick={() => setCandidate(row)}
@@ -221,7 +220,7 @@ export default function AdminJuntasPage() {
                 variant="destructive"
                 disabled={submittingDelete}
                 onClick={async () => {
-                  if (!candidate || !canDeleteJunta(candidate, user?.id)) return;
+                  if (!candidate || isRowBlocked(candidate)) return;
                   try {
                     setSubmittingDelete(true);
                     const result = await adminSoftDeleteJunta({ juntaId: candidate.id });

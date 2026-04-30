@@ -485,7 +485,12 @@ export default function JuntasDisponiblesPage() {
                 currentUserId: user.id ?? null,
                 isOwner,
                 roleState,
-                actionBranch
+                actionBranch,
+                estado: j.estado,
+                fechaInicio: j.fecha_inicio,
+                bloqueada: j.bloqueada,
+                started,
+                canDelete,
               });
             }
 
