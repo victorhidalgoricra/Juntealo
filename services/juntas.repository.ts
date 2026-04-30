@@ -488,6 +488,10 @@ export type AdminJuntaListItem = {
   fecha_inicio: string;
   created_at: string;
   bloqueada: boolean;
+  blocked?: boolean | null;
+  deleted_at?: string | null;
+  deleted_by?: string | null;
+  status?: string | null;
 };
 
 export async function fetchAdminJuntas(params?: { includeBlocked?: boolean }) {
@@ -500,9 +504,24 @@ export async function fetchAdminJuntas(params?: { includeBlocked?: boolean }) {
 
   const normalized = ((data ?? []) as Partial<AdminJuntaListItem>[]).map((row) => {
     const estadoVisualRaw = String(row.estado_visual ?? '').toLowerCase();
-    const bloqueada = Boolean(row.bloqueada) || estadoVisualRaw === 'bloqueada' || estadoVisualRaw === 'deshabilitada';
+    const estadoRaw = String(row.estado ?? '').toLowerCase();
+    const statusRaw = String(row.status ?? '').toLowerCase();
+    const blocked = Boolean(row.blocked);
+    const deletedAt = row.deleted_at ?? null;
+    const bloqueada =
+      Boolean(row.bloqueada) ||
+      blocked ||
+      Boolean(deletedAt) ||
+      estadoVisualRaw === 'bloqueada' ||
+      estadoVisualRaw === 'deshabilitada' ||
+      estadoRaw === 'bloqueada' ||
+      estadoRaw === 'eliminada' ||
+      statusRaw === 'bloqueada' ||
+      statusRaw === 'eliminada';
     return {
       ...row,
+      blocked,
+      deleted_at: deletedAt,
       bloqueada,
       estado_visual: bloqueada ? 'deshabilitada' : row.estado
     } as AdminJuntaListItem;
