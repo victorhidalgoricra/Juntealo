@@ -56,12 +56,6 @@ export default function JuntasDisponiblesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterId>('todas');
   const autoJoinTriggered = useRef(false);
-  const todayIsoDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
-
-  const hasStarted = useCallback((fechaInicio?: string | null) => {
-    if (!fechaInicio) return false;
-    return fechaInicio <= todayIsoDate;
-  }, [todayIsoDate]);
 
   const reloadCatalog = useCallback(async () => {
     if (!user) return;
@@ -283,7 +277,7 @@ export default function JuntasDisponiblesPage() {
     const miembrosActuales = countByJunta.get(juntaId) ?? Number(junta.integrantes_actuales ?? 0);
     const cupoCompleto = miembrosActuales >= junta.participantes_max;
     const isOwnerCheck = junta.admin_id === user.id;
-    const canActivateCheck = isOwnerCheck && junta.estado === 'borrador' && cupoCompleto && !isJuntaBlockedByDeadline(junta) && !hasStarted(junta.fecha_inicio);
+    const canActivateCheck = isOwnerCheck && junta.estado === 'borrador' && cupoCompleto && !isJuntaBlockedByDeadline(junta);
 
     // eslint-disable-next-line no-console
     console.debug('[ACTIVATE JUNTA CHECK]', {
@@ -305,10 +299,6 @@ export default function JuntasDisponiblesPage() {
     }
     if (junta.estado !== 'borrador') {
       setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Solo puedes activar juntas en borrador.' }));
-      return;
-    }
-    if (hasStarted(junta.fecha_inicio)) {
-      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'No puedes activar una junta que ya inició.' }));
       return;
     }
     if (isJuntaBlockedByDeadline(junta)) {
@@ -494,10 +484,21 @@ export default function JuntasDisponiblesPage() {
             const isBlocked = isJuntaBlockedByDeadline(j);
             const roleState = isOwner ? 'owner' : isMember ? 'member' : 'visitor';
             const isActive = isJuntaActive(j.estado);
-            const started = hasStarted(j.fecha_inicio);
-            const canActivate = roleState === 'owner' && j.estado === 'borrador' && cupoCompleto && !isBlocked && !started;
+            const canActivate = roleState === 'owner' && j.estado === 'borrador' && cupoCompleto && !isBlocked;
             const canDelete = canDeleteJunta(j, user.id);
-            const canLeave = roleState === 'member' && j.estado === 'borrador' && !started && !isBlocked;
+            const canLeave = roleState === 'member' && j.estado === 'borrador';
+            // eslint-disable-next-line no-console
+            console.debug('[JUNTA STATE DEBUG]', {
+              juntaId,
+              estado: j.estado,
+              integrantesActuales: j.integrantes_actuales,
+              participantesMax: j.participantes_max,
+              fechaInicio: j.fecha_inicio,
+              isMember: Boolean(j.is_member_current_user),
+              isCreator: j.admin_id === user?.id,
+              canLeave,
+              canActivate,
+            });
             const canJoinPublic = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'publica' && !isBlocked;
             const canAccessPrivate = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'privada' && !isBlocked;
             const actionBranch = roleState === 'owner' ? 'owner-actions' : roleState === 'member' ? 'member-actions' : 'visitor-actions';
@@ -596,8 +597,8 @@ export default function JuntasDisponiblesPage() {
                   {roleState === 'visitor' && !isActive && cupoCompleto && (
                     <p className="text-xs text-slate-600">Cupo completo</p>
                   )}
-                  {roleState === 'member' && !canLeave && (isActive || started || j.estado !== 'borrador') && (
-                    <p className="text-xs text-slate-600">Esta junta ya está activa o iniciada y no permite retirarte.</p>
+                  {roleState === 'member' && !canLeave && (
+                    <p className="text-xs text-slate-600">Esta junta ya está activa y no permite retirarte.</p>
                   )}
                   {joinErrorByJunta[juntaId] && !(roleState === 'owner' && joinErrorByJunta[juntaId].includes('creador no puede retirarse')) && (
                     <p className="text-xs text-red-600">{joinErrorByJunta[juntaId]}</p>
