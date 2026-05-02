@@ -7,6 +7,17 @@ type JuntaDeleteRow = {
   estado?: string | null;
 };
 
+// Returns today's date as 'YYYY-MM-DD' in America/Lima — same approach as junta-blocking.ts.
+// Avoids the UTC-shift bug from new Date('YYYY-MM-DD').setHours(0,0,0,0) in UTC-5.
+function getTodayInLima(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
 export function canDeleteJunta(
   row: JuntaDeleteRow,
   currentUserId: string | null | undefined
@@ -15,13 +26,9 @@ export function canDeleteJunta(
 
   const isCreator = row.admin_id === currentUserId;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const startDate = row.fecha_inicio ? new Date(row.fecha_inicio) : null;
-  if (startDate) startDate.setHours(0, 0, 0, 0);
-
-  const hasStarted = startDate ? startDate <= today : false;
+  const todayStr = getTodayInLima();
+  // fecha_inicio is stored as 'YYYY-MM-DD'; string comparison is safe for ISO dates.
+  const hasStarted = row.fecha_inicio ? row.fecha_inicio <= todayStr : false;
 
   const isDeleted =
     Boolean(row.deleted_at) ||
