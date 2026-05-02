@@ -264,6 +264,20 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   })();
   const isCurrentReceiver = user?.id === summary.receiver?.profile_id;
 
+  const openWhatsAppReminder = (row: WeeklyMemberRow) => {
+    const rawPhone = row.celular ?? '';
+    const digits = rawPhone.replace(/\D/g, '');
+    const phone = digits.length === 9 ? `51${digits}` : digits;
+    if (!phone) {
+      alert('Este integrante no tiene celular registrado.');
+      return;
+    }
+    const message = encodeURIComponent(
+      `Hola ${row.displayName}, te recordamos que tienes pendiente tu aporte de S/ ${row.amount.toFixed(0)} para la junta ${junta!.nombre}. Por favor regularízalo para continuar con el ciclo.`
+    );
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+  };
+
   const handleConfirmPayout = async () => {
     if (!isCurrentReceiver || !junta) return;
     const amount = (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length;
@@ -376,7 +390,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   {pendingPayers.map((row) => (
                     <div key={row.id} className="space-y-2">
                       <JuntaPaymentStatusRow row={row} />
-                      <div className="flex gap-2 pl-2"><Button variant="ghost">Reenviar recordatorio</Button><Button variant="ghost">WhatsApp</Button></div>
+                      <div className="flex gap-2 pl-2">
+                        <Button variant="ghost" onClick={() => alert('Las notificaciones automáticas estarán disponibles próximamente. Por ahora usa WhatsApp para contactar al integrante.')}>Reenviar recordatorio</Button>
+                        <Button variant="ghost" onClick={() => openWhatsAppReminder(row)}>WhatsApp</Button>
+                      </div>
                     </div>
                   ))}
                 </Card>
@@ -392,7 +409,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   {scheduleRows.map((row) => (
                     <tr key={row.turno} className={`border-t ${row.isCurrentWeek ? 'bg-blue-50' : ''}`}>
                       <td className="px-3 py-2">#{row.turno}</td>
-                      <td className="px-3 py-2">{row.isUserTurn ? 'Tú' : `Integrante ${row.turno}`}</td>
+                      <td className="px-3 py-2">{row.isUserTurn ? 'Tú' : (juntaMembers.find((m) => m.orden_turno === row.turno)?.nombre ?? `Integrante ${row.turno}`)}</td>
                       <td className="px-3 py-2">{row.fechaRonda}</td>
                       <td className="px-3 py-2">S/{row.montoRecibido.toFixed(2)}</td>
                       <td className="px-3 py-2"><span className={`rounded-full px-2 py-1 text-xs ${statusClass(row.weekStatus)}`}>{row.weekStatus}</span></td>
@@ -615,7 +632,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                     <tr key={row.turno} className="border-t">
                       <td className="px-3 py-2">Semana {row.turno}</td>
                       <td className="px-3 py-2">{row.fechaRonda}</td>
-                      <td className="px-3 py-2">{isMine ? 'Tú' : `Integrante ${row.turno}`}</td>
+                      <td className="px-3 py-2">{isMine ? 'Tú' : (juntaMembers.find((m) => m.orden_turno === row.turno)?.nombre ?? `Integrante ${row.turno}`)}</td>
                       <td className="px-3 py-2">S/{row.cuotaPorRonda.toFixed(2)}</td>
                       <td className="px-3 py-2"><span className={`rounded-full px-2 py-1 text-xs ${statusClass(status)}`}>{status}</span></td>
                     </tr>
