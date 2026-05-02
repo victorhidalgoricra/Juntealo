@@ -190,7 +190,14 @@ export default function JuntasDisponiblesPage() {
     setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: '' }));
     setJoiningId(juntaId);
 
+    const beforeJunta = allJuntas.find((item) => item.id === juntaId);
+    const beforeEstado = beforeJunta?.estado ?? null;
+
     const result = await joinJuntaAsParticipant({ juntaId, profileId: user.id, accessCode });
+
+    // eslint-disable-next-line no-console
+    console.debug('[JOIN JUNTA]', { juntaId, beforeEstado, resultOk: result.ok });
+
     if (!result.ok) {
       setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: result.message }));
       setJoiningId(null);
@@ -225,6 +232,10 @@ export default function JuntasDisponiblesPage() {
     });
     setJoiningId(null);
     await reloadCatalog();
+
+    const afterEstado = allJuntas.find((item) => item.id === juntaId)?.estado ?? null;
+    // eslint-disable-next-line no-console
+    console.debug('[JOIN JUNTA after reload]', { juntaId, beforeEstado, afterEstado });
   };
 
   const handleAccessPrivate = async (juntaId: string) => {
@@ -271,6 +282,19 @@ export default function JuntasDisponiblesPage() {
 
     const miembrosActuales = countByJunta.get(juntaId) ?? Number(junta.integrantes_actuales ?? 0);
     const cupoCompleto = miembrosActuales >= junta.participantes_max;
+    const isOwnerCheck = junta.admin_id === user.id;
+    const canActivateCheck = isOwnerCheck && junta.estado === 'borrador' && cupoCompleto && !isJuntaBlockedByDeadline(junta) && !hasStarted(junta.fecha_inicio);
+
+    // eslint-disable-next-line no-console
+    console.debug('[ACTIVATE JUNTA CHECK]', {
+      juntaId,
+      integrantesActuales: miembrosActuales,
+      participantesMax: junta.participantes_max,
+      cupoCompleto,
+      estado: junta.estado,
+      isOwner: isOwnerCheck,
+      canActivate: canActivateCheck
+    });
 
     setActivationFeedbackByJunta((prev) => ({ ...prev, [juntaId]: '' }));
     setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: '' }));
