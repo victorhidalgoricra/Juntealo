@@ -27,19 +27,21 @@ export function HowItWorksSection() {
 
       <div className="relative mt-8 grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6 md:before:absolute md:before:left-10 md:before:right-10 md:before:top-7 md:before:h-px md:before:bg-[var(--border)] md:before:content-['']">
         {steps.map((step, index) => (
-          <article key={step.title} className="relative rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-4">
+          <article
+            key={step.title}
+            className="group relative rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-4 transition-all duration-200 hover:-translate-y-1 hover:border-[var(--accent)] hover:bg-[var(--accent-bg)] hover:shadow-md"
+          >
             <span
-              className={[
-                'relative z-10 inline-flex h-14 w-14 items-center justify-center rounded-full text-base font-semibold',
-                index === 0
-                  ? 'bg-[var(--accent)] text-white'
-                  : 'border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]'
-              ].join(' ')}
+              className="relative z-10 inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-base font-semibold text-[var(--muted)] transition-all duration-200 group-hover:border-[var(--accent)] group-hover:bg-[var(--accent)] group-hover:text-white"
             >
               {index + 1}
             </span>
-            <h3 className="mt-4 text-sm font-semibold text-[var(--text)]">{step.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{step.description}</p>
+            <h3 className="mt-4 text-sm font-semibold text-[var(--text)] transition duration-200 group-hover:text-[var(--accent)]">
+              {step.title}
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--muted)] transition duration-200 group-hover:text-[var(--text)]">
+              {step.description}
+            </p>
           </article>
         ))}
       </div>

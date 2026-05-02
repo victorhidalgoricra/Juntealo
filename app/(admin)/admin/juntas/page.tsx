@@ -26,13 +26,25 @@ export default function AdminJuntasPage() {
   const [candidate, setCandidate] = useState<AdminJuntaListItem | null>(null);
   const [submittingDelete, setSubmittingDelete] = useState(false);
 
-  const isRowBlocked = useCallback((row: AdminJuntaListItem) => (
-    Boolean(row.bloqueada) || String(row.estado).toLowerCase() === 'bloqueada' || String(row.estado_visual ?? '').toLowerCase() === 'deshabilitada'
-  ), []);
+  const isDeletedOrBlocked = useCallback((row: AdminJuntaListItem) => {
+    const estado = String(row.estado ?? '').toLowerCase();
+    const estadoVisual = String(row.estado_visual ?? '').toLowerCase();
+    const status = String(row.status ?? '').toLowerCase();
+    return Boolean(row.deleted_at)
+      || Boolean(row.bloqueada)
+      || row.blocked === true
+      || estado === 'eliminada'
+      || estado === 'bloqueada'
+      || estadoVisual === 'eliminada'
+      || estadoVisual === 'bloqueada'
+      || estadoVisual === 'deshabilitada'
+      || status === 'eliminada'
+      || status === 'bloqueada';
+  }, []);
 
   const getEstadoVisual = useCallback((row: AdminJuntaListItem) => (
-    isRowBlocked(row) ? 'Deshabilitada' : (row.estado_visual ?? row.estado)
-  ), [isRowBlocked]);
+    isDeletedOrBlocked(row) ? 'Deshabilitada' : (row.estado_visual ?? row.estado)
+  ), [isDeletedOrBlocked]);
 
   const loadRows = useCallback(async (includeBlocked: boolean) => {
     setLoading(true);
@@ -57,9 +69,9 @@ export default function AdminJuntasPage() {
     const createdFromDate = createdFrom ? new Date(`${createdFrom}T00:00:00`) : null;
 
     return rows.filter((row) => {
-      if (!showBlocked && isRowBlocked(row)) return false;
+      if (!showBlocked && isDeletedOrBlocked(row)) return false;
       if (estado !== 'todos') {
-        if (estado === 'deshabilitada' && !isRowBlocked(row)) return false;
+        if (estado === 'deshabilitada' && !isDeletedOrBlocked(row)) return false;
         if (estado !== 'deshabilitada' && row.estado !== estado) return false;
       }
       if (visibilidad !== 'todas' && row.visibilidad !== visibilidad) return false;
@@ -80,7 +92,7 @@ export default function AdminJuntasPage() {
 
       return searchable.includes(normalizedQuery);
     });
-  }, [createdFrom, estado, isRowBlocked, query, rows, showBlocked, tipo, visibilidad]);
+  }, [createdFrom, estado, isDeletedOrBlocked, query, rows, showBlocked, tipo, visibilidad]);
 
   if (!isBackofficeAdmin(user)) {
     return <Card><p className="text-sm text-slate-600">No tienes permisos para acceder a gestión de juntas.</p></Card>;
@@ -143,9 +155,9 @@ export default function AdminJuntasPage() {
             </thead>
             <tbody>
               {filteredRows.map((row) => (
-                <tr key={row.id} className={`border-t align-top ${isRowBlocked(row) ? 'bg-slate-50 text-slate-500 opacity-85' : ''}`}>
+                <tr key={row.id} className={`border-t align-top ${isDeletedOrBlocked(row) ? 'bg-slate-50 text-slate-500 opacity-85' : ''}`}>
                   <td className="px-3 py-2">
-                    <p className={`font-medium ${isRowBlocked(row) ? 'text-slate-500' : 'text-slate-900'}`}>{row.nombre}</p>
+                    <p className={`font-medium ${isDeletedOrBlocked(row) ? 'text-slate-500' : 'text-slate-900'}`}>{row.nombre}</p>
                     <p className="text-xs text-slate-500">slug: {row.slug}</p>
                   </td>
                   <td className="px-3 py-2">
@@ -164,9 +176,7 @@ export default function AdminJuntasPage() {
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-2">
                       <Link href={`/admin/juntas/${row.id}`}><Button variant="outline">Ver detalle</Button></Link>
-                      <Button variant="destructive" disabled={isRowBlocked(row)} onClick={() => setCandidate(row)}>
-                        {isRowBlocked(row) ? 'Deshabilitada' : 'Eliminar'}
-                      </Button>
+                      {!isDeletedOrBlocked(row) && <Button variant="destructive" onClick={() => setCandidate(row)}>Eliminar</Button>}
                     </div>
                   </td>
                 </tr>
@@ -203,17 +213,13 @@ export default function AdminJuntasPage() {
                 disabled={submittingDelete}
                 onClick={async () => {
                   try {
+                    if (isDeletedOrBlocked(candidate)) return;
                     setSubmittingDelete(true);
                     const result = await adminSoftDeleteJunta({ juntaId: candidate.id });
                     if (!result.ok) {
                       setError(result.message);
                       return;
                     }
-                    setRows((prev) => (
-                      showBlocked
-                        ? prev.map((row) => row.id === candidate.id ? { ...row, bloqueada: true, estado_visual: 'deshabilitada' } : row)
-                        : prev.filter((row) => row.id !== candidate.id)
-                    ));
                     await loadRows(showBlocked);
                     setCandidate(null);
                   } finally {

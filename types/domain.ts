@@ -40,6 +40,7 @@ export interface Junta {
   invite_token: string;
   access_code?: string;
   bloqueada?: boolean;
+  deleted_at?: string | null;
   integrantes_actuales?: number;
   is_member_current_user?: boolean;
   tipo_junta?: TipoJunta;
