@@ -75,6 +75,7 @@ export interface JuntaMember {
   rol?: 'admin' | 'participante';
   orden_turno: number;
   nombre?: string;
+  celular?: string;
 }
 
 export interface PaymentSchedule {

@@ -14,6 +14,7 @@ export type WeeklyMemberRow = {
   id: string;
   profileId: string;
   displayName: string;
+  celular?: string;
   turno: number;
   score: number;
   status: WeeklyPaymentStatus;
@@ -51,9 +52,7 @@ export function getCurrentReceiver(params: {
   const displayName =
     receiver.profile_id === params.userId
       ? 'Tú'
-      : receiver.profile_id === params.adminId
-        ? 'Creador'
-        : `Integrante ${Math.max(memberIndex + 1, 1)}`;
+      : receiver.nombre ?? (receiver.profile_id === params.adminId ? 'Creador' : `Integrante ${Math.max(memberIndex + 1, 1)}`);
   return { ...receiver, displayName };
 }
 
@@ -109,13 +108,12 @@ export function getCurrentWeekPaymentRows(params: {
     const displayName =
       member.profile_id === params.userId
         ? 'Tú'
-        : member.profile_id === params.junta.admin_id
-          ? 'Creador'
-          : `Integrante ${index + 1}`;
+        : member.nombre ?? (member.profile_id === params.junta.admin_id ? 'Creador' : `Integrante ${index + 1}`);
     return {
       id: member.id,
       profileId: member.profile_id,
       displayName,
+      celular: member.celular,
       turno: member.orden_turno,
       score: Math.max(62, 95 - Math.abs(member.orden_turno - params.currentWeek) * 3),
       status: resolvePaymentStatus({ juntaActiva: params.juntaActiva, schedule: params.currentSchedule, payment, isReceiver }),
