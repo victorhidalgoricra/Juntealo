@@ -28,7 +28,9 @@ export function canDeleteJunta(
 
   const todayStr = getTodayInLima();
   // fecha_inicio is stored as 'YYYY-MM-DD'; string comparison is safe for ISO dates.
-  const hasStarted = row.fecha_inicio ? row.fecha_inicio <= todayStr : false;
+  // Use strict less-than: a junta is only "started" if its start date is in the past,
+  // not on the start date itself (the junta is still in borrador on day-of).
+  const hasStarted = row.fecha_inicio ? row.fecha_inicio < todayStr : false;
 
   const isDeleted =
     Boolean(row.deleted_at) ||
