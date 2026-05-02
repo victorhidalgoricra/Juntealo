@@ -478,28 +478,22 @@ export default function JuntasDisponiblesPage() {
             const canAccessPrivate = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'privada' && !isBlocked;
             const actionBranch = roleState === 'owner' ? 'owner-actions' : roleState === 'member' ? 'member-actions' : 'visitor-actions';
 
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[Juntas card render]', {
-                juntaId,
-                juntaAdminId: j.admin_id ?? null,
-                currentUserId: user.id ?? null,
-                isOwner,
-                roleState,
-                actionBranch,
-                estado: j.estado,
-                fechaInicio: j.fecha_inicio,
-                bloqueada: j.bloqueada,
-                started,
-                canDelete,
-              });
-              console.debug('[DELETE CHECK]', {
-                userId: user.id,
-                adminId: j.admin_id,
-                fechaInicio: j.fecha_inicio,
-                estado: j.estado,
-                canDelete: canDeleteJunta(j, user.id),
-              });
-            }
+            // eslint-disable-next-line no-console
+            console.debug('[DELETE BUTTON DEBUG]', {
+              juntaId: j.id,
+              userId: user.id,
+              adminId: j.admin_id,
+              creatorId: (j as any).creator_id,
+              createdBy: (j as any).created_by,
+              memberRole: (j as any).member_role,
+              fechaInicio: j.fecha_inicio,
+              estado: j.estado,
+              deletedAt: (j as any).deleted_at,
+              bloqueada: j.bloqueada,
+              isOwner,
+              roleState,
+              canDelete,
+            });
 
             return (
               <Card key={juntaId} className="flex h-full flex-col justify-between gap-4 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
