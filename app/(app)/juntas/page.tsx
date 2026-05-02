@@ -492,6 +492,13 @@ export default function JuntasDisponiblesPage() {
                 started,
                 canDelete,
               });
+              console.debug('[DELETE CHECK]', {
+                userId: user.id,
+                adminId: j.admin_id,
+                fechaInicio: j.fecha_inicio,
+                estado: j.estado,
+                canDelete: canDeleteJunta(j, user.id),
+              });
             }
 
             return (
