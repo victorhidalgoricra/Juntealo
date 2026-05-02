@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, fetchAvailableJuntas, fetchJuntaById, fetchMembersByJuntaIds, fetchMyActiveMembership, fetchUserJuntaSnapshot, updateJuntaMemberTurns } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchUserJuntaSnapshot, setJuntaAssignmentMode, updateJuntaMemberTurns } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -62,7 +62,7 @@ function JuntaPaymentStatusRow({ row, showPayAction, onPay }: { row: WeeklyMembe
 export default function JuntaDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { juntas, members, payments, schedules, setData } = useAppStore();
+  const { juntas, payments, schedules, payouts, setData } = useAppStore();
 
   const [mainView, setMainView] = useState<MainView>('general');
   const [generalTab, setGeneralTab] = useState<GeneralTab>('integrantes');
@@ -71,11 +71,13 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [accessState, setAccessState] = useState<'checking' | 'allowed' | 'unauthorized' | 'blocked' | 'not_found'>('checking');
   const [phaseTwoLoading, setPhaseTwoLoading] = useState(false);
-  const [detailMembers, setDetailMembers] = useState<typeof members>([]);
+  const [detailMembers, setDetailMembers] = useState<import('@/types/domain').JuntaMember[]>([]);
   const [detailPayments, setDetailPayments] = useState<typeof payments>([]);
   const [detailSchedules, setDetailSchedules] = useState<typeof schedules>([]);
   const [paymentInfo, setPaymentInfo] = useState<string | null>(null);
   const [manualTurns, setManualTurns] = useState<Record<string, number>>({});
+  const [activating, setActivating] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
   useEffect(() => {
     const load = async () => {
@@ -90,15 +92,15 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
       try {
         const storedJunta = juntas.find((j) => j.id === params.id) ?? null;
+        const hasFullData = storedJunta != null && storedJunta.turn_assignment_mode != null;
         const [detailResult, membersResult, membershipResult] = await Promise.all([
-          storedJunta ? Promise.resolve({ ok: true as const, data: storedJunta }) : fetchJuntaById(params.id),
-          fetchMembersByJuntaIds([params.id]),
+          hasFullData ? Promise.resolve({ ok: true as const, data: storedJunta! }) : fetchJuntaById(params.id),
+          fetchJuntaActiveMembers(params.id),
           fetchMyActiveMembership({ juntaId: params.id, profileId: user.id })
         ]);
 
         let resolvedJunta = detailResult.ok ? detailResult.data : null;
-        const activeMembers = membersResult.ok ? membersResult.data.filter((member) => member.estado === 'activo') : [];
-        if (membersResult.ok) setData({ members: membersResult.data });
+        const activeMembers = membersResult.ok ? membersResult.data : [];
 
         if (!resolvedJunta) {
           // Fallback only when direct detail fetch fails; keep it as last attempt to avoid heavy catalog queries on happy path.
@@ -130,6 +132,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           return;
         }
 
+        setDetailMembers(membersResult.ok ? membersResult.data : []);
         setAccessState('allowed');
       } catch (error) {
         setLoadError(error instanceof Error ? error.message : 'No se pudo cargar la junta.');
@@ -143,11 +146,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   useEffect(() => {
     if (accessState !== 'allowed' || !junta) return;
     setPhaseTwoLoading(true);
-    setDetailMembers(members.filter((member) => member.junta_id === junta.id && member.estado === 'activo'));
     setDetailPayments(payments.filter((payment) => payment.junta_id === junta.id));
     setDetailSchedules(schedules.filter((schedule) => schedule.junta_id === junta.id));
     setPhaseTwoLoading(false);
-  }, [accessState, junta, members, payments, schedules]);
+  }, [accessState, junta, payments, schedules]);
 
   const juntaMembers = useMemo(() => {
     if (!junta) return detailMembers;
@@ -170,21 +172,26 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
   const refreshSnapshot = async () => {
     if (!user?.id) return;
-    const result = await fetchUserJuntaSnapshot(user.id);
-    if (!result.ok) return;
-    setData({
-      juntas: result.data.juntas,
-      members: result.data.members,
-      schedules: result.data.schedules,
-      payments: result.data.payments,
-      payouts: result.data.payouts
-    });
+    const [snapshotResult, membersResult] = await Promise.all([
+      fetchUserJuntaSnapshot(user.id),
+      fetchJuntaActiveMembers(params.id)
+    ]);
 
-    const refreshedJunta = result.data.juntas.find((item) => item.id === params.id) ?? null;
-    if (refreshedJunta) setJunta(refreshedJunta);
-    setDetailMembers(result.data.members.filter((member) => member.junta_id === params.id && member.estado === 'activo'));
-    setDetailPayments(result.data.payments.filter((payment) => payment.junta_id === params.id));
-    setDetailSchedules(result.data.schedules.filter((schedule) => schedule.junta_id === params.id));
+    if (snapshotResult.ok) {
+      setData({
+        juntas: snapshotResult.data.juntas,
+        members: snapshotResult.data.members,
+        schedules: snapshotResult.data.schedules,
+        payments: snapshotResult.data.payments,
+        payouts: snapshotResult.data.payouts
+      });
+      const refreshedJunta = snapshotResult.data.juntas.find((item) => item.id === params.id) ?? null;
+      if (refreshedJunta) setJunta(refreshedJunta);
+      setDetailPayments(snapshotResult.data.payments.filter((payment) => payment.junta_id === params.id));
+      setDetailSchedules(snapshotResult.data.schedules.filter((schedule) => schedule.junta_id === params.id));
+    }
+
+    if (membersResult.ok) setDetailMembers(membersResult.data);
   };
 
   if (loadingJunta) return <Card>Cargando junta...</Card>;
@@ -196,7 +203,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
   const juntaActiva = isJuntaActive(junta.estado);
   const blockedByDeadline = isJuntaBlockedByDeadline(junta);
-  const currentWeek = Math.max(1, Math.min(simulation.rows.length, Math.max(juntaMembers.length, 1)));
+  const completedPayouts = payouts.filter((p) => p.junta_id === junta.id).length;
+  const currentWeek = Math.min(completedPayouts + 1, simulation.rows.length);
   const summary = getCurrentWeekSummary({
     junta,
     members: juntaMembers,
@@ -230,7 +238,47 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     incentivoRegla: junta.incentivo_regla
   });
 
-  const canOperateTurns = !juntaActiva && junta.turn_assignment_mode === 'manual' && !blockedByDeadline;
+  const handleCopyLink = async () => {
+    const origin = window.location.origin;
+    const url =
+      junta.visibilidad === 'publica'
+        ? `${origin}/junta/${junta.slug}`
+        : `${origin}/juntas?code=${junta.access_code ?? ''}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopyStatus('copied');
+    } catch {
+      setCopyStatus('error');
+    }
+    setTimeout(() => setCopyStatus('idle'), 2000);
+  };
+
+  const isOwner = user?.id === junta.admin_id;
+  const memberCount = junta.integrantes_actuales ?? juntaMembers.length;
+  const canManualAssign = isOwner && !juntaActiva && !blockedByDeadline;
+  const canShuffle = isOwner && !juntaActiva && !blockedByDeadline && memberCount >= junta.participantes_max;
+  const allTurnsAssigned = juntaMembers.length > 0 && (() => {
+    const turns = juntaMembers.map((m) => manualTurns[m.profile_id] ?? m.orden_turno ?? 0);
+    const assigned = turns.filter((t) => t > 0);
+    return assigned.length === juntaMembers.length && new Set(assigned).size === juntaMembers.length;
+  })();
+  const isCurrentReceiver = user?.id === summary.receiver?.profile_id;
+
+  const handleConfirmPayout = async () => {
+    if (!isCurrentReceiver || !junta) return;
+    const amount = (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length;
+    const result = await confirmPayout({
+      juntaId: junta.id,
+      profileId: user!.id,
+      roundNumber: currentWeek,
+      amount
+    });
+    if (!result.ok) {
+      setPaymentInfo(result.message);
+      return;
+    }
+    await refreshSnapshot();
+  };
 
   const headerSubtitle = `Semana ${currentWeek} · ${junta.frecuencia_pago} · ${junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}`;
 
@@ -245,20 +293,16 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               <Badge>{juntaActiva ? 'Activa' : 'En formación'}</Badge>
               {blockedByDeadline && <Badge>Bloqueada</Badge>}
               <Badge>{junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</Badge>
-              <Badge>{juntaMembers.length}/{junta.participantes_max} integrantes</Badge>
+              <Badge>{memberCount}/{junta.participantes_max} integrantes</Badge>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => {
-                const shareUrl = `${window.location.origin}/junta/${junta.slug}`;
-                try { navigator.clipboard.writeText(shareUrl); } catch { /* ignore */ }
-              }}
+              onClick={handleCopyLink}
             >
-              Copiar enlace
+              {copyStatus === 'copied' ? 'Enlace copiado' : copyStatus === 'error' ? 'Error al copiar' : 'Copiar enlace'}
             </Button>
-            <Button variant="ghost">Opciones</Button>
           </div>
         </div>
 
@@ -315,7 +359,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   <div className="flex items-center gap-2">
                     <JuntaScoreBadge score={summary.rows.find((row) => row.isReceiver)?.score ?? 70} />
                     <Badge>{summary.pending === 0 ? 'Listo para confirmar' : 'Esperando pagos'}</Badge>
-                    {summary.pending === 0 && <Button variant="outline">Confirmar recibo</Button>}
+                    {summary.pending === 0 && isCurrentReceiver && (
+                      <Button variant="outline" onClick={handleConfirmPayout}>Confirmar recibo</Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -374,7 +420,6 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
           {generalTab === 'turnos' && (
             <Card className="space-y-3 p-4">
-              <p className="text-sm text-slate-600">Este modo solo está disponible antes de activar la junta. Arrastra o selecciona el turno de cada participante manualmente.</p>
               {juntaActiva || blockedByDeadline ? (
                 <p className="rounded-md bg-slate-100 p-3 text-sm text-slate-600">
                   {blockedByDeadline
@@ -383,74 +428,116 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                 </p>
               ) : (
                 <>
+                  {memberCount < junta.participantes_max && (
+                    <p className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+                      Faltan {junta.participantes_max - memberCount} integrante(s) para completar la junta. Los turnos se podrán asignar cuando el grupo esté completo.
+                    </p>
+                  )}
                   <div className="space-y-2">
-                    {juntaMembers.map((member, index) => (
-                      <div key={member.id} className="flex items-center justify-between rounded-md border p-2">
-                        <p className="text-sm">{member.profile_id === user?.id ? 'Tú' : member.profile_id === junta.admin_id ? 'Creador' : `Integrante ${index + 1}`}</p>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500">Turno</span>
-                          <select
-                            className="rounded-md border px-2 py-1 text-sm"
-                            value={manualTurns[member.profile_id] ?? member.orden_turno}
-                            onChange={(event) => setManualTurns((prev) => ({ ...prev, [member.profile_id]: Number(event.target.value) }))}
-                            disabled={!canOperateTurns}
-                          >
-                            {Array.from({ length: juntaMembers.length }).map((_, turnIdx) => <option key={turnIdx + 1} value={turnIdx + 1}>{turnIdx + 1}</option>)}
-                          </select>
+                    {juntaMembers.map((member, index) => {
+                      const displayName = member.profile_id === user?.id
+                        ? `Tú${member.nombre ? ` (${member.nombre.split(' ')[0]})` : ''}`
+                        : member.nombre ?? (member.profile_id === junta.admin_id ? 'Creador' : `Integrante ${index + 1}`);
+                      return (
+                        <div key={member.id} className="flex items-center justify-between rounded-md border p-2">
+                          <p className="text-sm">{displayName}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">Turno</span>
+                            <select
+                              className="rounded-md border px-2 py-1 text-sm"
+                              value={manualTurns[member.profile_id] ?? member.orden_turno ?? ''}
+                              onChange={(event) => setManualTurns((prev) => ({ ...prev, [member.profile_id]: Number(event.target.value) }))}
+                              disabled={!canManualAssign}
+                            >
+                              <option value="">—</option>
+                              {Array.from({ length: juntaMembers.length }).map((_, turnIdx) => <option key={turnIdx + 1} value={turnIdx + 1}>{turnIdx + 1}</option>)}
+                            </select>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
-                      disabled={!canOperateTurns}
-                      onClick={() => {
-                        const shuffled = [...juntaMembers].sort(() => Math.random() - 0.5);
-                        const next: Record<string, number> = {};
-                        shuffled.forEach((member, idx) => { next[member.profile_id] = idx + 1; });
-                        setManualTurns(next);
+                      disabled={!canShuffle || activating}
+                      onClick={async () => {
+                        setActivating(true);
                         setPaymentInfo(null);
+                        try {
+                          const shuffled = [...juntaMembers].sort(() => Math.random() - 0.5);
+                          const turnsByProfileId: Record<string, number> = {};
+                          shuffled.forEach((member, idx) => { turnsByProfileId[member.profile_id] = idx + 1; });
+                          setManualTurns(turnsByProfileId);
+
+                          if (junta.turn_assignment_mode !== 'manual') {
+                            const modeResult = await setJuntaAssignmentMode({ juntaId: junta.id, mode: 'manual' });
+                            if (!modeResult.ok) { setPaymentInfo(modeResult.message); return; }
+                          }
+
+                          const saveTurnsResult = await updateJuntaMemberTurns({ juntaId: junta.id, turnsByProfileId });
+                          if (!saveTurnsResult.ok) { setPaymentInfo(saveTurnsResult.message); return; }
+
+                          const result = await activateJuntaIfReady({ juntaId: junta.id });
+                          if (!result.ok) { setPaymentInfo(result.message); return; }
+
+                          const freshResult = await fetchJuntaById(params.id);
+                          if (freshResult.ok && freshResult.data) setJunta(freshResult.data);
+                          await refreshSnapshot();
+                        } catch {
+                          setPaymentInfo('Ocurrió un error al sortear. Intenta de nuevo.');
+                        } finally {
+                          setActivating(false);
+                        }
                       }}
                     >
-                      Sortear aleatoriamente
+                      {activating ? 'Sorteando…' : 'Sortear y activar'}
                     </Button>
                     <Button
-                      disabled={juntaMembers.length < junta.participantes_max}
+                      disabled={!isOwner || memberCount < junta.participantes_max || !allTurnsAssigned || activating}
                       onClick={async () => {
-                        if (canOperateTurns) {
-                          const assignedTurns = juntaMembers.map((member) => manualTurns[member.profile_id] ?? member.orden_turno);
-                          const uniqueTurns = new Set(assignedTurns);
+                        setActivating(true);
+                        setPaymentInfo(null);
+                        try {
+                          const assignedTurns = juntaMembers.map((member) => manualTurns[member.profile_id] ?? member.orden_turno ?? 0);
+                          const uniqueTurns = new Set(assignedTurns.filter((t) => t > 0));
                           if (uniqueTurns.size !== juntaMembers.length) {
                             setPaymentInfo('No puedes repetir turnos. Asigna un turno único por integrante.');
                             return;
                           }
 
+                          if (junta.turn_assignment_mode !== 'manual') {
+                            const modeResult = await setJuntaAssignmentMode({ juntaId: junta.id, mode: 'manual' });
+                            if (!modeResult.ok) { setPaymentInfo(modeResult.message); return; }
+                          }
+
                           const turnsByProfileId = juntaMembers.reduce<Record<string, number>>((acc, member) => {
-                            acc[member.profile_id] = manualTurns[member.profile_id] ?? member.orden_turno;
+                            acc[member.profile_id] = manualTurns[member.profile_id] ?? member.orden_turno ?? 0;
                             return acc;
                           }, {});
 
                           const saveTurnsResult = await updateJuntaMemberTurns({ juntaId: junta.id, turnsByProfileId });
-                          if (!saveTurnsResult.ok) {
-                            setPaymentInfo(saveTurnsResult.message);
-                            return;
-                          }
-                        }
+                          if (!saveTurnsResult.ok) { setPaymentInfo(saveTurnsResult.message); return; }
 
-                        const result = await activateJuntaIfReady({ juntaId: junta.id });
-                        if (!result.ok) {
-                          setPaymentInfo(result.message);
-                          return;
-                        }
+                          const result = await activateJuntaIfReady({ juntaId: junta.id });
+                          if (!result.ok) { setPaymentInfo(result.message); return; }
 
-                        await refreshSnapshot();
-                        setPaymentInfo(null);
+                          const freshResult = await fetchJuntaById(params.id);
+                          if (freshResult.ok && freshResult.data) setJunta(freshResult.data);
+                          await refreshSnapshot();
+                        } catch {
+                          setPaymentInfo('Ocurrió un error al activar la junta. Intenta de nuevo.');
+                        } finally {
+                          setActivating(false);
+                        }
                       }}
                     >
-                      Activar junta
+                      {activating ? 'Activando…' : 'Activar junta'}
                     </Button>
                   </div>
+                  {!allTurnsAssigned && memberCount >= junta.participantes_max && (
+                    <p className="text-xs text-slate-500">Asigna un turno único a cada integrante para poder activar la junta.</p>
+                  )}
                 </>
               )}
               {paymentInfo && <p className="text-xs text-rose-700">{paymentInfo}</p>}
@@ -478,17 +565,37 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             </Card>
           )}
 
-          <Card className="space-y-3 p-4">
-            <h3 className="text-lg font-semibold">Esta semana · turno de {summary.receiver?.displayName ?? '—'}</h3>
-            <p className="text-4xl font-bold">S/{(personal.myRow?.amount ?? (junta.cuota_base ?? junta.monto_cuota)).toFixed(2)}</p>
-            <div className="text-sm text-slate-600">
-              <p>Base: S/{(junta.cuota_base ?? junta.monto_cuota).toFixed(2)}</p>
-              <p>Ajuste: {junta.tipo_junta === 'incentivo' ? incentiveLabel : 'No aplica'}</p>
-              <p>{personal.progressLabel}</p>
-            </div>
-            <Button onClick={() => router.push(`/juntas/${junta.id}/registrar-pago`)}>Pagar ahora →</Button>
-            {paymentInfo && <p className="text-xs text-amber-700">{paymentInfo}</p>}
-          </Card>
+          {isCurrentReceiver ? (
+            <Card className="space-y-3 p-4">
+              <h3 className="text-lg font-semibold">Esta semana · recibes el pozo</h3>
+              <p className="text-4xl font-bold text-emerald-600">S/{(personal.myTurnRow?.montoRecibido ?? (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(2)}</p>
+              <div className="text-sm text-slate-600">
+                <p>{summary.paid}/{juntaMembers.length - 1} pagos recibidos</p>
+              </div>
+              {summary.pending === 0 ? (
+                <Button onClick={handleConfirmPayout}>Confirmar recibo →</Button>
+              ) : (
+                <p className="text-sm text-slate-500">Esperando {summary.pending} pago(s) para liberar la bolsa.</p>
+              )}
+              {paymentInfo && <p className="text-xs text-amber-700">{paymentInfo}</p>}
+            </Card>
+          ) : (
+            <Card className="space-y-3 p-4">
+              <h3 className="text-lg font-semibold">Esta semana · turno de {summary.receiver?.displayName ?? '—'}</h3>
+              <p className="text-4xl font-bold">S/{(personal.myRow?.amount ?? (junta.cuota_base ?? junta.monto_cuota)).toFixed(2)}</p>
+              <div className="text-sm text-slate-600">
+                <p>Base: S/{(junta.cuota_base ?? junta.monto_cuota).toFixed(2)}</p>
+                <p>Ajuste: {junta.tipo_junta === 'incentivo' ? incentiveLabel : 'No aplica'}</p>
+                <p>{personal.progressLabel}</p>
+              </div>
+              {personal.myRow?.status !== 'Pagado' && personal.myRow?.status !== 'Validando' && (
+                <Button onClick={() => router.push(`/juntas/${junta.id}/registrar-pago`)}>Pagar ahora →</Button>
+              )}
+              {personal.myRow?.status === 'Pagado' && <p className="text-sm font-medium text-emerald-600">Ya enviaste tu pago.</p>}
+              {personal.myRow?.status === 'Validando' && <p className="text-sm font-medium text-blue-600">Tu pago está en validación.</p>}
+              {paymentInfo && <p className="text-xs text-amber-700">{paymentInfo}</p>}
+            </Card>
+          )}
 
           <Card className="space-y-2 p-4">
             <h4 className="text-sm font-semibold">Estado del grupo esta semana</h4>

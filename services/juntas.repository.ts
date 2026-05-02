@@ -272,6 +272,30 @@ export async function fetchMembersByJuntaIds(juntaIds: string[]) {
   return { ok: true as const, data: (data ?? []) as JuntaMember[] };
 }
 
+export async function fetchJuntaActiveMembers(juntaId: string) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as JuntaMember[] };
+
+  const { data, error } = await supabase
+    .schema('public')
+    .rpc('get_junta_members_for_detail', { p_junta_id: juntaId });
+
+  if (error) {
+    // Fallback to direct query if migration 036 not yet applied
+    const fallback = await supabase
+      .schema('public')
+      .from('junta_members')
+      .select('id,junta_id,profile_id,estado,rol,orden_turno,created_at')
+      .eq('junta_id', juntaId)
+      .eq('estado', 'activo')
+      .order('orden_turno', { ascending: true, nullsFirst: false });
+
+    if (fallback.error) return { ok: false as const, message: mapSupabaseErrorMessage(fallback.error.message) };
+    return { ok: true as const, data: (fallback.data ?? []) as JuntaMember[] };
+  }
+
+  return { ok: true as const, data: (data ?? []) as JuntaMember[] };
+}
+
 export async function fetchMyActiveMembership(params: { juntaId: string; profileId: string }) {
   if (!hasSupabase || !supabase) return { ok: true as const, isActiveMember: false };
 
@@ -351,7 +375,12 @@ export async function activateJuntaIfReady(params: { juntaId: string }) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: { estado: 'activa' as const } };
 
   const { data, error } = await supabase.schema('public').rpc('activate_junta_if_ready', { p_junta_id: params.juntaId });
-  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  if (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[activateJuntaIfReady]', error);
+    }
+    return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  }
 
   const junta = Array.isArray(data) ? (data[0] as Junta | undefined) : (data as Junta | null);
   if (!junta) return { ok: false as const, message: 'No se pudo activar la junta.' };
@@ -453,21 +482,63 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
 export async function updateJuntaMemberTurns(params: { juntaId: string; turnsByProfileId: Record<string, number> }) {
   if (!hasSupabase || !supabase) return { ok: true as const };
 
-  const updates = Object.entries(params.turnsByProfileId).map(([profileId, orden_turno]) => ({
-    junta_id: params.juntaId,
-    profile_id: profileId,
+  const turns = Object.entries(params.turnsByProfileId).map(([profile_id, orden_turno]) => ({
+    profile_id,
     orden_turno
   }));
 
-  if (updates.length === 0) return { ok: true as const };
+  if (turns.length === 0) return { ok: true as const };
 
   const { error } = await supabase
     .schema('public')
-    .from('junta_members')
-    .upsert(updates, { onConflict: 'junta_id,profile_id' });
+    .rpc('update_junta_member_turns', {
+      p_junta_id: params.juntaId,
+      p_turns: turns
+    });
+
+  if (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[updateJuntaMemberTurns]', error);
+    }
+    return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  }
+
+  return { ok: true as const };
+}
+
+export async function setJuntaAssignmentMode(params: { juntaId: string; mode: 'manual' | 'random' }) {
+  if (!hasSupabase || !supabase) return { ok: true as const };
+
+  const { error } = await supabase
+    .schema('public')
+    .from('juntas')
+    .update({ turn_assignment_mode: params.mode })
+    .eq('id', params.juntaId);
 
   if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  return { ok: true as const };
+}
 
+export async function confirmPayout(params: {
+  juntaId: string;
+  profileId: string;
+  roundNumber: number;
+  amount: number;
+}) {
+  if (!hasSupabase || !supabase) return { ok: true as const };
+
+  const { error } = await supabase
+    .schema('public')
+    .from('payouts')
+    .insert({
+      junta_id: params.juntaId,
+      profile_id: params.profileId,
+      ronda_numero: params.roundNumber,
+      monto_pozo: params.amount,
+      entregado_en: new Date().toISOString()
+    });
+
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
   return { ok: true as const };
 }
 
@@ -497,9 +568,21 @@ export type AdminJuntaListItem = {
 export async function fetchAdminJuntas(params?: { includeBlocked?: boolean }) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as AdminJuntaListItem[] };
 
+  const includeBlocked = Boolean(params?.includeBlocked);
   const { data, error } = await supabase.schema('public').rpc('admin_list_juntas', {
-    p_include_blocked: Boolean(params?.includeBlocked)
+    p_include_blocked: includeBlocked
   });
+
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[fetchAdminJuntas] rpc raw', { includeBlocked, error: error?.message, rowCount: (data as unknown[])?.length ?? 0 });
+    if (Array.isArray(data) && data.length > 0) {
+      console.debug('[fetchAdminJuntas] first row keys:', Object.keys(data[0] as object));
+      (data as Record<string, unknown>[]).filter((r) => r.bloqueada).forEach((r) => {
+        console.debug('[fetchAdminJuntas] blocked row:', { id: r.id, nombre: r.nombre, bloqueada: r.bloqueada });
+      });
+    }
+  }
+
   if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
 
   const normalized = ((data ?? []) as Partial<AdminJuntaListItem>[]).map((row) => {
@@ -523,7 +606,7 @@ export async function fetchAdminJuntas(params?: { includeBlocked?: boolean }) {
       blocked,
       deleted_at: deletedAt,
       bloqueada,
-      estado_visual: bloqueada ? 'deshabilitada' : row.estado
+      estado_visual: bloqueada ? 'eliminada' : String(row.estado ?? '')
     } as AdminJuntaListItem;
   });
 

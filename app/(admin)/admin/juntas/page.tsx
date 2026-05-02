@@ -48,16 +48,30 @@ export default function AdminJuntasPage() {
 
   const loadRows = useCallback(async (includeBlocked: boolean) => {
     setLoading(true);
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[AdminJuntas] loadRows', { userId: user?.id, role: user?.global_role, includeBlocked });
+    }
     const result = await fetchAdminJuntas({ includeBlocked });
     if (!result.ok) {
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[AdminJuntas] fetchAdminJuntas error', result.message);
+      }
       setError(result.message);
       setLoading(false);
       return;
     }
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[AdminJuntas] fetchAdminJuntas ok, count=', result.data.length);
+    }
     setError(null);
+    if (process.env.NODE_ENV === 'development') {
+      result.data.forEach((row) => {
+        if (row.bloqueada) console.debug('[AdminJuntas row blocked]', { id: row.id, nombre: row.nombre, bloqueada: row.bloqueada, estado_visual: row.estado_visual });
+      });
+    }
     setRows(result.data);
     setLoading(false);
-  }, []);
+  }, [user?.id, user?.global_role]);
 
   useEffect(() => {
     if (!isBackofficeAdmin(user)) return;
@@ -185,12 +199,11 @@ export default function AdminJuntasPage() {
           </table>
         </div>
 
-        {!loading && filteredRows.length === 0 && (
+        {loading && <div className="p-6 text-sm text-slate-500">Cargando juntas...</div>}
+        {!loading && error && <div className="p-6 text-sm text-red-600">{error}</div>}
+        {!loading && !error && filteredRows.length === 0 && (
           <div className="p-6 text-sm text-slate-500">No hay juntas que coincidan con los filtros actuales.</div>
         )}
-
-        {loading && <div className="p-6 text-sm text-slate-500">Cargando juntas...</div>}
-        {error && <div className="p-6 text-sm text-red-600">{error}</div>}
       </Card>
 
       {candidate && (
@@ -212,6 +225,7 @@ export default function AdminJuntasPage() {
                 variant="destructive"
                 disabled={submittingDelete}
                 onClick={async () => {
+                  if (!candidate || isRowBlocked(candidate)) return;
                   try {
                     if (isDeletedOrBlocked(candidate)) return;
                     setSubmittingDelete(true);

@@ -34,7 +34,17 @@ export async function ensureProfileExists(input: {
   };
 
   const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
-  if (error) return { ok: false as const, message: error.message };
+  if (error) {
+    console.error('[ensureProfileExists] upsert error:', error);
+    const msg = error.message.toLowerCase();
+    if (error.code === '23505' && (msg.includes('dni') || msg.includes('profiles_dni'))) {
+      return { ok: false as const, message: 'Este DNI ya está registrado.' };
+    }
+    if (error.code === '23505' && (msg.includes('celular') || msg.includes('profiles_celular'))) {
+      return { ok: false as const, message: 'Este celular ya está registrado.' };
+    }
+    return { ok: false as const, message: error.message };
+  }
   return { ok: true as const };
 }
 
@@ -53,13 +63,16 @@ export async function checkProfileConflicts(input: { dni: string; celular: strin
     p_celular: normalizedCelular
   });
 
-  if (error) return { ok: false as const, message: error.message };
+  if (error) {
+    console.error('[checkProfileConflicts] RPC error:', error);
+    return { ok: false as const, message: error.message };
+  }
 
   const row = Array.isArray(data) ? data[0] : data;
   return {
     ok: true as const,
-    existsDni: Boolean(row?.exists_dni),
-    existsCelular: Boolean(row?.exists_celular)
+    existsDni: row?.exists_dni ?? false,
+    existsCelular: row?.exists_celular ?? false
   };
 }
 
@@ -85,18 +98,30 @@ export async function fetchProfileById(profileId: string) {
   return { ok: true as const, data: (data as Profile | null) ?? null };
 }
 
-export async function upsertProfile(input: Profile) {
+export async function fetchReceiverPayoutInfo(params: { juntaId: string; profileId: string }) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: null as Partial<Profile> | null };
+
+  const { data, error } = await supabase
+    .schema('public')
+    .rpc('get_receiver_payout_info', {
+      p_junta_id: params.juntaId,
+      p_profile_id: params.profileId
+    });
+
+  if (error) return { ok: false as const, message: error.message };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return { ok: true as const, data: (row as Partial<Profile> | null) ?? null };
+}
+
+export async function updateProfile(input: Profile) {
   if (!hasSupabase || !supabase) return { ok: true as const, source: 'mock' as const };
 
-  const payload = {
-    id: input.id,
-    email: input.email.trim(),
+  const payload: Record<string, unknown> = {
     nombre: input.nombre.trim() || input.email.split('@')[0],
-    first_name: input.first_name?.trim() || null,
-    second_name: input.second_name?.trim() || null,
-    paternal_last_name: input.paternal_last_name?.trim() || null,
-    celular: normalizePhone(input.celular),
-    dni: normalizeDni(input.dni) || null,
+    first_name: null,
+    second_name: null,
+    paternal_last_name: null,
     preferred_payout_method: input.preferred_payout_method ?? null,
     payout_account_name: input.payout_account_name?.trim() || null,
     payout_phone_number: input.payout_phone_number?.trim() || null,
@@ -106,7 +131,18 @@ export async function upsertProfile(input: Profile) {
     payout_notes: input.payout_notes?.trim() || null
   };
 
-  const { error } = await supabase.schema('public').from('profiles').upsert(payload, { onConflict: 'id' });
-  if (error) return { ok: false as const, message: error.message };
+  const { error } = await supabase
+    .schema('public')
+    .from('profiles')
+    .update(payload)
+    .eq('id', input.id);
+
+  if (error) {
+    console.error('[updateProfile] Supabase error:', error);
+    if (error.code === '23505' || error.message.toLowerCase().includes('dni')) {
+      return { ok: false as const, message: 'Este DNI ya está registrado.' };
+    }
+    return { ok: false as const, message: error.message };
+  }
   return { ok: true as const, source: 'supabase' as const };
 }

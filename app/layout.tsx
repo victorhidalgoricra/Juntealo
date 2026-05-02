@@ -18,8 +18,8 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Juntas Digitales',
-  description: 'MVP para gestionar juntas de ahorro rotativo en Perú',
+  title: 'Juntealo',
+  description: 'Plataforma para gestionar juntas digitales de ahorro rotativo en Perú',
   icons: {
     icon: [{ url: '/brand/juntealo-icon.svg', type: 'image/svg+xml' }],
     shortcut: ['/brand/juntealo-icon.svg']

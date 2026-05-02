@@ -30,8 +30,8 @@ export function mapAuthErrorMessage(message: string) {
     return 'Este celular ya está registrado.';
   }
 
-  if (normalized.includes('database error saving new user')) {
-    return 'No se pudo completar tu registro. Intenta nuevamente.';
+  if (normalized.includes('database error saving new user') || normalized.includes('database error')) {
+    return 'Error al guardar en la base de datos. Intenta nuevamente.';
   }
 
   if (normalized.includes('error sending confirmation email')) {
@@ -42,7 +42,19 @@ export function mapAuthErrorMessage(message: string) {
     return 'No pudimos enviar el correo. Revisa la configuración de correo en Supabase.';
   }
 
-  return 'No se pudo completar la autenticación. Intenta nuevamente.';
+  if (normalized.includes('password should be') || normalized.includes('password must be') || normalized.includes('weak password')) {
+    return 'La contraseña debe tener al menos 6 caracteres.';
+  }
+
+  if (normalized.includes('auth session missing') || normalized.includes('session_not_found') || normalized.includes('no active session')) {
+    return 'El enlace expiró o ya fue usado. Solicita un nuevo enlace de recuperación.';
+  }
+
+  if (normalized.includes('token has expired') || normalized.includes('otp expired') || normalized.includes('expired')) {
+    return 'El enlace de recuperación expiró. Solicita uno nuevo.';
+  }
+
+  return message || 'No se pudo completar la autenticación. Intenta nuevamente.';
 }
 
 export function mapRegisterErrorMessage(message: string) {
@@ -53,7 +65,7 @@ export function mapRegisterErrorMessage(message: string) {
   }
 
   if (normalized.includes('profile_sync_failed')) {
-    return 'Se creó el usuario, pero no se pudo guardar su perfil. Intenta nuevamente.';
+    return 'Hubo un problema creando tu perfil. Intenta nuevamente.';
   }
 
   if (normalized.includes('invalid') || normalized.includes('validation')) {
