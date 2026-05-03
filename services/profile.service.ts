@@ -108,9 +108,23 @@ export async function fetchReceiverPayoutInfo(params: { juntaId: string; profile
       p_profile_id: params.profileId
     });
 
-  if (error) return { ok: false as const, message: error.message };
+  if (error) {
+    console.error('[fetchReceiverPayoutInfo] RPC get_receiver_payout_info error:', error.message, {
+      juntaId: params.juntaId,
+      profileId: params.profileId,
+      errorCode: error.code,
+      errorDetails: error.details,
+    });
+    return { ok: false as const, message: error.message };
+  }
 
   const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
+    console.warn('[fetchReceiverPayoutInfo] RPC returned empty result', {
+      juntaId: params.juntaId,
+      profileId: params.profileId,
+    });
+  }
   return { ok: true as const, data: (row as Partial<Profile> | null) ?? null };
 }
 
