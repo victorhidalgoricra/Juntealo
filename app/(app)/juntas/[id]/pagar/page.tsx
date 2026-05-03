@@ -187,24 +187,29 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
-    console.debug('[REGISTER PAYMENT RECEIVER DEBUG]', {
-      juntaId: params.id,
-      semana: currentSchedule?.cuota_numero,
+    const mappedPaymentMethods = getReceiverPaymentDetails(receiverProfile);
+    console.debug('[RECEIVER PAYMENT METHODS DEBUG]', {
       receiverProfileId: currentReceiverMember?.profile_id,
-      receiverMemberId: currentReceiverMember?.id,
       receiverName: currentReceiverMember?.nombre,
-      rawReceiver: receiverProfile,
-      receiverPaymentData: receiverProfile ? {
-        method: receiverProfile.preferred_payout_method,
-        accountName: receiverProfile.payout_account_name,
-        phone: receiverProfile.payout_phone_number,
-        bank: receiverProfile.payout_bank_name,
-        accountNumber: receiverProfile.payout_account_number,
-        cci: receiverProfile.payout_cci,
-        notes: receiverProfile.payout_notes,
-      } : null,
+      paymentMethodsTableUsed: 'profiles (via get_receiver_payout_info RPC)',
+      rawPaymentMethods: receiverProfile
+        ? {
+            preferred_payout_method: receiverProfile.preferred_payout_method,
+            payout_phone_number: receiverProfile.payout_phone_number,
+            celular: receiverProfile.celular,
+            payout_bank_name: receiverProfile.payout_bank_name,
+            payout_account_number: receiverProfile.payout_account_number,
+            payout_cci: receiverProfile.payout_cci,
+            payout_account_name: receiverProfile.payout_account_name,
+            payout_notes: receiverProfile.payout_notes,
+          }
+        : null,
+      mappedPaymentMethods,
+      hasPaymentMethods: mappedPaymentMethods.isConfigured,
+      rpcReturnedNull: receiverProfile === null,
+      memberCelularFallback: currentReceiverMember?.celular ?? null,
     });
-  }, [currentReceiverMember, currentSchedule?.cuota_numero, params.id, receiverProfile]);
+  }, [currentReceiverMember, receiverProfile]);
 
   if (!user) return <Card>Debes iniciar sesión.</Card>;
   if (loadingMembership) return <Card>Verificando membresía...</Card>;
