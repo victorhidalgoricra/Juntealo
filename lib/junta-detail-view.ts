@@ -21,6 +21,7 @@ export type WeeklyMemberRow = {
   amount: number;
   isReceiver: boolean;
   isCurrentUser: boolean;
+  paymentId?: string;
 };
 
 function resolvePaymentStatus(params: {
@@ -84,8 +85,21 @@ export function getCurrentWeekSummary(params: {
     userId: params.userId,
     juntaActiva: params.juntaActiva
   });
-  const paid = rows.filter((row) => row.status === 'Pagado').length;
-  const pending = rows.filter((row) => row.status !== 'Pagado' && row.status !== 'Recibe').length;
+  const paid = rows.filter((row) => row.status === 'Pagado' || row.status === 'Validando').length;
+  const pending = rows.filter((row) => row.status !== 'Pagado' && row.status !== 'Validando' && row.status !== 'Recibe').length;
+
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[PAYMENTS CLASSIFICATION DEBUG]', {
+      semanaActual: params.currentWeek,
+      rawPayments: params.payments.filter((p) => p.junta_id === params.junta.id),
+      pendientes: rows.filter((r) => r.status !== 'Pagado' && r.status !== 'Validando' && r.status !== 'Recibe'),
+      pagaronEstaSemana: rows.filter((r) => r.status === 'Pagado' || r.status === 'Validando'),
+      currentReceiverProfileId: receiver?.profile_id,
+      currentUserProfileId: params.userId,
+      canReviewPayments: params.userId === receiver?.profile_id,
+    });
+  }
+
   return { currentSchedule, receiver, rows, paid, pending };
 }
 
@@ -126,17 +140,18 @@ export function getCurrentWeekPaymentRows(params: {
       status: resolvePaymentStatus({ juntaActiva: params.juntaActiva, schedule: params.currentSchedule, payment, isReceiver }),
       amount,
       isReceiver,
-      isCurrentUser: member.profile_id === params.userId
+      isCurrentUser: member.profile_id === params.userId,
+      paymentId: payment?.id,
     };
   });
 }
 
 export function getPaidParticipants(rows: WeeklyMemberRow[]) {
-  return rows.filter((row) => row.status === 'Pagado');
+  return rows.filter((row) => row.status === 'Pagado' || row.status === 'Validando');
 }
 
 export function getPendingPayers(rows: WeeklyMemberRow[]) {
-  return rows.filter((row) => row.status !== 'Pagado' && row.status !== 'Recibe');
+  return rows.filter((row) => row.status !== 'Pagado' && row.status !== 'Validando' && row.status !== 'Recibe');
 }
 
 export function getTurnSchedule(params: {

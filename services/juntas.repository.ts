@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { Junta, JuntaMember } from '@/types/domain';
+import { EstadoPago, Junta, JuntaMember } from '@/types/domain';
 
 const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
 
@@ -604,4 +604,87 @@ export async function adminSoftDeleteJunta(params: { juntaId: string }) {
   const junta = Array.isArray(data) ? (data[0] as Junta | undefined) : (data as Junta | null);
   if (!junta) return { ok: false as const, message: 'No se pudo eliminar la junta.' };
   return { ok: true as const, data: junta };
+}
+
+export async function submitPayment(params: {
+  id: string;
+  juntaId: string;
+  scheduleId: string;
+  profileId: string;
+  expectedAmount: number;
+  monto: number;
+  paymentMethod: string;
+  operationNumber?: string;
+  participantNote?: string;
+  receiptUrl?: string;
+}) {
+  if (!hasSupabase || !supabase) return { ok: true as const };
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .schema('public')
+    .from('payments')
+    .upsert(
+      {
+        id: params.id,
+        junta_id: params.juntaId,
+        schedule_id: params.scheduleId,
+        round_id: params.scheduleId,
+        member_id: params.profileId,
+        profile_id: params.profileId,
+        expected_amount: params.expectedAmount,
+        submitted_amount: params.monto,
+        monto: params.monto,
+        estado: 'submitted',
+        payment_status: 'submitted',
+        receipt_url: params.receiptUrl ?? null,
+        comprobante_url: params.receiptUrl ?? null,
+        payment_method: params.paymentMethod,
+        operation_number: params.operationNumber ?? null,
+        participant_note: params.participantNote ?? null,
+        submitted_at: now,
+        pagado_en: now,
+      },
+      { onConflict: 'id' }
+    );
+
+  if (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[submitPayment]', error);
+    }
+    return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  }
+  return { ok: true as const };
+}
+
+export async function updatePaymentStatus(params: {
+  paymentId: string;
+  estado: EstadoPago;
+  internalNote?: string;
+  rejectionReason?: string;
+}) {
+  if (!hasSupabase || !supabase) return { ok: true as const };
+
+  const now = new Date().toISOString();
+  const update: Record<string, unknown> = {
+    estado: params.estado,
+    payment_status: params.estado,
+    validated_at: now,
+  };
+  if (params.internalNote !== undefined) update.internal_note = params.internalNote;
+  if (params.rejectionReason !== undefined) update.rejection_reason = params.rejectionReason;
+
+  const { error } = await supabase
+    .schema('public')
+    .from('payments')
+    .update(update)
+    .eq('id', params.paymentId);
+
+  if (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[updatePaymentStatus]', error);
+    }
+    return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  }
+  return { ok: true as const };
 }

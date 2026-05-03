@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchUserJuntaSnapshot, setJuntaAssignmentMode, updateJuntaMemberTurns } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchUserJuntaSnapshot, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -294,6 +294,18 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     await refreshSnapshot();
   };
 
+  const handleAcceptPayment = async (paymentId: string) => {
+    const result = await updatePaymentStatus({ paymentId, estado: 'approved' });
+    if (!result.ok) { setPaymentInfo(result.message); return; }
+    await refreshSnapshot();
+  };
+
+  const handleRejectPayment = async (paymentId: string) => {
+    const result = await updatePaymentStatus({ paymentId, estado: 'rejected' });
+    if (!result.ok) { setPaymentInfo(result.message); return; }
+    await refreshSnapshot();
+  };
+
   const headerSubtitle = `Semana ${currentWeek} · ${junta.frecuencia_pago} · ${junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}`;
 
   return (
@@ -383,7 +395,17 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               <div className="grid gap-3 md:grid-cols-2">
                 <Card className="space-y-2 p-3">
                   <p className="text-sm font-medium">Pagaron esta semana ({paidParticipants.length}/{summary.rows.length})</p>
-                  {paidParticipants.map((row) => <JuntaPaymentStatusRow key={row.id} row={row} />)}
+                  {paidParticipants.map((row) => (
+                    <div key={row.id} className="space-y-1">
+                      <JuntaPaymentStatusRow row={row} />
+                      {isCurrentReceiver && row.status === 'Validando' && row.paymentId && (
+                        <div className="flex gap-2 pl-2">
+                          <Button size="sm" variant="outline" onClick={() => handleAcceptPayment(row.paymentId!)}>Aceptar</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleRejectPayment(row.paymentId!)}>Rechazar</Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </Card>
                 <Card className="space-y-2 p-3">
                   <p className="text-sm font-medium">Pendientes ({pendingPayers.length}/{summary.rows.length})</p>
