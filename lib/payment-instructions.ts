@@ -57,14 +57,16 @@ export function getReceiverPaymentDetails(profile?: Partial<Profile> | null): Re
   }
 
   if (method === 'yape' || method === 'plin') {
+    // Use payout_phone_number if set; fall back to celular (registered phone) if not.
+    const phone = payoutPhone ?? (profile?.celular?.trim() || null);
     return {
       methodLabel: method === 'yape' ? 'Yape' : 'Plin',
       destinationLabel: `${method === 'yape' ? 'Yape' : 'Plin'} / celular`,
-      destinationValue: payoutPhone,
+      destinationValue: phone,
       secondaryLabel: accountName ? 'Titular' : null,
       secondaryValue: accountName,
       notes,
-      isConfigured: Boolean(payoutPhone)
+      isConfigured: Boolean(phone)
     };
   }
 
