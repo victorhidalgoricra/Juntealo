@@ -104,6 +104,13 @@ export function getCurrentWeekPaymentRows(params: {
     const payment = params.currentSchedule
       ? params.payments.find((item) => item.junta_id === params.junta.id && item.profile_id === member.profile_id && item.schedule_id === params.currentSchedule?.id)
       : undefined;
+    console.debug('[PAYMENT ROW DEBUG]', {
+      pagoId: payment?.id,
+      profileId: member.profile_id,
+      currentUserId: params.userId,
+      estadoPago: payment?.estado,
+      rawPago: payment,
+    });
     const isReceiver = member.profile_id === params.receiverProfileId;
     const displayName =
       member.profile_id === params.userId
