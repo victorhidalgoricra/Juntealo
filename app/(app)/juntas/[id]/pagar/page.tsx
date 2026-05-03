@@ -114,6 +114,12 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     if (!currentReceiverMember?.profile_id) return;
     fetchReceiverPayoutInfo({ juntaId: params.id, profileId: currentReceiverMember.profile_id }).then((result) => {
+      if (!result.ok) {
+        console.error('[Registrar pago] fetchReceiverPayoutInfo falló:', result.message, {
+          juntaId: params.id,
+          profileId: currentReceiverMember.profile_id
+        });
+      }
       setReceiverProfile(result.ok ? result.data : null);
     });
   }, [currentReceiverMember?.profile_id, params.id]);
@@ -178,6 +184,27 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
               : 'ready'
     });
   }, [currentSchedule, existingPayment, isCreator, isMember, junta, user]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    console.debug('[REGISTER PAYMENT RECEIVER DEBUG]', {
+      juntaId: params.id,
+      semana: currentSchedule?.cuota_numero,
+      receiverProfileId: currentReceiverMember?.profile_id,
+      receiverMemberId: currentReceiverMember?.id,
+      receiverName: currentReceiverMember?.nombre,
+      rawReceiver: receiverProfile,
+      receiverPaymentData: receiverProfile ? {
+        method: receiverProfile.preferred_payout_method,
+        accountName: receiverProfile.payout_account_name,
+        phone: receiverProfile.payout_phone_number,
+        bank: receiverProfile.payout_bank_name,
+        accountNumber: receiverProfile.payout_account_number,
+        cci: receiverProfile.payout_cci,
+        notes: receiverProfile.payout_notes,
+      } : null,
+    });
+  }, [currentReceiverMember, currentSchedule?.cuota_numero, params.id, receiverProfile]);
 
   if (!user) return <Card>Debes iniciar sesión.</Card>;
   if (loadingMembership) return <Card>Verificando membresía...</Card>;
@@ -267,7 +294,14 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   };
 
   const receiverPaymentDetails = getReceiverPaymentDetails(receiverProfile);
-  const receiverDisplayName = getParticipantDisplayName(receiverProfile) || currentReceiverMember?.nombre || 'Receptor del turno';
+  // getParticipantDisplayName siempre retorna string no vacío ('Usuario sin nombre' como último fallback),
+  // por lo que el operador || nunca llega al nombre del miembro.
+  // Usamos el nombre del miembro (ya disponible desde get_junta_members_for_detail) cuando
+  // receiverProfile es null (e.g. el RPC get_receiver_payout_info falló o aún no se aplicó).
+  const memberNombre = currentReceiverMember?.nombre;
+  const receiverProfileForName: Partial<Profile> | null =
+    receiverProfile ?? (memberNombre ? { nombre: memberNombre } : null);
+  const receiverDisplayName = getParticipantDisplayName(receiverProfileForName);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
