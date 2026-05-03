@@ -51,7 +51,7 @@ function JuntaPaymentStatusRow({ row, showPayAction, onPay }: { row: WeeklyMembe
       <div className="flex items-center gap-2">
         <JuntaScoreBadge score={row.score} />
         <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass(row.status)}`}>{row.status}</span>
-        {showPayAction && row.isCurrentUser && row.status !== 'Pagado' && row.status !== 'Recibe' && (
+        {showPayAction && row.isCurrentUser && (row.status === 'Pendiente' || row.status === 'Rechazado' || row.status === 'Vencido') && (
           <Button onClick={onPay}>Pagar S/{row.amount.toFixed(0)} →</Button>
         )}
       </div>
