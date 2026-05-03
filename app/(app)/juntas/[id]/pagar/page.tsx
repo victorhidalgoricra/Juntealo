@@ -12,7 +12,7 @@ import { isJuntaActive } from '@/lib/junta-status';
 import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { JuntaMember, Profile } from '@/types/domain';
-import { fetchJuntaActiveMembers } from '@/services/juntas.repository';
+import { fetchJuntaActiveMembers, submitPayment } from '@/services/juntas.repository';
 import { fetchReceiverPayoutInfo } from '@/services/profile.service';
 import { getParticipantDisplayName, getReceiverPaymentDetails } from '@/lib/payment-instructions';
 import {
@@ -134,32 +134,6 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
     return () => URL.revokeObjectURL(url);
   }, [receiptFile]);
 
-  useEffect(() => {
-    if (!user || !junta || !currentSchedule || !isMember || !isJuntaActive(junta.estado)) return;
-    if (existingPayment) return;
-
-    const now = new Date().toISOString();
-    setData({
-      payments: [
-        ...payments,
-        {
-          id: crypto.randomUUID(),
-          junta_id: junta.id,
-          schedule_id: currentSchedule.id,
-          round_id: currentSchedule.id,
-          member_id: user.id,
-          profile_id: user.id,
-          expected_amount: currentSchedule.monto,
-          submitted_amount: currentSchedule.monto,
-          monto: currentSchedule.monto,
-          estado: 'pending',
-          payment_status: 'pending',
-          submitted_at: now,
-          pagado_en: now
-        }
-      ]
-    });
-  }, [currentSchedule, existingPayment, isMember, junta, payments, setData, user]);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
@@ -252,6 +226,36 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
       const now = new Date().toISOString();
       const nextStatus = 'submitted' as const;
 
+      const dbResult = await submitPayment({
+        id: paymentId,
+        juntaId: junta.id,
+        scheduleId: currentSchedule.id,
+        profileId: user.id,
+        expectedAmount,
+        monto,
+        paymentMethod: method,
+        operationNumber: operationNumber || undefined,
+        participantNote: note || undefined,
+        receiptUrl,
+      });
+
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[PAYMENT SUBMIT DEBUG]', {
+          juntaId: junta.id,
+          semana: currentSchedule.cuota_numero,
+          payerProfileId: user.id,
+          receiverProfileId: currentReceiverMember?.profile_id,
+          estadoAntes: existingPayment?.estado ?? 'none',
+          estadoDespues: nextStatus,
+          dbResult,
+          error: null,
+        });
+      }
+
+      if (!dbResult.ok) {
+        throw new Error(dbResult.message ?? 'No pudimos guardar tu pago en la base de datos.');
+      }
+
       const nextPayment = {
         id: paymentId,
         junta_id: junta.id,
@@ -286,6 +290,18 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
       setMessage('Tu pago fue enviado correctamente y está pendiente de validación');
       setTimeout(() => router.push(`/juntas/${junta.id}?view=participante`), 900);
     } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[PAYMENT SUBMIT DEBUG]', {
+          juntaId: junta.id,
+          semana: currentSchedule.cuota_numero,
+          payerProfileId: user.id,
+          receiverProfileId: currentReceiverMember?.profile_id,
+          estadoAntes: existingPayment?.estado ?? 'none',
+          estadoDespues: 'error',
+          dbResult: null,
+          error,
+        });
+      }
       console.error('[Registrar pago] error', error);
       if (error instanceof PaymentReceiptUploadError) {
         console.error(error.technicalMessage);
