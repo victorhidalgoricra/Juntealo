@@ -33,7 +33,11 @@ function resolvePaymentStatus(params: {
   if (!params.juntaActiva) return 'En formación';
   if (params.isReceiver) return 'Recibe';
   if (params.schedule?.estado === 'vencida' && !params.payment) return 'Vencido';
-  const normalized = normalizePaymentStatus(params.payment?.estado);
+  // Check both `estado` and `payment_status` — the DB stores Spanish values in `estado`
+  // while the local store may use the TypeScript enum in either field.
+  const normalizedEstado = normalizePaymentStatus(params.payment?.estado);
+  const normalizedStatus = normalizePaymentStatus(params.payment?.payment_status);
+  const normalized = normalizedEstado !== 'pending' ? normalizedEstado : normalizedStatus;
   if (normalized === 'approved') return 'Pagado';
   if (normalized === 'submitted' || normalized === 'validating') return 'Validando';
   if (normalized === 'rejected') return 'Rechazado';
@@ -89,14 +93,19 @@ export function getCurrentWeekSummary(params: {
   const pending = rows.filter((row) => row.status !== 'Pagado' && row.status !== 'Validando' && row.status !== 'Recibe').length;
 
   if (process.env.NODE_ENV === 'development') {
-    console.debug('[PAYMENTS CLASSIFICATION DEBUG]', {
+    const rawPayments = params.payments.filter((p) => p.junta_id === params.junta.id);
+    const pendingRows = rows.filter((r) => r.status !== 'Pagado' && r.status !== 'Validando' && r.status !== 'Recibe');
+    const submittedRows = rows.filter((r) => r.status === 'Pagado' || r.status === 'Validando');
+    console.debug('[PAYMENT UI STATE DEBUG]', {
+      currentUserId: params.userId,
       semanaActual: params.currentWeek,
-      rawPayments: params.payments.filter((p) => p.junta_id === params.junta.id),
-      pendientes: rows.filter((r) => r.status !== 'Pagado' && r.status !== 'Validando' && r.status !== 'Recibe'),
-      pagaronEstaSemana: rows.filter((r) => r.status === 'Pagado' || r.status === 'Validando'),
-      currentReceiverProfileId: receiver?.profile_id,
-      currentUserProfileId: params.userId,
-      canReviewPayments: params.userId === receiver?.profile_id,
+      rawPayments,
+      schedules: params.schedules.filter((s) => s.junta_id === params.junta.id),
+      currentScheduleId: currentSchedule?.id,
+      memberRows: rows,
+      paidOrSubmitted: submittedRows,
+      pendingRows,
+      submittedRows,
     });
   }
 
@@ -115,16 +124,45 @@ export function getCurrentWeekPaymentRows(params: {
 }): WeeklyMemberRow[] {
   const amount = params.junta.cuota_base ?? params.junta.monto_cuota;
   return params.members.map((member, index) => {
-    const payment = params.currentSchedule
-      ? params.payments.find((item) => item.junta_id === params.junta.id && item.profile_id === member.profile_id && item.schedule_id === params.currentSchedule?.id)
+    // Primary lookup: match by schedule_id (precise, week-scoped)
+    const bySchedule = params.currentSchedule
+      ? params.payments.find(
+          (item) =>
+            item.junta_id === params.junta.id &&
+            item.profile_id === member.profile_id &&
+            item.schedule_id === params.currentSchedule!.id
+        )
       : undefined;
-    console.debug('[PAYMENT ROW DEBUG]', {
-      pagoId: payment?.id,
-      profileId: member.profile_id,
-      currentUserId: params.userId,
-      estadoPago: payment?.estado,
-      rawPago: payment,
-    });
+    // Fallback: no schedule in store yet — find the most recently submitted payment
+    // for this member/junta so UI reflects optimistic store state right after submit.
+    const byMostRecent =
+      !bySchedule && !params.currentSchedule
+        ? params.payments
+            .filter(
+              (item) =>
+                item.junta_id === params.junta.id && item.profile_id === member.profile_id
+            )
+            .sort(
+              (a, b) =>
+                (b.submitted_at ?? b.pagado_en ?? '').localeCompare(
+                  a.submitted_at ?? a.pagado_en ?? ''
+                )
+            )[0]
+        : undefined;
+    const payment = bySchedule ?? byMostRecent;
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[PAYMENT ROW DEBUG]', {
+        pagoId: payment?.id,
+        profileId: member.profile_id,
+        currentUserId: params.userId,
+        estadoPago: payment?.estado,
+        paymentStatus: payment?.payment_status,
+        scheduleId: params.currentSchedule?.id,
+        paymentScheduleId: payment?.schedule_id,
+        matchedVia: bySchedule ? 'schedule_id' : byMostRecent ? 'most_recent_fallback' : 'none',
+        rawPago: payment,
+      });
+    }
     const isReceiver = member.profile_id === params.receiverProfileId;
     const displayName =
       member.profile_id === params.userId
