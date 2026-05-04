@@ -6,7 +6,7 @@ export function normalizePaymentStatus(status?: EstadoPago | string): PaymentLif
   if (status === 'aprobado' || status === 'approved') return 'approved';
   if (status === 'rechazado' || status === 'rejected') return 'rejected';
   if (status === 'pendiente_aprobacion' || status === 'submitted') return 'submitted';
-  if (status === 'validating') return 'validating';
+  if (status === 'validando' || status === 'validating') return 'validating';
   if (status === 'overdue') return 'overdue';
   return 'pending';
 }

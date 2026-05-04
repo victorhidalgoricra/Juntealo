@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchUserJuntaSnapshot, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchSchedulesByJuntaId, fetchUserJuntaSnapshot, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -61,6 +61,7 @@ function JuntaPaymentStatusRow({ row, showPayAction, onPay }: { row: WeeklyMembe
 
 export default function JuntaDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const { juntas, payments, schedules, payouts, setData } = useAppStore();
 
@@ -145,11 +146,51 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
   useEffect(() => {
     if (accessState !== 'allowed' || !junta) return;
-    setPhaseTwoLoading(true);
-    setDetailPayments(payments.filter((payment) => payment.junta_id === junta.id));
-    setDetailSchedules(schedules.filter((schedule) => schedule.junta_id === junta.id));
-    setPhaseTwoLoading(false);
-  }, [accessState, junta, payments, schedules]);
+    let cancelled = false;
+    const loadPhaseTwo = async () => {
+      setPhaseTwoLoading(true);
+      const filteredPayments = payments.filter((p) => p.junta_id === junta.id);
+      let filteredSchedules = schedules.filter((s) => s.junta_id === junta.id);
+
+      // If no schedules in store (e.g. first load or activated mid-session), fetch directly.
+      if (filteredSchedules.length === 0) {
+        const result = await fetchSchedulesByJuntaId(junta.id);
+        if (!cancelled && result.ok && result.data.length > 0) {
+          filteredSchedules = result.data;
+          // Merge into the store so other effects pick up the fresh data.
+          setData({
+            schedules: [
+              ...schedules.filter((s) => s.junta_id !== junta.id),
+              ...result.data
+            ]
+          });
+        }
+      }
+
+      if (!cancelled) {
+        setDetailPayments(filteredPayments);
+        setDetailSchedules(filteredSchedules);
+        setPhaseTwoLoading(false);
+      }
+    };
+    loadPhaseTwo();
+    return () => { cancelled = true; };
+    // Intentionally exclude `schedules` from deps to avoid loop when setData updates it above.
+    // The effect re-runs on junta/payments/accessState changes which cover all relevant cases.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessState, junta?.id, payments]);
+
+  // When the user returns from the payment page (?view=participante), do a full
+  // snapshot refresh so the new payment is reflected with its real DB state.
+  const refreshedAfterPayRef = useRef(false);
+  useEffect(() => {
+    if (accessState !== 'allowed' || !user?.id) return;
+    if (searchParams.get('view') !== 'participante') return;
+    if (refreshedAfterPayRef.current) return;
+    refreshedAfterPayRef.current = true;
+    refreshSnapshot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessState, user?.id, searchParams]);
 
   const juntaMembers = useMemo(() => {
     if (!junta) return detailMembers;
