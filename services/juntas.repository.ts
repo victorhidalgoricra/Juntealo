@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { EstadoPago, Junta, JuntaMember } from '@/types/domain';
+import { EstadoJunta, EstadoPago, Junta, JuntaMember } from '@/types/domain';
 
 const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
 
@@ -407,10 +407,12 @@ export async function deleteDraftJunta(params: { juntaId: string; currentProfile
   }
 
   if (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[deleteDraftJunta] supabase error', error);
-    }
-    return { ok: false as const, message: 'No pudimos eliminar la junta. Intenta nuevamente.' };
+    console.error('[DELETE JUNTA ERROR]', {
+      juntaId: params.juntaId,
+      userId: params.currentProfileId,
+      error,
+    });
+    return { ok: false as const, message: mapDeleteJuntaErrorMessage(error.message) };
   }
 
   return { ok: true as const };
@@ -432,7 +434,7 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
   }
 
   const [ownedResult, membershipResult] = await Promise.all([
-    supabase.schema('public').from('juntas').select('id').eq('admin_id', profileId),
+    supabase.schema('public').from('juntas').select('id').eq('admin_id', profileId).neq('estado', 'eliminada' as EstadoJunta),
     supabase.schema('public').from('junta_members').select('junta_id').eq('profile_id', profileId).eq('estado', 'activo')
   ]);
 

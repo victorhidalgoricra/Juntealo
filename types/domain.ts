@@ -1,5 +1,5 @@
 export type Frecuencia = 'semanal' | 'quincenal' | 'mensual';
-export type EstadoJunta = 'borrador' | 'activa' | 'cerrada';
+export type EstadoJunta = 'borrador' | 'activa' | 'cerrada' | 'eliminada';
 export type TipoJunta = 'normal' | 'incentivo';
 export type IncentivoRegla = 'primero_ultimo' | 'escalonado';
 export type EstadoMiembro = 'invitado' | 'activo' | 'pendiente' | 'moroso' | 'retirado';
@@ -64,6 +64,7 @@ export interface Junta {
   visibilidad: 'publica' | 'privada';
   cerrar_inscripciones: boolean;
   estado: EstadoJunta;
+  deleted_at?: string | null;
   created_at: string;
 }
 
