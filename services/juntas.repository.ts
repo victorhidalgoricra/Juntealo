@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { EstadoJunta, EstadoPago, Junta, JuntaMember } from '@/types/domain';
+import { EstadoJunta, EstadoPago, Junta, JuntaMember, PaymentSchedule } from '@/types/domain';
 
 const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
 
@@ -483,6 +483,18 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
       payouts: (payoutsResult.data ?? [])
     }
   };
+}
+
+export async function fetchSchedulesByJuntaId(juntaId: string) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as PaymentSchedule[] };
+  const { data, error } = await supabase
+    .schema('public')
+    .from('payment_schedules')
+    .select('id,junta_id,cuota_numero,fecha_vencimiento,monto,estado')
+    .eq('junta_id', juntaId)
+    .order('cuota_numero');
+  if (error) return { ok: false as const, message: error.message };
+  return { ok: true as const, data: (data ?? []) as PaymentSchedule[] };
 }
 
 export async function updateJuntaMemberTurns(params: { juntaId: string; turnsByProfileId: Record<string, number> }) {

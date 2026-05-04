@@ -19,6 +19,7 @@ import {
   activateJuntaIfReady,
   deleteDraftJunta,
   fetchAvailableJuntas,
+  fetchSchedulesByJuntaId,
   fetchUserJuntaSnapshot,
   findJuntaByAccessCode,
   joinJuntaAsParticipant,
@@ -40,6 +41,7 @@ export default function JuntasDisponiblesPage() {
   const user = useAuthStore((s) => s.user);
   const allJuntas = useAppStore((s) => (Array.isArray(s.juntas) ? s.juntas : []));
   const allMembers = useAppStore((s) => (Array.isArray(s.members) ? s.members : []));
+  const allSchedules = useAppStore((s) => (Array.isArray(s.schedules) ? s.schedules : []));
   const setData = useAppStore((s) => s.setData);
   const addNotification = useAppStore((s) => s.addNotification);
 
@@ -323,8 +325,12 @@ export default function JuntasDisponiblesPage() {
       return;
     }
 
+    const schedulesResult = await fetchSchedulesByJuntaId(juntaId);
     setData({
-      juntas: allJuntas.map((item) => (item.id === juntaId ? { ...item, ...result.data } : item))
+      juntas: allJuntas.map((item) => (item.id === juntaId ? { ...item, ...result.data } : item)),
+      ...(schedulesResult.ok
+        ? { schedules: [...allSchedules.filter((s) => s.junta_id !== juntaId), ...schedulesResult.data] }
+        : {})
     });
     setActivationFeedbackByJunta((prev) => ({ ...prev, [juntaId]: '' }));
     setActivatingId(null);
