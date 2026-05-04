@@ -71,6 +71,7 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
     fetchUserJuntaSnapshot(user.id).then((result) => {
       if (!result.ok) return;
       setData({
+        juntas: result.data.juntas,
         members: result.data.members,
         schedules: result.data.schedules,
         payments: result.data.payments,

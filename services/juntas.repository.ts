@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { EstadoJunta, EstadoPago, Junta, JuntaMember, PaymentSchedule } from '@/types/domain';
+import { EstadoJunta, EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule } from '@/types/domain';
 
 const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
 
@@ -497,6 +497,37 @@ export async function fetchSchedulesByJuntaId(juntaId: string) {
   return { ok: true as const, data: (data ?? []) as PaymentSchedule[] };
 }
 
+export async function fetchPaymentsByJuntaId(juntaId: string) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Payment[] };
+  const { data, error } = await supabase
+    .schema('public')
+    .from('payments')
+    .select('id,junta_id,schedule_id,round_id,member_id,profile_id,expected_amount,submitted_amount,monto,estado,receipt_url,comprobante_url,payment_method,operation_number,participant_note,payment_status,submitted_at,internal_note,validated_at,validated_by,rejection_reason,pagado_en')
+    .eq('junta_id', juntaId);
+  if (error) return { ok: false as const, message: error.message };
+  return { ok: true as const, data: (data ?? []) as Payment[] };
+}
+
+export async function fetchExistingPaymentByMember(params: {
+  juntaId: string;
+  scheduleId: string;
+  profileId: string;
+}) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: null as Payment | null };
+  const { data, error } = await supabase
+    .schema('public')
+    .from('payments')
+    .select('id,junta_id,schedule_id,round_id,member_id,profile_id,expected_amount,submitted_amount,monto,estado,receipt_url,comprobante_url,payment_method,operation_number,participant_note,payment_status,submitted_at,internal_note,validated_at,validated_by,rejection_reason,pagado_en')
+    .eq('junta_id', params.juntaId)
+    .eq('schedule_id', params.scheduleId)
+    .eq('profile_id', params.profileId)
+    .order('pagado_en', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return { ok: false as const, message: error.message };
+  return { ok: true as const, data: (data as Payment | null) ?? null };
+}
+
 export async function updateJuntaMemberTurns(params: { juntaId: string; turnsByProfileId: Record<string, number> }) {
   if (!hasSupabase || !supabase) return { ok: true as const };
 
@@ -667,41 +698,80 @@ export async function submitPayment(params: {
   }
 
   const resolvedScheduleId = scheduleRow.id;
-  const now = new Date().toISOString();
-  const { error } = await supabase
+
+  // Look up existing payment in DB by (junta_id, schedule_id, profile_id) to avoid
+  // duplicate INSERTs when the store is empty after re-login and to support re-submission
+  // after rejection without generating a phantom UUID.
+  const { data: dbExistingPayment } = await supabase
     .schema('public')
     .from('payments')
-    .upsert(
-      {
-        id: params.id,
-        junta_id: params.juntaId,
-        schedule_id: resolvedScheduleId,
-        round_id: resolvedScheduleId,
-        member_id: params.profileId,
-        profile_id: params.profileId,
-        expected_amount: params.expectedAmount,
-        submitted_amount: params.monto,
-        monto: params.monto,
-        estado: 'pendiente_aprobacion',
-        payment_status: 'submitted',
-        receipt_url: params.receiptUrl ?? null,
-        comprobante_url: params.receiptUrl ?? null,
-        payment_method: params.paymentMethod,
-        operation_number: params.operationNumber ?? null,
-        participant_note: params.participantNote ?? null,
-        submitted_at: now,
-        pagado_en: now,
-      },
-      { onConflict: 'id' }
-    );
+    .select('id,estado')
+    .eq('junta_id', params.juntaId)
+    .eq('schedule_id', resolvedScheduleId)
+    .eq('profile_id', params.profileId)
+    .order('pagado_en', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[submitPayment]', error);
-    }
-    return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  const resolvedPaymentId = dbExistingPayment?.id ?? params.id;
+  const now = new Date().toISOString();
+
+  const payloadFields = {
+    junta_id: params.juntaId,
+    schedule_id: resolvedScheduleId,
+    round_id: resolvedScheduleId,
+    member_id: params.profileId,
+    profile_id: params.profileId,
+    expected_amount: params.expectedAmount,
+    submitted_amount: params.monto,
+    monto: params.monto,
+    estado: 'pendiente_aprobacion',
+    payment_status: 'submitted',
+    receipt_url: params.receiptUrl ?? null,
+    comprobante_url: params.receiptUrl ?? null,
+    payment_method: params.paymentMethod,
+    operation_number: params.operationNumber ?? null,
+    participant_note: params.participantNote ?? null,
+    submitted_at: now,
+    pagado_en: now,
+  };
+
+  console.debug('[SUBMIT PAYMENT PERSISTENCE]', {
+    paymentId: resolvedPaymentId,
+    scheduleId: resolvedScheduleId,
+    payerProfileId: params.profileId,
+    estado: 'pendiente_aprobacion',
+    paymentStatus: 'submitted',
+    dbExistingId: dbExistingPayment?.id ?? null,
+    dbExistingEstado: dbExistingPayment?.estado ?? null,
+    operation: dbExistingPayment ? 'UPDATE' : 'INSERT',
+  });
+
+  let dbError: { message: string } | null = null;
+
+  if (dbExistingPayment) {
+    const { error: updateError } = await supabase
+      .schema('public')
+      .from('payments')
+      .update(payloadFields)
+      .eq('id', dbExistingPayment.id)
+      .eq('profile_id', params.profileId);
+    dbError = updateError;
+  } else {
+    const { error: insertError } = await supabase
+      .schema('public')
+      .from('payments')
+      .insert({ id: params.id, ...payloadFields });
+    dbError = insertError;
   }
-  return { ok: true as const, resolvedScheduleId };
+
+  if (dbError) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[submitPayment]', dbError);
+    }
+    return { ok: false as const, message: mapSupabaseErrorMessage(dbError.message) };
+  }
+  return { ok: true as const, resolvedScheduleId, resolvedPaymentId };
 }
 
 export async function updatePaymentStatus(params: {
