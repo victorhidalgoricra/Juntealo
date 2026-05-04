@@ -32,11 +32,13 @@ export function canDeleteJunta(
   // not on the start date itself (the junta is still in borrador on day-of).
   const hasStarted = row.fecha_inicio ? row.fecha_inicio < todayStr : false;
 
-  const isDeleted =
+  const isDraft = row.estado === 'borrador';
+
+  const isDeletedOrBlocked =
     Boolean(row.deleted_at) ||
     row.estado === 'eliminada' ||
     row.estado === 'bloqueada' ||
     row.bloqueada === true;
 
-  return isCreator && !hasStarted && !isDeleted;
+  return isCreator && isDraft && !hasStarted && !isDeletedOrBlocked;
 }
