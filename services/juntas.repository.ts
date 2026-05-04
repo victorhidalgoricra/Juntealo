@@ -667,11 +667,15 @@ export async function updatePaymentStatus(params: {
 
   const now = new Date().toISOString();
   const dbEstado =
-    params.estado === 'approved' || params.estado === 'aprobado'
+    params.estado === 'approved'
       ? 'aprobado'
-      : params.estado === 'rejected' || params.estado === 'rechazado'
+      : params.estado === 'rejected'
         ? 'rechazado'
-        : 'pendiente_aprobacion';
+        : params.estado === 'submitted' || params.estado === 'validating'
+          ? 'validando'
+          : params.estado === 'overdue'
+            ? 'vencido'
+            : 'pendiente';
   const update: Record<string, unknown> = {
     estado: dbEstado,
     payment_status: params.estado,
