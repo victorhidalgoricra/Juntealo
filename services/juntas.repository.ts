@@ -616,6 +616,7 @@ export async function submitPayment(params: {
   id: string;
   juntaId: string;
   scheduleId: string;
+  cuotaNumero: number;
   profileId: string;
   expectedAmount: number;
   monto: number;
@@ -626,6 +627,34 @@ export async function submitPayment(params: {
 }) {
   if (!hasSupabase || !supabase) return { ok: true as const };
 
+  const { data: scheduleRow, error: scheduleError } = await supabase
+    .schema('public')
+    .from('payment_schedules')
+    .select('id')
+    .eq('junta_id', params.juntaId)
+    .eq('cuota_numero', params.cuotaNumero)
+    .maybeSingle();
+
+  console.debug('[PAYMENT FK DEBUG]', {
+    juntaId: params.juntaId,
+    cuotaNumero: params.cuotaNumero,
+    payerProfileId: params.profileId,
+    scheduleIdPassed: params.scheduleId,
+    scheduleFound: scheduleRow?.id,
+  });
+
+  if (scheduleError) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[submitPayment] error buscando schedule', scheduleError);
+    }
+    return { ok: false as const, message: 'Error al buscar la cuota programada.' };
+  }
+
+  if (!scheduleRow?.id) {
+    return { ok: false as const, message: 'No se encontró la cuota programada para registrar este pago. Contacta al administrador de la junta.' };
+  }
+
+  const resolvedScheduleId = scheduleRow.id;
   const now = new Date().toISOString();
   const { error } = await supabase
     .schema('public')
@@ -634,8 +663,8 @@ export async function submitPayment(params: {
       {
         id: params.id,
         junta_id: params.juntaId,
-        schedule_id: params.scheduleId,
-        round_id: params.scheduleId,
+        schedule_id: resolvedScheduleId,
+        round_id: resolvedScheduleId,
         member_id: params.profileId,
         profile_id: params.profileId,
         expected_amount: params.expectedAmount,
@@ -660,7 +689,7 @@ export async function submitPayment(params: {
     }
     return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
   }
-  return { ok: true as const };
+  return { ok: true as const, resolvedScheduleId };
 }
 
 export async function updatePaymentStatus(params: {
