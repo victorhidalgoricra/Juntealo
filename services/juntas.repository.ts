@@ -635,7 +635,7 @@ export async function submitPayment(params: {
         expected_amount: params.expectedAmount,
         submitted_amount: params.monto,
         monto: params.monto,
-        estado: 'submitted',
+        estado: 'pendiente_aprobacion',
         payment_status: 'submitted',
         receipt_url: params.receiptUrl ?? null,
         comprobante_url: params.receiptUrl ?? null,
@@ -666,8 +666,14 @@ export async function updatePaymentStatus(params: {
   if (!hasSupabase || !supabase) return { ok: true as const };
 
   const now = new Date().toISOString();
+  const dbEstado =
+    params.estado === 'approved' || params.estado === 'aprobado'
+      ? 'aprobado'
+      : params.estado === 'rejected' || params.estado === 'rechazado'
+        ? 'rechazado'
+        : 'pendiente_aprobacion';
   const update: Record<string, unknown> = {
-    estado: params.estado,
+    estado: dbEstado,
     payment_status: params.estado,
     validated_at: now,
   };
