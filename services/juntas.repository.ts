@@ -38,10 +38,14 @@ function mapSupabaseErrorMessage(message: string) {
   if (message.toLowerCase().includes('permission denied')) {
     return 'No tienes permisos para completar esta acción.';
   }
+  return message;
+}
+
+function mapDeleteJuntaErrorMessage(message: string) {
   if (message.includes('violates foreign key constraint')) {
     return 'No se pudo eliminar la junta porque aún tiene datos relacionados.';
   }
-  return message;
+  return mapSupabaseErrorMessage(message);
 }
 
 async function fetchPublicJuntasFallback() {
@@ -599,7 +603,7 @@ export async function adminSoftDeleteJunta(params: { juntaId: string }) {
   }
 
   const { data, error } = await supabase.schema('public').rpc('admin_soft_delete_junta', { p_junta_id: params.juntaId });
-  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  if (error) return { ok: false as const, message: mapDeleteJuntaErrorMessage(error.message) };
 
   const junta = Array.isArray(data) ? (data[0] as Junta | undefined) : (data as Junta | null);
   if (!junta) return { ok: false as const, message: 'No se pudo eliminar la junta.' };
