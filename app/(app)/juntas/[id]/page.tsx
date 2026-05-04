@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchSchedulesByJuntaId, fetchUserJuntaSnapshot, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchSchedulesByJuntaId, fetchUserJuntaSnapshot, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -149,36 +149,47 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     let cancelled = false;
     const loadPhaseTwo = async () => {
       setPhaseTwoLoading(true);
-      const filteredPayments = payments.filter((p) => p.junta_id === junta.id);
-      let filteredSchedules = schedules.filter((s) => s.junta_id === junta.id);
 
-      // If no schedules in store (e.g. first load or activated mid-session), fetch directly.
-      if (filteredSchedules.length === 0) {
-        const result = await fetchSchedulesByJuntaId(junta.id);
-        if (!cancelled && result.ok && result.data.length > 0) {
-          filteredSchedules = result.data;
-          // Merge into the store so other effects pick up the fresh data.
-          setData({
-            schedules: [
-              ...schedules.filter((s) => s.junta_id !== junta.id),
-              ...result.data
-            ]
-          });
-        }
+      // Always fetch payments and schedules directly from DB to avoid stale store
+      // state after re-login (store is cleared on logout and repopulated async).
+      const [paymentsResult, schedulesResult] = await Promise.all([
+        fetchPaymentsByJuntaId(junta.id),
+        fetchSchedulesByJuntaId(junta.id),
+      ]);
+
+      if (cancelled) return;
+
+      const freshPayments = paymentsResult.ok ? paymentsResult.data : payments.filter((p) => p.junta_id === junta.id);
+      const freshSchedules = schedulesResult.ok ? schedulesResult.data : schedules.filter((s) => s.junta_id === junta.id);
+
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[PAYMENT LOAD AFTER LOGIN DEBUG]', {
+          juntaId: junta.id,
+          currentUserId: user?.id,
+          schedules: freshSchedules,
+          rawPayments: freshPayments,
+          mappedPayments: freshPayments,
+          currentUserPayment: freshPayments.find((p) => p.profile_id === user?.id),
+          resolvedStatus: freshPayments.find((p) => p.profile_id === user?.id)?.estado ?? 'none',
+        });
       }
 
-      if (!cancelled) {
-        setDetailPayments(filteredPayments);
-        setDetailSchedules(filteredSchedules);
-        setPhaseTwoLoading(false);
-      }
+      // Merge fresh DB data into store so other pages (e.g. pagar) pick it up.
+      setData({
+        schedules: [...schedules.filter((s) => s.junta_id !== junta.id), ...freshSchedules],
+        payments: [...payments.filter((p) => p.junta_id !== junta.id), ...freshPayments],
+      });
+
+      setDetailPayments(freshPayments);
+      setDetailSchedules(freshSchedules);
+      setPhaseTwoLoading(false);
     };
     loadPhaseTwo();
     return () => { cancelled = true; };
-    // Intentionally exclude `schedules` from deps to avoid loop when setData updates it above.
-    // The effect re-runs on junta/payments/accessState changes which cover all relevant cases.
+    // Deps: only junta.id and accessState. We fetch from DB directly so we don't
+    // need to re-run when the store's payments/schedules change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessState, junta?.id, payments]);
+  }, [accessState, junta?.id]);
 
   // When the user returns from the payment page (?view=participante), do a full
   // snapshot refresh so the new payment is reflected with its real DB state.

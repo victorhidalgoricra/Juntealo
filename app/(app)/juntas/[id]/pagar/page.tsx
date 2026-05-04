@@ -11,8 +11,8 @@ import { normalizePaymentStatus, paymentStatusLabel } from '@/lib/payment-status
 import { isJuntaActive } from '@/lib/junta-status';
 import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
-import type { JuntaMember, Profile } from '@/types/domain';
-import { fetchJuntaActiveMembers, submitPayment } from '@/services/juntas.repository';
+import type { JuntaMember, Payment, Profile } from '@/types/domain';
+import { fetchExistingPaymentByMember, fetchJuntaActiveMembers, submitPayment } from '@/services/juntas.repository';
 import { fetchReceiverPayoutInfo } from '@/services/profile.service';
 import { getParticipantDisplayName, getReceiverPaymentDetails } from '@/lib/payment-instructions';
 import {
@@ -45,6 +45,8 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   const [activeMembers, setActiveMembers] = useState<JuntaMember[] | null>(null);
   const [loadingMembership, setLoadingMembership] = useState(true);
   const [receiverProfile, setReceiverProfile] = useState<Partial<Profile> | null>(null);
+  // dbPayment holds the payment fetched from DB when the store is empty (e.g. after re-login).
+  const [dbPayment, setDbPayment] = useState<Payment | null | undefined>(undefined);
 
   const isMember = isCreator || Boolean(activeMembers?.some((m) => m.profile_id === user?.id && m.estado === 'activo'));
   const currentReceiverMember = activeMembers && currentSchedule
@@ -52,9 +54,11 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
     : null;
   const isCurrentReceiver = Boolean(user?.id && currentReceiverMember?.profile_id && user.id === currentReceiverMember.profile_id);
 
-  const existingPayment = payments.find(
+  const storePayment = payments.find(
     (payment) => payment.junta_id === params.id && payment.profile_id === user?.id && payment.schedule_id === currentSchedule?.id
   );
+  // Prefer store payment (optimistic); fall back to DB payment (handles empty store after re-login).
+  const existingPayment = storePayment ?? (dbPayment ?? undefined);
 
   const expectedAmount = currentSchedule?.monto ?? junta?.monto_cuota ?? 0;
   const monto = expectedAmount;
@@ -87,6 +91,23 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
       setLoadingMembership(false);
     });
   }, [params.id, user]);
+
+  // Fetch existing payment from DB when not in store (e.g. empty store after re-login).
+  useEffect(() => {
+    if (!user?.id || !currentSchedule?.id) {
+      setDbPayment(null);
+      return;
+    }
+    if (storePayment) {
+      setDbPayment(null); // store has it — no DB fetch needed
+      return;
+    }
+    fetchExistingPaymentByMember({ juntaId: params.id, scheduleId: currentSchedule.id, profileId: user.id })
+      .then((result) => {
+        setDbPayment(result.ok ? result.data : null);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSchedule?.id, user?.id, storePayment]);
 
   useEffect(() => {
     if (!currentReceiverMember?.profile_id) return;
@@ -235,8 +256,12 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
       }
 
       const confirmedScheduleId = (dbResult.ok && dbResult.resolvedScheduleId) ? dbResult.resolvedScheduleId : currentSchedule.id;
+      // Use the payment ID resolved by submitPayment (may differ from paymentId if DB already had one).
+      const confirmedPaymentId = (dbResult.ok && (dbResult as { resolvedPaymentId?: string }).resolvedPaymentId)
+        ? (dbResult as { resolvedPaymentId: string }).resolvedPaymentId
+        : paymentId;
       const nextPayment = {
-        id: paymentId,
+        id: confirmedPaymentId,
         junta_id: junta.id,
         schedule_id: confirmedScheduleId,
         round_id: confirmedScheduleId,
@@ -260,10 +285,11 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         rejection_reason: undefined
       };
 
+      const prevPaymentId = existingPayment?.id;
       setData({
-        payments: existingPayment
-          ? payments.map((payment) => (payment.id === existingPayment.id ? { ...payment, ...nextPayment } : payment))
-          : [...payments, nextPayment]
+        payments: prevPaymentId
+          ? payments.map((payment) => (payment.id === prevPaymentId ? { ...payment, ...nextPayment } : payment))
+          : [...payments.filter((p) => !(p.junta_id === junta.id && p.profile_id === user.id && p.schedule_id === confirmedScheduleId)), nextPayment]
       });
 
       setMessage('Tu pago fue enviado correctamente y está pendiente de validación');
