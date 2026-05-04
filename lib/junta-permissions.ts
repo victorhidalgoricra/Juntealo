@@ -1,22 +1,10 @@
 type JuntaDeleteRow = {
   id?: string;
   admin_id: string;
-  fecha_inicio?: string | null;
   bloqueada?: boolean | null;
   deleted_at?: string | null;
   estado?: string | null;
 };
-
-// Returns today's date as 'YYYY-MM-DD' in America/Lima — same approach as junta-blocking.ts.
-// Avoids the UTC-shift bug from new Date('YYYY-MM-DD').setHours(0,0,0,0) in UTC-5.
-function getTodayInLima(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Lima',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
-}
 
 export function canDeleteJunta(
   row: JuntaDeleteRow,
@@ -25,20 +13,15 @@ export function canDeleteJunta(
   if (!currentUserId) return false;
 
   const isCreator = row.admin_id === currentUserId;
-
-  const todayStr = getTodayInLima();
-  // fecha_inicio is stored as 'YYYY-MM-DD'; string comparison is safe for ISO dates.
-  // Use strict less-than: a junta is only "started" if its start date is in the past,
-  // not on the start date itself (the junta is still in borrador on day-of).
-  const hasStarted = row.fecha_inicio ? row.fecha_inicio < todayStr : false;
-
   const isDraft = row.estado === 'borrador';
-
   const isDeletedOrBlocked =
     Boolean(row.deleted_at) ||
     row.estado === 'eliminada' ||
     row.estado === 'bloqueada' ||
     row.bloqueada === true;
 
-  return isCreator && isDraft && !hasStarted && !isDeletedOrBlocked;
+  // Estado is the source of truth: borrador = deletable, activa = not deletable.
+  // fecha_inicio is intentionally not checked — a borrador junta on its start date
+  // has not yet activated and the creator should still be able to cancel it.
+  return isCreator && isDraft && !isDeletedOrBlocked;
 }
