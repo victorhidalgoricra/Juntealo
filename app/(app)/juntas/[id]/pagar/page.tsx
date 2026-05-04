@@ -21,7 +21,6 @@ import {
   uploadPaymentReceiptFile,
   validatePaymentReceiptFile
 } from '@/services/payment-receipt-upload.service';
-import { generarCronograma } from '@/services/schedule.service';
 import { formatCalendarDate } from '@/lib/calendar-date';
 
 export default function JuntaPayPage({ params }: { params: { id: string } }) {
@@ -77,28 +76,6 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
     if (!currentSchedule) return 'Ronda no disponible';
     return `Semana ${currentSchedule.cuota_numero} · vence ${formatCalendarDate(currentSchedule.fecha_vencimiento)}`;
   }, [currentSchedule]);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!junta) return;
-    if (juntaSchedules.length > 0) return;
-
-    const fallbackSchedules = generarCronograma({
-      juntaId: junta.id,
-      participantes: junta.participantes_max,
-      monto: junta.cuota_base ?? junta.monto_cuota,
-      frecuencia: junta.frecuencia_pago,
-      fechaInicio: junta.fecha_inicio
-    });
-    setData({ schedules: [...schedules, ...fallbackSchedules] });
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Registrar pago debug] schedule fallback generado', {
-        juntaId: junta.id,
-        generatedRounds: fallbackSchedules.length
-      });
-    }
-  }, [junta, juntaSchedules.length, schedules, setData]);
 
   useEffect(() => {
     if (!user) {
