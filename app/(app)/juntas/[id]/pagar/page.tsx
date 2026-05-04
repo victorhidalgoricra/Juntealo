@@ -230,6 +230,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         id: paymentId,
         juntaId: junta.id,
         scheduleId: currentSchedule.id,
+        cuotaNumero: currentSchedule.cuota_numero,
         profileId: user.id,
         expectedAmount,
         monto,
@@ -256,11 +257,12 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         throw new Error(dbResult.message ?? 'No pudimos guardar tu pago en la base de datos.');
       }
 
+      const confirmedScheduleId = (dbResult.ok && dbResult.resolvedScheduleId) ? dbResult.resolvedScheduleId : currentSchedule.id;
       const nextPayment = {
         id: paymentId,
         junta_id: junta.id,
-        schedule_id: currentSchedule.id,
-        round_id: currentSchedule.id,
+        schedule_id: confirmedScheduleId,
+        round_id: confirmedScheduleId,
         member_id: user.id,
         profile_id: user.id,
         expected_amount: expectedAmount,
