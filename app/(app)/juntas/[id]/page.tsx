@@ -229,6 +229,16 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       fetchJuntaActiveMembers(params.id)
     ]);
 
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[SNAPSHOT REFRESH DEBUG]', {
+        juntaId: params.id,
+        snapshotOk: snapshotResult.ok,
+        paymentsCount: snapshotResult.ok ? snapshotResult.data.payments.filter((p) => p.junta_id === params.id).length : 'error',
+        payoutsCount: snapshotResult.ok ? snapshotResult.data.payouts.filter((p) => p.junta_id === params.id).length : 'error',
+        membersOk: membersResult.ok,
+      });
+    }
+
     if (snapshotResult.ok) {
       setData({
         juntas: snapshotResult.data.juntas,
@@ -241,6 +251,13 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       if (refreshedJunta) setJunta(refreshedJunta);
       setDetailPayments(snapshotResult.data.payments.filter((payment) => payment.junta_id === params.id));
       setDetailSchedules(snapshotResult.data.schedules.filter((schedule) => schedule.junta_id === params.id));
+    } else {
+      // Fallback: snapshot falló, recarga solo los pagos de esta junta directamente
+      const freshPayments = await fetchPaymentsByJuntaId(params.id);
+      if (freshPayments.ok) {
+        setDetailPayments(freshPayments.data);
+        setData({ payments: [...payments.filter((p) => p.junta_id !== params.id), ...freshPayments.data] });
+      }
     }
 
     if (membersResult.ok) setDetailMembers(membersResult.data);
@@ -314,17 +331,23 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     const assigned = turns.filter((t) => t > 0);
     return assigned.length === juntaMembers.length && new Set(assigned).size === juntaMembers.length;
   })();
-  const isCurrentReceiver = user?.id === summary.receiver?.profile_id;
+  const currentUserProfileId = user?.id ?? null;
+  const currentReceiverProfileId = summary.receiver?.profile_id ?? null;
+  const isCurrentReceiver = currentUserProfileId !== null && currentUserProfileId === currentReceiverProfileId;
 
   const requiredPayers = summary.rows.filter((r) => !r.isReceiver);
-  const approvedPayments = requiredPayers.filter((r) => r.status === 'Pagado');
-  const allPaymentsApproved = requiredPayers.length > 0 && approvedPayments.length === requiredPayers.length;
+  const allPaymentsApproved = requiredPayers.length > 0 && requiredPayers.every((r) => r.status === 'Pagado');
   const canConfirmReceipt = isCurrentReceiver && allPaymentsApproved;
 
   if (process.env.NODE_ENV === 'development') {
     console.debug('[CONFIRM RECEIPT DEBUG]', {
+      juntaId: params.id,
+      currentUserId: user?.id,
+      currentUserProfileId,
+      currentReceiverProfileId,
+      receiverName: summary.receiver?.displayName,
+      isCurrentReceiver,
       requiredPayers: requiredPayers.map((r) => ({ profileId: r.profileId, status: r.status })),
-      approvedPayments: approvedPayments.map((r) => ({ profileId: r.profileId, status: r.status })),
       allPaymentsApproved,
       canConfirmReceipt,
     });
@@ -347,6 +370,23 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const handleConfirmPayout = async () => {
     if (!isCurrentReceiver || !junta) return;
     const amount = (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length;
+
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[CONFIRM RECEIPT CLICK DEBUG]', {
+        juntaId: junta.id,
+        currentUserId: user?.id,
+        currentUserProfileId,
+        currentReceiverProfileId,
+        receiverName: summary.receiver?.displayName,
+        isCurrentReceiver,
+        canConfirmReceipt,
+        currentWeek,
+        amount,
+        allPaymentsApproved,
+        requiredPayers: requiredPayers.map((r) => ({ profileId: r.profileId, status: r.status })),
+      });
+    }
+
     const result = await confirmPayout({
       juntaId: junta.id,
       profileId: user!.id,
@@ -365,8 +405,12 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       console.debug('[PAYMENT ACTION CLICK]', { paymentId, status: currentStatus, action: 'approve' });
     }
     const result = await updatePaymentStatus({ paymentId, estado: 'approved' });
-    if (!result.ok) { setPaymentInfo(result.message); return; }
-    setPaymentInfo(null);
+    if (!result.ok) {
+      setPaymentInfo(result.message);
+    } else {
+      setPaymentInfo(null);
+    }
+    // Siempre refrescar para sincronizar UI con BD real
     await refreshSnapshot();
   };
 
@@ -375,8 +419,12 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       console.debug('[PAYMENT ACTION CLICK]', { paymentId, status: currentStatus, action: 'reject' });
     }
     const result = await updatePaymentStatus({ paymentId, estado: 'rejected' });
-    if (!result.ok) { setPaymentInfo(result.message); return; }
-    setPaymentInfo(null);
+    if (!result.ok) {
+      setPaymentInfo(result.message);
+    } else {
+      setPaymentInfo(null);
+    }
+    // Siempre refrescar para sincronizar UI con BD real
     await refreshSnapshot();
   };
 
