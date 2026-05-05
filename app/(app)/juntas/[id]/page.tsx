@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, fetchUserJuntaSnapshot, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -80,6 +80,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [manualTurns, setManualTurns] = useState<Record<string, number>>({});
   const [activating, setActivating] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [isConfirmingReceipt, setIsConfirmingReceipt] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -233,43 +234,38 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
   const refreshSnapshot = async () => {
     if (!user?.id) return;
-    const [snapshotResult, membersResult] = await Promise.all([
-      fetchUserJuntaSnapshot(user.id),
-      fetchJuntaActiveMembers(params.id)
+
+    // Fetch directly from DB in parallel — more reliable and faster than the full user
+    // snapshot, which aggregates all juntas and can mask timing issues right after an RPC.
+    const [payoutsResult, paymentsResult, schedulesResult, membersResult] = await Promise.all([
+      fetchPayoutsByJuntaId(params.id),
+      fetchPaymentsByJuntaId(params.id),
+      fetchSchedulesByJuntaId(params.id),
+      fetchJuntaActiveMembers(params.id),
     ]);
 
     if (process.env.NODE_ENV === 'development') {
       console.debug('[SNAPSHOT REFRESH DEBUG]', {
         juntaId: params.id,
-        snapshotOk: snapshotResult.ok,
-        paymentsCount: snapshotResult.ok ? snapshotResult.data.payments.filter((p) => p.junta_id === params.id).length : 'error',
-        payoutsCount: snapshotResult.ok ? snapshotResult.data.payouts.filter((p) => p.junta_id === params.id).length : 'error',
+        payoutsCount: payoutsResult.ok ? payoutsResult.data.length : 'error',
+        paymentsCount: paymentsResult.ok ? paymentsResult.data.length : 'error',
+        schedulesCount: schedulesResult.ok ? schedulesResult.data.length : 'error',
         membersOk: membersResult.ok,
       });
     }
 
-    if (snapshotResult.ok) {
-      setData({
-        juntas: snapshotResult.data.juntas,
-        members: snapshotResult.data.members,
-        schedules: snapshotResult.data.schedules,
-        payments: snapshotResult.data.payments,
-        payouts: snapshotResult.data.payouts
-      });
-      const refreshedJunta = snapshotResult.data.juntas.find((item) => item.id === params.id) ?? null;
-      if (refreshedJunta) setJunta(refreshedJunta);
-      setDetailPayments(snapshotResult.data.payments.filter((payment) => payment.junta_id === params.id));
-      setDetailSchedules(snapshotResult.data.schedules.filter((schedule) => schedule.junta_id === params.id));
-      setDetailPayouts(snapshotResult.data.payouts.filter((p) => p.junta_id === params.id));
-    } else {
-      // Fallback: snapshot falló, recarga solo los pagos de esta junta directamente
-      const freshPayments = await fetchPaymentsByJuntaId(params.id);
-      if (freshPayments.ok) {
-        setDetailPayments(freshPayments.data);
-        setData({ payments: [...payments.filter((p) => p.junta_id !== params.id), ...freshPayments.data] });
-      }
+    if (payoutsResult.ok) {
+      setDetailPayouts(payoutsResult.data);
+      setData({ payouts: [...payouts.filter((p) => p.junta_id !== params.id), ...payoutsResult.data] });
     }
-
+    if (paymentsResult.ok) {
+      setDetailPayments(paymentsResult.data);
+      setData({ payments: [...payments.filter((p) => p.junta_id !== params.id), ...paymentsResult.data] });
+    }
+    if (schedulesResult.ok) {
+      setDetailSchedules(schedulesResult.data);
+      setData({ schedules: [...schedules.filter((s) => s.junta_id !== params.id), ...schedulesResult.data] });
+    }
     if (membersResult.ok) setDetailMembers(membersResult.data);
   };
 
@@ -381,46 +377,56 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   };
 
   const handleConfirmPayout = async () => {
-    if (!isCurrentReceiver || !junta) return;
+    if (!isCurrentReceiver || !junta || isConfirmingReceipt) return;
+
     const amount = (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length;
 
     if (process.env.NODE_ENV === 'development') {
-      console.debug('[CONFIRM RECEIPT CLICK DEBUG]', {
-        // Auth identity
-        authUserId: user?.id,
-        authUserEmail: user?.email,
-        // Profile resolved by UI
-        resolvedProfileId: currentUserProfileId,
-        // Current receiver as resolved by UI
-        currentReceiverProfileId,
-        receiverName: summary.receiver?.displayName,
-        receiverOrdenTurno: summary.receiver?.orden_turno,
-        // Round info — must match backend COUNT(*)+1
-        currentWeek,
-        completedPayoutsInDetailState: detailPayouts.length,
-        detailPayouts: detailPayouts.map((p) => ({ id: p.id, ronda: p.ronda_numero })),
-        // Gate flags
-        isCurrentReceiver,
-        canConfirmReceipt,
-        allPaymentsApproved,
-        amount,
-        requiredPayers: requiredPayers.map((r) => ({ profileId: r.profileId, status: r.status })),
-        // Members for cross-check
-        juntaMembers: juntaMembers.map((m) => ({ profileId: m.profile_id, ordenTurno: m.orden_turno, nombre: m.nombre })),
+      console.debug('[CONFIRM RECEIPT FLOW]', {
+        currentUser: user?.id,
+        currentReceiver: currentReceiverProfileId,
+        currentRound: currentWeek,
+        payoutsLength: detailPayouts.length,
       });
     }
 
-    const result = await confirmPayout({
-      juntaId: junta.id,
-      profileId: user!.id,
-      roundNumber: currentWeek,
-      amount
-    });
-    if (!result.ok) {
-      setPaymentInfo(result.message);
-      return;
+    setIsConfirmingReceipt(true);
+    setPaymentInfo(null);
+
+    // Optimistic update: add the new payout immediately so currentWeek advances
+    // and the confirm button disappears without waiting for the network.
+    const optimisticPayout = {
+      id: `optimistic-${Date.now()}`,
+      junta_id: junta.id,
+      ronda_numero: currentWeek,
+      profile_id: user!.id,
+      monto_pozo: amount,
+      entregado_en: new Date().toISOString(),
+    };
+    setDetailPayouts((prev) => [...prev, optimisticPayout]);
+
+    try {
+      const result = await confirmPayout({
+        juntaId: junta.id,
+        profileId: user!.id,
+        roundNumber: currentWeek,
+        amount,
+      });
+
+      if (!result.ok) {
+        setDetailPayouts((prev) => prev.filter((p) => p.id !== optimisticPayout.id));
+        setPaymentInfo(result.message);
+        return;
+      }
+
+      // RPC succeeded — refresh from DB to replace optimistic entry with real data
+      await refreshSnapshot();
+    } catch {
+      setDetailPayouts((prev) => prev.filter((p) => p.id !== optimisticPayout.id));
+      setPaymentInfo('Error al confirmar. Intenta de nuevo.');
+    } finally {
+      setIsConfirmingReceipt(false);
     }
-    await refreshSnapshot();
   };
 
   const handleAcceptPayment = async (paymentId: string, currentStatus: string) => {
@@ -531,7 +537,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                     <JuntaScoreBadge score={summary.rows.find((row) => row.isReceiver)?.score ?? 70} />
                     <Badge>{canConfirmReceipt ? 'Listo para confirmar' : 'Esperando pagos'}</Badge>
                     {canConfirmReceipt && (
-                      <Button variant="outline" onClick={handleConfirmPayout}>Confirmar recibo</Button>
+                      <Button variant="outline" onClick={handleConfirmPayout} disabled={isConfirmingReceipt}>
+                        {isConfirmingReceipt ? 'Confirmando…' : 'Confirmar recibo'}
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -758,7 +766,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                 <p>{summary.paid}/{juntaMembers.length - 1} pagos recibidos</p>
               </div>
               {canConfirmReceipt ? (
-                <Button onClick={handleConfirmPayout}>Confirmar recibo →</Button>
+                <Button onClick={handleConfirmPayout} disabled={isConfirmingReceipt}>
+                  {isConfirmingReceipt ? 'Confirmando…' : 'Confirmar recibo →'}
+                </Button>
               ) : (
                 <p className="text-sm text-slate-500">
                   {requiredPayers.some((r) => r.status === 'Validando')
