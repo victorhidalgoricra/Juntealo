@@ -782,7 +782,16 @@ export async function updatePaymentStatus(params: {
 }) {
   if (!hasSupabase || !supabase) return { ok: true as const };
 
-  const now = new Date().toISOString();
+  const { data: currentPayment, error: fetchError } = await supabase
+    .schema('public')
+    .from('payments')
+    .select('id,estado')
+    .eq('id', params.paymentId)
+    .maybeSingle();
+
+  if (fetchError) return { ok: false as const, message: mapSupabaseErrorMessage(fetchError.message) };
+
+  const previousEstado = currentPayment?.estado ?? 'unknown';
   const dbEstado =
     params.estado === 'approved'
       ? 'aprobado'
@@ -793,6 +802,20 @@ export async function updatePaymentStatus(params: {
           : params.estado === 'overdue'
             ? 'vencido'
             : 'pendiente';
+
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[PAYMENT TRANSITION DEBUG]', {
+      paymentId: params.paymentId,
+      previousEstado,
+      nextEstado: dbEstado,
+    });
+  }
+
+  if (previousEstado === 'aprobado') {
+    return { ok: false as const, message: 'No se puede modificar un pago ya aprobado.' };
+  }
+
+  const now = new Date().toISOString();
   const update: Record<string, unknown> = {
     estado: dbEstado,
     payment_status: params.estado,

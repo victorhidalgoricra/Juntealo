@@ -316,6 +316,20 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   })();
   const isCurrentReceiver = user?.id === summary.receiver?.profile_id;
 
+  const requiredPayers = summary.rows.filter((r) => !r.isReceiver);
+  const approvedPayments = requiredPayers.filter((r) => r.status === 'Pagado');
+  const allPaymentsApproved = requiredPayers.length > 0 && approvedPayments.length === requiredPayers.length;
+  const canConfirmReceipt = isCurrentReceiver && allPaymentsApproved;
+
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[CONFIRM RECEIPT DEBUG]', {
+      requiredPayers: requiredPayers.map((r) => ({ profileId: r.profileId, status: r.status })),
+      approvedPayments: approvedPayments.map((r) => ({ profileId: r.profileId, status: r.status })),
+      allPaymentsApproved,
+      canConfirmReceipt,
+    });
+  }
+
   const openWhatsAppReminder = (row: WeeklyMemberRow) => {
     const rawPhone = row.celular ?? '';
     const digits = rawPhone.replace(/\D/g, '');
@@ -436,8 +450,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   </div>
                   <div className="flex items-center gap-2">
                     <JuntaScoreBadge score={summary.rows.find((row) => row.isReceiver)?.score ?? 70} />
-                    <Badge>{summary.pending === 0 ? 'Listo para confirmar' : 'Esperando pagos'}</Badge>
-                    {summary.pending === 0 && isCurrentReceiver && (
+                    <Badge>{canConfirmReceipt ? 'Listo para confirmar' : 'Esperando pagos'}</Badge>
+                    {canConfirmReceipt && (
                       <Button variant="outline" onClick={handleConfirmPayout}>Confirmar recibo</Button>
                     )}
                   </div>
@@ -663,10 +677,14 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               <div className="text-sm text-slate-600">
                 <p>{summary.paid}/{juntaMembers.length - 1} pagos recibidos</p>
               </div>
-              {summary.pending === 0 ? (
+              {canConfirmReceipt ? (
                 <Button onClick={handleConfirmPayout}>Confirmar recibo →</Button>
               ) : (
-                <p className="text-sm text-slate-500">Esperando {summary.pending} pago(s) para liberar la bolsa.</p>
+                <p className="text-sm text-slate-500">
+                  {requiredPayers.some((r) => r.status === 'Validando')
+                    ? `Hay ${requiredPayers.filter((r) => r.status === 'Validando').length} pago(s) pendientes de aprobación.`
+                    : `Esperando ${summary.pending} pago(s) para liberar la bolsa.`}
+                </p>
               )}
               {paymentInfo && <p className="text-xs text-amber-700">{paymentInfo}</p>}
             </Card>
