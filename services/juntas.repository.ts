@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { EstadoJunta, EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule } from '@/types/domain';
+import { EstadoJunta, EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
 
 const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
 
@@ -506,6 +506,18 @@ export async function fetchPaymentsByJuntaId(juntaId: string) {
     .eq('junta_id', juntaId);
   if (error) return { ok: false as const, message: error.message };
   return { ok: true as const, data: (data ?? []) as Payment[] };
+}
+
+export async function fetchPayoutsByJuntaId(juntaId: string) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Payout[] };
+  const { data, error } = await supabase
+    .schema('public')
+    .from('payouts')
+    .select('id,junta_id,ronda_numero,profile_id,monto_pozo,entregado_en,observaciones')
+    .eq('junta_id', juntaId)
+    .order('ronda_numero');
+  if (error) return { ok: false as const, message: error.message };
+  return { ok: true as const, data: (data ?? []) as Payout[] };
 }
 
 export async function fetchExistingPaymentByMember(params: {
