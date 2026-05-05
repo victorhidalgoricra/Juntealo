@@ -13,6 +13,7 @@ import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
 import { isJuntaActive } from '@/lib/junta-status';
 import { APP_BUSINESS_TIMEZONE, isJuntaBlockedByDeadline } from '@/lib/junta-blocking';
+import { formatCalendarDate } from '@/lib/calendar-date';
 import { getActiveMembersForJunta } from '@/lib/junta-members';
 import {
   getCurrentWeekSummary,
@@ -283,6 +284,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   // the UI would show the wrong round as "current", mismatching the backend's COUNT(*)+1 derivation.
   const completedPayouts = detailPayouts.length;
   const currentWeek = Math.min(completedPayouts + 1, simulation.rows.length);
+  const currentRoundSchedule = detailSchedules.find((s) => s.cuota_numero === currentWeek);
+  const currentRoundDueDate = currentRoundSchedule?.fecha_vencimiento
+    ? formatCalendarDate(currentRoundSchedule.fecha_vencimiento)
+    : 'Sin fecha';
   const summary = getCurrentWeekSummary({
     junta,
     members: juntaMembers,
@@ -492,11 +497,12 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       {mainView === 'general' && (
         <div className="space-y-4">
           {phaseTwoLoading && <Card className="p-3 text-sm text-slate-500">Cargando pagos, cronograma e integrantes…</Card>}
-          <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
             <Card className="p-3"><p className="text-xs text-slate-500">Bolsa semana</p><p className="text-2xl font-semibold">S/{((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}</p></Card>
             <Card className="p-3"><p className="text-xs text-slate-500">Pagos esta semana</p><p className="text-2xl font-semibold">{summary.paid}/{summary.rows.length}</p></Card>
             <Card className="p-3"><p className="text-xs text-slate-500">Turno actual</p><p className="text-2xl font-semibold">#{currentWeek}</p></Card>
             <Card className="p-3"><p className="text-xs text-slate-500">Pendientes</p><p className="text-2xl font-semibold">{summary.pending}</p></Card>
+            <Card className="p-3"><p className="text-xs text-slate-500">Fecha límite de pago</p><p className="text-2xl font-semibold">{currentRoundDueDate}</p></Card>
           </div>
 
           <Card className="space-y-2 p-3">
