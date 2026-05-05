@@ -360,15 +360,23 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     await refreshSnapshot();
   };
 
-  const handleAcceptPayment = async (paymentId: string) => {
+  const handleAcceptPayment = async (paymentId: string, currentStatus: string) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[PAYMENT ACTION CLICK]', { paymentId, status: currentStatus, action: 'approve' });
+    }
     const result = await updatePaymentStatus({ paymentId, estado: 'approved' });
     if (!result.ok) { setPaymentInfo(result.message); return; }
+    setPaymentInfo(null);
     await refreshSnapshot();
   };
 
-  const handleRejectPayment = async (paymentId: string) => {
+  const handleRejectPayment = async (paymentId: string, currentStatus: string) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[PAYMENT ACTION CLICK]', { paymentId, status: currentStatus, action: 'reject' });
+    }
     const result = await updatePaymentStatus({ paymentId, estado: 'rejected' });
     if (!result.ok) { setPaymentInfo(result.message); return; }
+    setPaymentInfo(null);
     await refreshSnapshot();
   };
 
@@ -466,12 +474,13 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                       <JuntaPaymentStatusRow row={row} />
                       {isCurrentReceiver && row.status === 'Validando' && row.paymentId && (
                         <div className="flex gap-2 pl-2">
-                          <Button size="sm" variant="outline" onClick={() => handleAcceptPayment(row.paymentId!)}>Aceptar</Button>
-                          <Button size="sm" variant="outline" onClick={() => handleRejectPayment(row.paymentId!)}>Rechazar</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleAcceptPayment(row.paymentId!, row.status)}>Aceptar</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleRejectPayment(row.paymentId!, row.status)}>Rechazar</Button>
                         </div>
                       )}
                     </div>
                   ))}
+                  {paymentInfo && <p className="text-xs text-rose-700">{paymentInfo}</p>}
                 </Card>
                 <Card className="space-y-2 p-3">
                   <p className="text-sm font-medium">Pendientes ({pendingPayers.length}/{summary.rows.length})</p>

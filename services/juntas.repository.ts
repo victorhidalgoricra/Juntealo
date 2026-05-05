@@ -574,21 +574,34 @@ export async function confirmPayout(params: {
   roundNumber: number;
   amount: number;
 }) {
-  if (!hasSupabase || !supabase) return { ok: true as const };
+  if (!hasSupabase || !supabase) return { ok: true as const, roundAdvance: null };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .schema('public')
-    .from('payouts')
-    .insert({
-      junta_id: params.juntaId,
-      profile_id: params.profileId,
-      ronda_numero: params.roundNumber,
-      monto_pozo: params.amount,
-      entregado_en: new Date().toISOString()
+    .rpc('confirm_round_receipt', {
+      p_junta_id: params.juntaId,
+      p_amount: params.amount,
     });
 
-  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
-  return { ok: true as const };
+  if (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[confirmPayout] rpc error', error);
+    }
+    return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  }
+
+  const result = data as { payout_id: string; round_number: number; next_round: number; next_receiver: string | null } | null;
+
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[ROUND ADVANCE DEBUG]', {
+      juntaId: params.juntaId,
+      roundNumber: result?.round_number,
+      nextTurn: result?.next_round,
+      nextReceiver: result?.next_receiver,
+    });
+  }
+
+  return { ok: true as const, roundAdvance: result };
 }
 
 export type AdminJuntaListItem = {
@@ -782,16 +795,6 @@ export async function updatePaymentStatus(params: {
 }) {
   if (!hasSupabase || !supabase) return { ok: true as const };
 
-  const { data: currentPayment, error: fetchError } = await supabase
-    .schema('public')
-    .from('payments')
-    .select('id,estado')
-    .eq('id', params.paymentId)
-    .maybeSingle();
-
-  if (fetchError) return { ok: false as const, message: mapSupabaseErrorMessage(fetchError.message) };
-
-  const previousEstado = currentPayment?.estado ?? 'unknown';
   const dbEstado =
     params.estado === 'approved'
       ? 'aprobado'
@@ -806,15 +809,32 @@ export async function updatePaymentStatus(params: {
   if (process.env.NODE_ENV === 'development') {
     console.debug('[PAYMENT TRANSITION DEBUG]', {
       paymentId: params.paymentId,
-      previousEstado,
       nextEstado: dbEstado,
     });
   }
 
-  if (previousEstado === 'aprobado') {
-    return { ok: false as const, message: 'No se puede modificar un pago ya aprobado.' };
+  // Use approve_payment_by_receiver RPC (migration 052) which bypasses the
+  // "payments approve by admin" RLS policy that silently blocks non-admin
+  // receivers from updating payment status via direct UPDATE.
+  if (params.estado === 'approved' || params.estado === 'rejected') {
+    const { error: rpcError } = await supabase
+      .schema('public')
+      .rpc('approve_payment_by_receiver', {
+        p_payment_id: params.paymentId,
+        p_new_estado: dbEstado,
+      });
+
+    if (rpcError) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[updatePaymentStatus] rpc error', rpcError);
+      }
+      return { ok: false as const, message: mapSupabaseErrorMessage(rpcError.message) };
+    }
+
+    return { ok: true as const };
   }
 
+  // For non-approve/reject transitions (admin panel use cases) fall back to direct update.
   const now = new Date().toISOString();
   const update: Record<string, unknown> = {
     estado: dbEstado,
