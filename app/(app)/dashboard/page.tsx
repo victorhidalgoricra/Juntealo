@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { getPaymentAlertState, type PaymentAlertState } from '@/lib/payment-alert';
 import { getJuntaEngagementLayer, type JuntaMission, type LevelUnlocks } from '@/services/junta-engagement.service';
 import { fetchProfilesByIds } from '@/services/profile.service';
+import { fetchUserPaymentNotifications } from '@/services/juntas.repository';
 import {
   buildJuntaScoreStatsFromDomain,
   getScoreBadge,
@@ -434,6 +435,11 @@ export default function DashboardPage() {
   const safeMembers = useMemo(() => (Array.isArray(members) ? members : []), [members]);
   const safePayouts = useMemo(() => (Array.isArray(payouts) ? payouts : []), [payouts]);
   const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
+  const [notifPayload, setNotifPayload] = useState<{
+    juntas: Junta[];
+    schedules: PaymentSchedule[];
+    payments: Payment[];
+  } | null>(null);
   const userId = user?.id ?? '';
 
   const myJuntaIds = useMemo(
@@ -441,6 +447,16 @@ export default function DashboardPage() {
     [safeJuntas, safeMembers, user]
   );
   const displayName = user ? getDisplayName(user.nombre, user.email) : 'Miembro';
+
+  // Fresh fetch for payment notifications — never relies on stale Zustand data.
+  // Queries from junta_members (not admin_id) so both creators and participants are covered.
+  useEffect(() => {
+    if (!user?.id) return;
+    fetchUserPaymentNotifications(user.id).then((result) => {
+      if (!result.ok) return;
+      setNotifPayload(result.data);
+    });
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -460,13 +476,24 @@ export default function DashboardPage() {
     });
   }, [myJuntaIds, safeMembers, user, userId]);
 
-  const paymentAlert = getPaymentAlertState({
-    userId,
-    myJuntaIds,
-    juntas: safeJuntas,
-    schedules: safeSchedules,
-    payments: safePayments
-  });
+  const paymentAlert = useMemo(() => {
+    if (notifPayload) {
+      return getPaymentAlertState({
+        userId,
+        myJuntaIds: notifPayload.juntas.map((j) => j.id),
+        juntas: notifPayload.juntas,
+        schedules: notifPayload.schedules,
+        payments: notifPayload.payments
+      });
+    }
+    return getPaymentAlertState({
+      userId,
+      myJuntaIds,
+      juntas: safeJuntas,
+      schedules: safeSchedules,
+      payments: safePayments
+    });
+  }, [notifPayload, userId, myJuntaIds, safeJuntas, safeSchedules, safePayments]);
 
   if (!user) return <Card>Necesitas iniciar sesión para ver tu dashboard.</Card>;
 

@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { EstadoJunta, EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
+import { EstadoCuota, EstadoJunta, EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
 
 const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
 
@@ -869,4 +869,92 @@ export async function updatePaymentStatus(params: {
     return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
   }
   return { ok: true as const };
+}
+
+export async function fetchUserPaymentNotifications(profileId: string) {
+  if (!hasSupabase || !supabase) {
+    return {
+      ok: true as const,
+      data: { juntas: [] as Junta[], schedules: [] as PaymentSchedule[], payments: [] as Payment[] }
+    };
+  }
+
+  // Start from junta_members — never from juntas.admin_id
+  const { data: memberships, error: membershipError } = await supabase
+    .schema('public')
+    .from('junta_members')
+    .select('junta_id')
+    .eq('profile_id', profileId)
+    .eq('estado', 'activo');
+
+  if (membershipError) return { ok: false as const, message: mapSupabaseErrorMessage(membershipError.message) };
+
+  const juntaIds = (memberships ?? []).map((m) => m.junta_id);
+
+  if (!juntaIds.length) {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[PAYMENT NOTIFICATIONS]', { profileId, totalMemberships: 0, notifications: 0 });
+    }
+    return {
+      ok: true as const,
+      data: { juntas: [] as Junta[], schedules: [] as PaymentSchedule[], payments: [] as Payment[] }
+    };
+  }
+
+  // Only fetch active juntas — no borrador, no cerrada
+  const { data: juntasData, error: juntasError } = await supabase
+    .schema('public')
+    .from('juntas')
+    .select('id,admin_id,nombre,estado,slug,invite_token,access_code,bloqueada,tipo_junta,incentivo_porcentaje,incentivo_regla,turn_assignment_mode,cuota_base,bolsa_base,moneda,participantes_max,monto_cuota,premio_primero_pct,descuento_ultimo_pct,fee_plataforma_pct,frecuencia_pago,fecha_inicio,dia_limite_pago,penalidad_mora,visibilidad,cerrar_inscripciones,created_at,integrantes_actuales')
+    .in('id', juntaIds)
+    .eq('estado', 'activa' as EstadoJunta);
+
+  if (juntasError) return { ok: false as const, message: mapSupabaseErrorMessage(juntasError.message) };
+
+  const activeJuntaIds = (juntasData ?? []).map((j) => j.id);
+
+  if (!activeJuntaIds.length) {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[PAYMENT NOTIFICATIONS]', { profileId, totalMemberships: juntaIds.length, notifications: 0 });
+    }
+    return {
+      ok: true as const,
+      data: { juntas: [] as Junta[], schedules: [] as PaymentSchedule[], payments: [] as Payment[] }
+    };
+  }
+
+  const [schedulesResult, paymentsResult] = await Promise.all([
+    supabase
+      .schema('public')
+      .from('payment_schedules')
+      .select('id,junta_id,cuota_numero,fecha_vencimiento,monto,estado')
+      .in('junta_id', activeJuntaIds)
+      .in('estado', ['pendiente', 'vencida'] as EstadoCuota[]),
+    supabase
+      .schema('public')
+      .from('payments')
+      .select('id,junta_id,schedule_id,round_id,member_id,profile_id,expected_amount,submitted_amount,monto,estado,receipt_url,comprobante_url,payment_method,operation_number,participant_note,payment_status,submitted_at,internal_note,validated_at,validated_by,rejection_reason,pagado_en')
+      .eq('profile_id', profileId)
+      .in('junta_id', activeJuntaIds)
+  ]);
+
+  if (schedulesResult.error) return { ok: false as const, message: mapSupabaseErrorMessage(schedulesResult.error.message) };
+  if (paymentsResult.error) return { ok: false as const, message: mapSupabaseErrorMessage(paymentsResult.error.message) };
+
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[PAYMENT NOTIFICATIONS]', {
+      profileId,
+      totalMemberships: juntaIds.length,
+      notifications: schedulesResult.data?.length ?? 0,
+    });
+  }
+
+  return {
+    ok: true as const,
+    data: {
+      juntas: (juntasData ?? []) as Junta[],
+      schedules: (schedulesResult.data ?? []) as PaymentSchedule[],
+      payments: (paymentsResult.data ?? []) as Payment[]
+    }
+  };
 }
