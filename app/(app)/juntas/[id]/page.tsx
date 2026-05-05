@@ -67,7 +67,11 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const { juntas, payments, schedules, payouts, setData } = useAppStore();
 
   const [mainView, setMainView] = useState<MainView>('general');
-  const [generalTab, setGeneralTab] = useState<GeneralTab>('integrantes');
+  const [generalTab, setGeneralTab] = useState<GeneralTab>(() => {
+    const tabParam = searchParams.get('tab');
+    const valid: GeneralTab[] = ['integrantes', 'cronograma', 'pagos', 'turnos'];
+    return valid.includes(tabParam as GeneralTab) ? (tabParam as GeneralTab) : 'integrantes';
+  });
   const [loadingJunta, setLoadingJunta] = useState(true);
   const [junta, setJunta] = useState<Junta | null>(juntas.find((j) => j.id === params.id) ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -238,11 +242,12 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
     // Fetch directly from DB in parallel — more reliable and faster than the full user
     // snapshot, which aggregates all juntas and can mask timing issues right after an RPC.
-    const [payoutsResult, paymentsResult, schedulesResult, membersResult] = await Promise.all([
+    const [payoutsResult, paymentsResult, schedulesResult, membersResult, juntaResult] = await Promise.all([
       fetchPayoutsByJuntaId(params.id),
       fetchPaymentsByJuntaId(params.id),
       fetchSchedulesByJuntaId(params.id),
       fetchJuntaActiveMembers(params.id),
+      fetchJuntaById(params.id),
     ]);
 
     if (process.env.NODE_ENV === 'development') {
@@ -252,6 +257,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
         paymentsCount: paymentsResult.ok ? paymentsResult.data.length : 'error',
         schedulesCount: schedulesResult.ok ? schedulesResult.data.length : 'error',
         membersOk: membersResult.ok,
+        juntaEstado: juntaResult.ok ? juntaResult.data?.estado : 'error',
       });
     }
 
@@ -268,6 +274,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       setData({ schedules: [...schedules.filter((s) => s.junta_id !== params.id), ...schedulesResult.data] });
     }
     if (membersResult.ok) setDetailMembers(membersResult.data);
+    if (juntaResult.ok && juntaResult.data) setJunta(juntaResult.data);
   };
 
   if (loadingJunta) return <Card>Cargando junta...</Card>;
@@ -278,6 +285,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   if (!junta || !simulation) return <Card><p className="text-sm text-slate-600">Junta no encontrada.</p></Card>;
 
   const juntaActiva = isJuntaActive(junta.estado);
+  const juntaFinalizada = junta.estado === 'cerrada';
   const blockedByDeadline = isJuntaBlockedByDeadline(junta);
   // Use detailPayouts (fetched fresh from DB in loadPhaseTwo) to compute the current round.
   // Using the store's `payouts` here caused stale-read bugs: if the store was empty or outdated,
@@ -338,8 +346,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
   const isOwner = user?.id === junta.admin_id;
   const memberCount = junta.integrantes_actuales ?? juntaMembers.length;
-  const canManualAssign = isOwner && !juntaActiva && !blockedByDeadline;
-  const canShuffle = isOwner && !juntaActiva && !blockedByDeadline && memberCount >= junta.participantes_max;
+  const canManualAssign = isOwner && !juntaActiva && !juntaFinalizada && !blockedByDeadline;
+  const canShuffle = isOwner && !juntaActiva && !juntaFinalizada && !blockedByDeadline && memberCount >= junta.participantes_max;
   const allTurnsAssigned = juntaMembers.length > 0 && (() => {
     const turns = juntaMembers.map((m) => manualTurns[m.profile_id] ?? m.orden_turno ?? 0);
     const assigned = turns.filter((t) => t > 0);
@@ -351,7 +359,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
   const requiredPayers = summary.rows.filter((r) => !r.isReceiver);
   const allPaymentsApproved = requiredPayers.length > 0 && requiredPayers.every((r) => r.status === 'Pagado');
-  const canConfirmReceipt = isCurrentReceiver && allPaymentsApproved;
+  const canConfirmReceipt = isCurrentReceiver && allPaymentsApproved && !juntaFinalizada;
 
   if (process.env.NODE_ENV === 'development') {
     console.debug('[CONFIRM RECEIPT DEBUG]', {
@@ -387,11 +395,18 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     const amount = (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length;
 
     if (process.env.NODE_ENV === 'development') {
+      const totalRounds = juntaMembers.length;
       console.debug('[CONFIRM RECEIPT FLOW]', {
         currentUser: user?.id,
         currentReceiver: currentReceiverProfileId,
         currentRound: currentWeek,
         payoutsLength: detailPayouts.length,
+      });
+      console.debug('[FINAL ROUND CHECK]', {
+        currentRound: currentWeek,
+        totalRounds,
+        isLastRound: currentWeek === totalRounds,
+        juntaEstado: junta.estado,
       });
     }
 
@@ -472,7 +487,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             <h1 className="text-2xl font-semibold">{junta.nombre}</h1>
             <p className="text-sm text-slate-500">{headerSubtitle}</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <Badge>{juntaActiva ? 'Activa' : 'En formación'}</Badge>
+              <Badge>{juntaFinalizada ? 'Finalizada' : juntaActiva ? 'Activa' : 'En formación'}</Badge>
               {blockedByDeadline && <Badge>Bloqueada</Badge>}
               <Badge>{junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</Badge>
               <Badge>{memberCount}/{junta.participantes_max} integrantes</Badge>
@@ -493,6 +508,13 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           <button type="button" className={`flex-1 rounded-lg px-3 py-2 ${mainView === 'personal' ? 'bg-white font-semibold text-slate-900 shadow' : 'text-slate-600'}`} onClick={() => setMainView('personal')}>Mi vista ({currentUserName})</button>
         </div>
       </Card>
+
+      {juntaFinalizada && (
+        <Card className="border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-sm font-semibold text-emerald-800">Esta junta ha finalizado</p>
+          <p className="mt-1 text-xs text-emerald-700">Todos los turnos fueron completados. El historial queda disponible en modo solo lectura.</p>
+        </Card>
+      )}
 
       {mainView === 'general' && (
         <div className="space-y-4">
@@ -607,7 +629,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             <Card className="space-y-3 p-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Semana {currentWeek} — {summary.receiver?.displayName ?? 'Receptor'} recibe</h3>
-                <Badge>En curso</Badge>
+                <Badge>{juntaFinalizada ? 'Completada' : 'En curso'}</Badge>
               </div>
               <div className="space-y-2">
                 {summary.rows.map((row) => (
@@ -619,9 +641,11 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
           {generalTab === 'turnos' && (
             <Card className="space-y-3 p-4">
-              {juntaActiva || blockedByDeadline ? (
+              {juntaActiva || juntaFinalizada || blockedByDeadline ? (
                 <p className="rounded-md bg-slate-100 p-3 text-sm text-slate-600">
-                  {blockedByDeadline
+                  {juntaFinalizada
+                    ? 'La junta ha finalizado. Los turnos están en modo solo lectura.'
+                    : blockedByDeadline
                     ? 'La junta está bloqueada por vencimiento y los turnos quedan en modo solo lectura.'
                     : 'La junta ya está activa. Los turnos están en modo solo lectura.'}
                 </p>
@@ -764,7 +788,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             </Card>
           )}
 
-          {isCurrentReceiver ? (
+          {isCurrentReceiver && !juntaFinalizada ? (
             <Card className="space-y-3 p-4">
               <h3 className="text-lg font-semibold">Esta semana · recibes el pozo</h3>
               <p className="text-4xl font-bold text-emerald-600">S/{(personal.myTurnRow?.montoRecibido ?? (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(2)}</p>

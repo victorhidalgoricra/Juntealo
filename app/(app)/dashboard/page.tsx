@@ -227,17 +227,20 @@ function DashboardHeader({ displayName }: { displayName: string }) {
 }
 
 function PendingPaymentBanner({ data }: { data: PaymentAlertState }) {
-  if (!data.juntaId || !data.cuotaId) return null;
-  const directHref = `/juntas/${data.juntaId}/registrar-pago?juntaId=${encodeURIComponent(data.juntaId)}&cuotaId=${encodeURIComponent(data.cuotaId)}&src=dashboard`;
-  const fallbackHref = `/juntas/${data.juntaId}/payments`;
-  const toneClass = data.tone === 'destructive'
+  if (!data.juntaId) return null;
+  const href = `/juntas/${data.juntaId}?tab=pagos`;
+  const isValidating = data.status === 'en_validacion';
+  const toneClass = isValidating
+    ? 'border-blue-200 bg-blue-50 hover:border-blue-300'
+    : data.tone === 'destructive'
     ? 'border-rose-300 bg-rose-100 hover:border-rose-400'
     : 'border-amber-300 bg-amber-100 hover:border-amber-400';
-  const titleToneClass = data.tone === 'destructive' ? 'text-rose-900' : 'text-amber-900';
-  const ctaToneClass = data.tone === 'destructive' ? 'text-rose-700' : 'text-blue-700';
+  const titleToneClass = isValidating ? 'text-blue-900' : data.tone === 'destructive' ? 'text-rose-900' : 'text-amber-900';
+  const ctaToneClass = isValidating ? 'text-blue-600' : data.tone === 'destructive' ? 'text-rose-700' : 'text-blue-700';
+  const ctaLabel = isValidating ? 'Ver estado →' : 'Pagar →';
 
   return (
-    <Link href={data.hasMultiplePending ? fallbackHref : directHref}>
+    <Link href={href}>
       <Card className={`border p-4 ${toneClass}`}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -247,7 +250,7 @@ function PendingPaymentBanner({ data }: { data: PaymentAlertState }) {
               <p className={`text-sm ${titleToneClass}`}>{data.subtitle}</p>
             </div>
           </div>
-          <p className={`text-sm font-semibold ${ctaToneClass}`}>Pagar →</p>
+          <p className={`text-sm font-semibold ${ctaToneClass}`}>{ctaLabel}</p>
         </div>
       </Card>
     </Link>

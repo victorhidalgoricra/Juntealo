@@ -2,7 +2,7 @@ import { format, formatDistanceToNowStrict, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Junta, Payment, PaymentSchedule } from '@/types/domain';
 
-export type PaymentAlertStatus = 'upcoming' | 'due_today' | 'overdue' | 'paid' | 'none';
+export type PaymentAlertStatus = 'upcoming' | 'due_today' | 'overdue' | 'paid' | 'none' | 'en_validacion';
 
 export type PaymentAlertState = {
   status: PaymentAlertStatus;
@@ -110,6 +110,23 @@ export function getPaymentAlertState(params: {
 
   const { dueDate, dueTime } = parseDueDate(next.schedule.fecha_vencimiento);
   const remainingText = getRemainingText(dueDate, now);
+
+  if (next.payment?.estado === 'submitted' || next.payment?.estado === 'validating') {
+    return {
+      status: 'en_validacion',
+      tone: 'neutral',
+      title: `Tu pago de ${junta.nombre} está en validación`,
+      subtitle: `S/${next.schedule.monto.toFixed(2)} · Será confirmado por el receptor.`,
+      amount: next.schedule.monto,
+      dueDate,
+      dueTime,
+      remainingText: null,
+      juntaId: junta.id,
+      cuotaId: next.schedule.id,
+      juntaNombre: junta.nombre,
+      hasMultiplePending: pendingCandidates.length > 1
+    };
+  }
 
   if (dueDate.getTime() < now.getTime()) {
     return {
