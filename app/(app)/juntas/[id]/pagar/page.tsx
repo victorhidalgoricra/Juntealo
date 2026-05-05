@@ -12,7 +12,7 @@ import { isJuntaActive } from '@/lib/junta-status';
 import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { JuntaMember, Payment, Profile } from '@/types/domain';
-import { fetchExistingPaymentByMember, fetchJuntaActiveMembers, submitPayment } from '@/services/juntas.repository';
+import { fetchExistingPaymentByMember, fetchJuntaActiveMembers, fetchPaymentsByJuntaId, fetchSchedulesByJuntaId, submitPayment } from '@/services/juntas.repository';
 import { fetchReceiverPayoutInfo } from '@/services/profile.service';
 import { getParticipantDisplayName, getReceiverPaymentDetails } from '@/lib/payment-instructions';
 import {
@@ -42,6 +42,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
     ?? juntaSchedules[0];
   const isCreator = Boolean(user?.id && junta?.admin_id && user.id === junta.admin_id);
 
+  const [isLoadingSchedules, setIsLoadingSchedules] = useState(true);
   const [activeMembers, setActiveMembers] = useState<JuntaMember[] | null>(null);
   const [loadingMembership, setLoadingMembership] = useState(true);
   const [receiverProfile, setReceiverProfile] = useState<Partial<Profile> | null>(null);
@@ -80,6 +81,25 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
     if (!currentSchedule) return 'Ronda no disponible';
     return `Semana ${currentSchedule.cuota_numero} · vence ${formatCalendarDate(currentSchedule.fecha_vencimiento)}`;
   }, [currentSchedule]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoadingSchedules(true);
+      const [schedulesResult, paymentsResult] = await Promise.all([
+        fetchSchedulesByJuntaId(params.id),
+        fetchPaymentsByJuntaId(params.id),
+      ]);
+      if (schedulesResult.ok) {
+        setData({ schedules: [...schedules.filter((s) => s.junta_id !== params.id), ...schedulesResult.data] });
+      }
+      if (paymentsResult.ok) {
+        setData({ payments: [...payments.filter((p) => p.junta_id !== params.id), ...paymentsResult.data] });
+      }
+      setIsLoadingSchedules(false);
+    };
+    loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id]);
 
   useEffect(() => {
     if (!user) {
@@ -135,6 +155,15 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
+    console.debug('[PAYMENT LOAD STATE]', {
+      isLoadingSchedules,
+      schedulesLength: juntaSchedules.length,
+      currentSchedule,
+    });
+  }, [isLoadingSchedules, juntaSchedules.length, currentSchedule]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
     console.log('[Registrar pago debug]', {
       juntaId: junta?.id,
       juntaEstado: junta?.estado,
@@ -184,7 +213,23 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   }, [currentReceiverMember, receiverProfile]);
 
   if (!user) return <Card>Debes iniciar sesión.</Card>;
-  if (loadingMembership) return <Card>Verificando membresía...</Card>;
+  if (isLoadingSchedules || loadingMembership) return (
+    <div className="mx-auto max-w-2xl space-y-4">
+      <Card className="space-y-3 animate-pulse">
+        <div className="h-6 w-40 rounded bg-slate-200" />
+        <div className="h-4 w-32 rounded bg-slate-200" />
+        <div className="h-4 w-48 rounded bg-slate-200" />
+        <div className="h-4 w-36 rounded bg-slate-200" />
+      </Card>
+      <Card className="space-y-3 animate-pulse">
+        <div className="h-4 w-full rounded bg-slate-200" />
+        <div className="h-10 w-full rounded bg-slate-200" />
+        <div className="h-4 w-full rounded bg-slate-200" />
+        <div className="h-10 w-full rounded bg-slate-200" />
+      </Card>
+      <p className="text-center text-sm text-slate-500">Cargando tu cuota...</p>
+    </div>
+  );
   if (!isMember) return <Card>Solo los integrantes activos de esta junta pueden registrar pagos.</Card>;
   if (!junta || !currentSchedule) return <Card>No encontramos una cuota/ronda pendiente para esta junta.</Card>;
   if (!isJuntaActive(junta.estado)) return <Card>Aún no puedes registrar pagos porque la junta no está activa.</Card>;
