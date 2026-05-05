@@ -9,9 +9,12 @@
 -- This SECURITY DEFINER function bypasses RLS and enforces server-side that
 -- only the active receiver of the current round (or the admin) can act.
 
+-- Drop previous text-signature overload before redefining with enum parameter.
+drop function if exists public.approve_payment_by_receiver(uuid, text);
+
 create or replace function public.approve_payment_by_receiver(
-  p_payment_id uuid,
-  p_new_estado  text   -- 'aprobado' or 'rechazado'
+  p_payment_id  uuid,
+  p_new_estado  public.payment_estado
 )
 returns void
 language plpgsql
@@ -31,7 +34,7 @@ begin
     raise exception 'No autenticado';
   end if;
 
-  if p_new_estado not in ('aprobado', 'rechazado') then
+  if p_new_estado::text not in ('aprobado', 'rechazado') then
     raise exception 'Estado inválido: %', p_new_estado;
   end if;
 
@@ -44,7 +47,7 @@ begin
     raise exception 'Pago no encontrado: %', p_payment_id;
   end if;
 
-  if v_payment.estado = 'aprobado' then
+  if v_payment.estado::text = 'aprobado' then
     raise exception 'No se puede modificar un pago ya aprobado.';
   end if;
 
@@ -73,7 +76,7 @@ begin
     raise exception 'Solo el receptor del turno actual o el administrador puede aprobar o rechazar pagos.';
   end if;
 
-  v_payment_status := case p_new_estado
+  v_payment_status := case p_new_estado::text
     when 'aprobado'  then 'approved'
     when 'rechazado' then 'rejected'
   end;
@@ -88,4 +91,4 @@ begin
 end;
 $$;
 
-grant execute on function public.approve_payment_by_receiver(uuid, text) to authenticated;
+grant execute on function public.approve_payment_by_receiver(uuid, public.payment_estado) to authenticated;
