@@ -67,7 +67,11 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const { juntas, payments, schedules, payouts, setData } = useAppStore();
 
   const [mainView, setMainView] = useState<MainView>('general');
-  const [generalTab, setGeneralTab] = useState<GeneralTab>('integrantes');
+  const [generalTab, setGeneralTab] = useState<GeneralTab>(() => {
+    const tabParam = searchParams.get('tab');
+    const valid: GeneralTab[] = ['integrantes', 'cronograma', 'pagos', 'turnos'];
+    return valid.includes(tabParam as GeneralTab) ? (tabParam as GeneralTab) : 'integrantes';
+  });
   const [loadingJunta, setLoadingJunta] = useState(true);
   const [junta, setJunta] = useState<Junta | null>(juntas.find((j) => j.id === params.id) ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
