@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchSchedulesByJuntaId, fetchUserJuntaSnapshot, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, fetchUserJuntaSnapshot, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -75,6 +75,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [detailMembers, setDetailMembers] = useState<import('@/types/domain').JuntaMember[]>([]);
   const [detailPayments, setDetailPayments] = useState<typeof payments>([]);
   const [detailSchedules, setDetailSchedules] = useState<typeof schedules>([]);
+  const [detailPayouts, setDetailPayouts] = useState<typeof payouts>([]);
   const [paymentInfo, setPaymentInfo] = useState<string | null>(null);
   const [manualTurns, setManualTurns] = useState<Record<string, number>>({});
   const [activating, setActivating] = useState(false);
@@ -150,25 +151,31 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     const loadPhaseTwo = async () => {
       setPhaseTwoLoading(true);
 
-      // Always fetch payments and schedules directly from DB to avoid stale store
-      // state after re-login (store is cleared on logout and repopulated async).
-      const [paymentsResult, schedulesResult] = await Promise.all([
+      // Always fetch payments, schedules, and payouts directly from DB to avoid stale
+      // store state after re-login (store is cleared on logout and repopulated async).
+      // Payouts are critical for currentWeek calculation — a stale store count causes
+      // the UI to show the wrong round as "current", mismatching the backend.
+      const [paymentsResult, schedulesResult, payoutsResult] = await Promise.all([
         fetchPaymentsByJuntaId(junta.id),
         fetchSchedulesByJuntaId(junta.id),
+        fetchPayoutsByJuntaId(junta.id),
       ]);
 
       if (cancelled) return;
 
       const freshPayments = paymentsResult.ok ? paymentsResult.data : payments.filter((p) => p.junta_id === junta.id);
       const freshSchedules = schedulesResult.ok ? schedulesResult.data : schedules.filter((s) => s.junta_id === junta.id);
+      const freshPayouts = payoutsResult.ok ? payoutsResult.data : payouts.filter((p) => p.junta_id === junta.id);
 
       if (process.env.NODE_ENV === 'development') {
-        console.debug('[PAYMENT LOAD AFTER LOGIN DEBUG]', {
+        console.debug('[PHASE TWO LOAD DEBUG]', {
           juntaId: junta.id,
           currentUserId: user?.id,
+          authUid: user?.id,
+          completedPayoutsFromDB: freshPayouts.length,
+          derivedCurrentWeek: freshPayouts.length + 1,
           schedules: freshSchedules,
           rawPayments: freshPayments,
-          mappedPayments: freshPayments,
           currentUserPayment: freshPayments.find((p) => p.profile_id === user?.id),
           resolvedStatus: freshPayments.find((p) => p.profile_id === user?.id)?.estado ?? 'none',
         });
@@ -178,10 +185,12 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       setData({
         schedules: [...schedules.filter((s) => s.junta_id !== junta.id), ...freshSchedules],
         payments: [...payments.filter((p) => p.junta_id !== junta.id), ...freshPayments],
+        payouts: [...payouts.filter((p) => p.junta_id !== junta.id), ...freshPayouts],
       });
 
       setDetailPayments(freshPayments);
       setDetailSchedules(freshSchedules);
+      setDetailPayouts(freshPayouts);
       setPhaseTwoLoading(false);
     };
     loadPhaseTwo();
@@ -251,6 +260,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       if (refreshedJunta) setJunta(refreshedJunta);
       setDetailPayments(snapshotResult.data.payments.filter((payment) => payment.junta_id === params.id));
       setDetailSchedules(snapshotResult.data.schedules.filter((schedule) => schedule.junta_id === params.id));
+      setDetailPayouts(snapshotResult.data.payouts.filter((p) => p.junta_id === params.id));
     } else {
       // Fallback: snapshot falló, recarga solo los pagos de esta junta directamente
       const freshPayments = await fetchPaymentsByJuntaId(params.id);
@@ -272,7 +282,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
   const juntaActiva = isJuntaActive(junta.estado);
   const blockedByDeadline = isJuntaBlockedByDeadline(junta);
-  const completedPayouts = payouts.filter((p) => p.junta_id === junta.id).length;
+  // Use detailPayouts (fetched fresh from DB in loadPhaseTwo) to compute the current round.
+  // Using the store's `payouts` here caused stale-read bugs: if the store was empty or outdated,
+  // the UI would show the wrong round as "current", mismatching the backend's COUNT(*)+1 derivation.
+  const completedPayouts = detailPayouts.length;
   const currentWeek = Math.min(completedPayouts + 1, simulation.rows.length);
   const summary = getCurrentWeekSummary({
     junta,
@@ -373,17 +386,27 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
     if (process.env.NODE_ENV === 'development') {
       console.debug('[CONFIRM RECEIPT CLICK DEBUG]', {
-        juntaId: junta.id,
-        currentUserId: user?.id,
-        currentUserProfileId,
+        // Auth identity
+        authUserId: user?.id,
+        authUserEmail: user?.email,
+        // Profile resolved by UI
+        resolvedProfileId: currentUserProfileId,
+        // Current receiver as resolved by UI
         currentReceiverProfileId,
         receiverName: summary.receiver?.displayName,
+        receiverOrdenTurno: summary.receiver?.orden_turno,
+        // Round info — must match backend COUNT(*)+1
+        currentWeek,
+        completedPayoutsInDetailState: detailPayouts.length,
+        detailPayouts: detailPayouts.map((p) => ({ id: p.id, ronda: p.ronda_numero })),
+        // Gate flags
         isCurrentReceiver,
         canConfirmReceipt,
-        currentWeek,
-        amount,
         allPaymentsApproved,
+        amount,
         requiredPayers: requiredPayers.map((r) => ({ profileId: r.profileId, status: r.status })),
+        // Members for cross-check
+        juntaMembers: juntaMembers.map((m) => ({ profileId: m.profile_id, ordenTurno: m.orden_turno, nombre: m.nombre })),
       });
     }
 
