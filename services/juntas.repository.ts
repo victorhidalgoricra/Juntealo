@@ -893,7 +893,17 @@ export async function fetchUserPaymentNotifications(profileId: string) {
 
   if (!juntaIds.length) {
     if (process.env.NODE_ENV === 'development') {
-      console.debug('[MEMBER PAYMENT NOTIFICATIONS]', { profileId, memberships: [], activeJuntas: [], schedules: [], payments: [], notifications: [] });
+      console.debug('[PAYMENT NOTIFICATIONS DEBUG]', {
+        authUserId: profileId,
+        profileId,
+        membershipsFound: 0,
+        activeMemberships: [],
+        activeJuntas: [],
+        schedulesFound: 0,
+        paymentsFound: 0,
+        notificationsBuilt: 0,
+        reason: 'no_active_memberships_in_junta_members — check RLS on junta_members or member estado',
+      });
     }
     return {
       ok: true as const,
@@ -915,7 +925,17 @@ export async function fetchUserPaymentNotifications(profileId: string) {
 
   if (!activeJuntaIds.length) {
     if (process.env.NODE_ENV === 'development') {
-      console.debug('[MEMBER PAYMENT NOTIFICATIONS]', { profileId, memberships: memberships ?? [], activeJuntas: [], schedules: [], payments: [], notifications: [] });
+      console.debug('[PAYMENT NOTIFICATIONS DEBUG]', {
+        authUserId: profileId,
+        profileId,
+        membershipsFound: juntaIds.length,
+        activeMemberships: juntaIds,
+        activeJuntas: [],
+        schedulesFound: 0,
+        paymentsFound: 0,
+        notificationsBuilt: 0,
+        reason: 'member_juntas_not_activa_or_rls_blocked_on_juntas — check juntas.estado and RLS policy on juntas table',
+      });
     }
     return {
       ok: true as const,
@@ -944,19 +964,29 @@ export async function fetchUserPaymentNotifications(profileId: string) {
   if (process.env.NODE_ENV === 'development') {
     const schedules = schedulesResult.data ?? [];
     const payments = paymentsResult.data ?? [];
-    const notifications = schedules.filter((schedule) => {
+    const notificationsBuilt = schedules.filter((schedule) => {
       const payment = payments.find((p) => p.schedule_id === schedule.id);
       if (!payment) return true;
       const s = payment.payment_status ?? payment.estado;
       return s !== 'aprobado' && s !== 'approved' && s !== 'pagado' && s !== 'en_validacion' && s !== 'pendiente_aprobacion' && s !== 'submitted' && s !== 'validando' && s !== 'validating';
-    });
-    console.debug('[MEMBER PAYMENT NOTIFICATIONS]', {
+    }).length;
+    console.debug('[PAYMENT NOTIFICATIONS DEBUG]', {
+      authUserId: profileId,
       profileId,
-      memberships: memberships ?? [],
-      activeJuntas: juntasData ?? [],
-      schedules,
-      payments,
-      notifications,
+      membershipsFound: juntaIds.length,
+      activeMemberships: juntaIds,
+      activeJuntas: activeJuntaIds,
+      schedulesFound: schedules.length,
+      paymentsFound: payments.length,
+      notificationsBuilt,
+      // SQL para diagnóstico manual (reemplaza EMAIL_DEL_USUARIO_USER):
+      // select jm.profile_id, p.email, jm.junta_id, j.nombre, j.estado as junta_estado,
+      //        jm.estado as member_estado, jm.orden_turno
+      // from public.junta_members jm
+      // join public.profiles p on p.id = jm.profile_id
+      // join public.juntas j on j.id = jm.junta_id
+      // where p.email = 'EMAIL_DEL_USUARIO_USER'
+      // order by j.created_at desc;
     });
   }
 
