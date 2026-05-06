@@ -478,12 +478,24 @@ export default function DashboardPage() {
 
   const paymentAlert = useMemo(() => {
     if (notifPayload) {
+      const juntaIds = notifPayload.juntas.map((j) => j.id);
+      // Prefer store payments for the current user — they are updated immediately after
+      // submitPayment (optimistic), while notifPayload may be stale when the user
+      // navigates back to the dashboard from the payment page without a full remount.
+      const storeUserPayments = safePayments.filter(
+        (p) => p.profile_id === userId && juntaIds.includes(p.junta_id)
+      );
+      const storeIds = new Set(storeUserPayments.map((p) => p.id));
+      const mergedPayments = [
+        ...storeUserPayments,
+        ...notifPayload.payments.filter((p) => !storeIds.has(p.id)),
+      ];
       return getPaymentAlertState({
         userId,
-        myJuntaIds: notifPayload.juntas.map((j) => j.id),
+        myJuntaIds: juntaIds,
         juntas: notifPayload.juntas,
         schedules: notifPayload.schedules,
-        payments: notifPayload.payments
+        payments: mergedPayments
       });
     }
     return getPaymentAlertState({

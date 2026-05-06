@@ -12,7 +12,7 @@ import { isJuntaActive } from '@/lib/junta-status';
 import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { JuntaMember, Payment, Profile } from '@/types/domain';
-import { fetchExistingPaymentByMember, fetchJuntaActiveMembers, fetchPaymentsByJuntaId, fetchSchedulesByJuntaId, submitPayment } from '@/services/juntas.repository';
+import { fetchExistingPaymentByMember, fetchJuntaActiveMembers, fetchJuntaById, fetchPaymentsByJuntaId, fetchSchedulesByJuntaId, submitPayment } from '@/services/juntas.repository';
 import { fetchReceiverPayoutInfo } from '@/services/profile.service';
 import { getParticipantDisplayName, getReceiverPaymentDetails } from '@/lib/payment-instructions';
 import {
@@ -28,6 +28,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const { juntas, schedules, payments, setData } = useAppStore();
+  const [loadingJunta, setLoadingJunta] = useState(true);
 
   const junta = juntas.find((item) => item.id === params.id);
   const juntaSchedules = schedules
@@ -85,9 +86,10 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const loadData = async () => {
       setIsLoadingSchedules(true);
-      const [schedulesResult, paymentsResult] = await Promise.all([
+      const [schedulesResult, paymentsResult, juntaResult] = await Promise.all([
         fetchSchedulesByJuntaId(params.id),
         fetchPaymentsByJuntaId(params.id),
+        fetchJuntaById(params.id),
       ]);
       if (schedulesResult.ok) {
         setData({ schedules: [...schedules.filter((s) => s.junta_id !== params.id), ...schedulesResult.data] });
@@ -95,7 +97,11 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
       if (paymentsResult.ok) {
         setData({ payments: [...payments.filter((p) => p.junta_id !== params.id), ...paymentsResult.data] });
       }
+      if (juntaResult.ok && juntaResult.data) {
+        setData({ juntas: [...juntas.filter((j) => j.id !== params.id), juntaResult.data] });
+      }
       setIsLoadingSchedules(false);
+      setLoadingJunta(false);
     };
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -213,7 +219,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   }, [currentReceiverMember, receiverProfile]);
 
   if (!user) return <Card>Debes iniciar sesión.</Card>;
-  if (isLoadingSchedules || loadingMembership) return (
+  if (isLoadingSchedules || loadingMembership || loadingJunta) return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Card className="space-y-3 animate-pulse">
         <div className="h-6 w-40 rounded bg-slate-200" />
@@ -331,11 +337,21 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
       };
 
       const prevPaymentId = existingPayment?.id;
-      setData({
-        payments: prevPaymentId
-          ? payments.map((payment) => (payment.id === prevPaymentId ? { ...payment, ...nextPayment } : payment))
-          : [...payments.filter((p) => !(p.junta_id === junta.id && p.profile_id === user.id && p.schedule_id === confirmedScheduleId)), nextPayment]
-      });
+      const updatedPayments = prevPaymentId
+        ? payments.map((payment) => (payment.id === prevPaymentId ? { ...payment, ...nextPayment } : payment))
+        : [...payments.filter((p) => !(p.junta_id === junta.id && p.profile_id === user.id && p.schedule_id === confirmedScheduleId)), nextPayment];
+      setData({ payments: updatedPayments });
+
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[PAYMENT FLOW SYNC]', {
+          afterPayment: true,
+          profileId: user.id,
+          juntaId: junta.id,
+          scheduleId: confirmedScheduleId,
+          newEstado: nextStatus,
+          paymentsInStore: updatedPayments.filter((p) => p.junta_id === junta.id),
+        });
+      }
 
       setMessage('Tu pago fue enviado correctamente y está pendiente de validación');
       setTimeout(() => router.push(`/juntas/${junta.id}?view=participante`), 900);
