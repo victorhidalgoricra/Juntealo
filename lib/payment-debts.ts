@@ -58,7 +58,12 @@ export function buildPaymentDebtItems(params: {
       );
 
       const dueDate = parseCalendarDate(schedule.fecha_vencimiento);
-      const status: PaymentDebtStatus = userPayment?.estado === 'approved'
+      // Treat submitted/validating/approved/pagado as "handled" — don't show a pending CTA.
+      const paymentIsHandled = userPayment?.estado === 'approved'
+        || userPayment?.estado === 'submitted'
+        || userPayment?.estado === 'validating'
+        || (userPayment?.estado as string) === 'pagado';
+      const status: PaymentDebtStatus = paymentIsHandled
         ? 'pagada'
         : dueDate.getTime() < now.getTime()
           ? 'vencida'

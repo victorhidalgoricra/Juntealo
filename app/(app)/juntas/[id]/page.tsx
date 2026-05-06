@@ -214,7 +214,19 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     if (searchParams.get('view') !== 'participante') return;
     if (refreshedAfterPayRef.current) return;
     refreshedAfterPayRef.current = true;
-    refreshSnapshot();
+    refreshSnapshot().then(() => {
+      if (process.env.NODE_ENV === 'development') {
+        // Log post-payment sync state so we can verify the store reflects the
+        // submitted payment before the user navigates to the dashboard.
+        console.debug('[PAYMENT FLOW SYNC]', {
+          afterPayment: true,
+          profileId: user?.id,
+          juntaId: params.id,
+          paymentsInStore: payments.filter((p) => p.junta_id === params.id),
+          schedulesInStore: schedules.filter((s) => s.junta_id === params.id),
+        });
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessState, user?.id, searchParams]);
 
