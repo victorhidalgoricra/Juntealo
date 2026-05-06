@@ -3,9 +3,9 @@ import { EstadoPago } from '@/types/domain';
 export type PaymentLifecycleStatus = 'pending' | 'submitted' | 'validating' | 'approved' | 'rejected' | 'overdue';
 
 export function normalizePaymentStatus(status?: EstadoPago | string): PaymentLifecycleStatus {
-  if (status === 'aprobado' || status === 'approved') return 'approved';
+  if (status === 'aprobado' || status === 'approved' || status === 'pagado') return 'approved';
   if (status === 'rechazado' || status === 'rejected') return 'rejected';
-  if (status === 'pendiente_aprobacion' || status === 'submitted') return 'submitted';
+  if (status === 'pendiente_aprobacion' || status === 'submitted' || status === 'en_validacion') return 'submitted';
   if (status === 'validando' || status === 'validating') return 'validating';
   if (status === 'overdue') return 'overdue';
   return 'pending';

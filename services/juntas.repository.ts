@@ -893,7 +893,7 @@ export async function fetchUserPaymentNotifications(profileId: string) {
 
   if (!juntaIds.length) {
     if (process.env.NODE_ENV === 'development') {
-      console.debug('[PAYMENT NOTIFICATIONS]', { profileId, totalMemberships: 0, notifications: 0 });
+      console.debug('[MEMBER PAYMENT NOTIFICATIONS]', { profileId, memberships: [], activeJuntas: [], schedules: [], payments: [], notifications: [] });
     }
     return {
       ok: true as const,
@@ -915,7 +915,7 @@ export async function fetchUserPaymentNotifications(profileId: string) {
 
   if (!activeJuntaIds.length) {
     if (process.env.NODE_ENV === 'development') {
-      console.debug('[PAYMENT NOTIFICATIONS]', { profileId, totalMemberships: juntaIds.length, notifications: 0 });
+      console.debug('[MEMBER PAYMENT NOTIFICATIONS]', { profileId, memberships: memberships ?? [], activeJuntas: [], schedules: [], payments: [], notifications: [] });
     }
     return {
       ok: true as const,
@@ -942,18 +942,21 @@ export async function fetchUserPaymentNotifications(profileId: string) {
   if (paymentsResult.error) return { ok: false as const, message: mapSupabaseErrorMessage(paymentsResult.error.message) };
 
   if (process.env.NODE_ENV === 'development') {
-    console.debug('[PAYMENT NOTIFICATIONS]', {
+    const schedules = schedulesResult.data ?? [];
+    const payments = paymentsResult.data ?? [];
+    const notifications = schedules.filter((schedule) => {
+      const payment = payments.find((p) => p.schedule_id === schedule.id);
+      if (!payment) return true;
+      const s = payment.payment_status ?? payment.estado;
+      return s !== 'aprobado' && s !== 'approved' && s !== 'pagado' && s !== 'en_validacion' && s !== 'pendiente_aprobacion' && s !== 'submitted' && s !== 'validando' && s !== 'validating';
+    });
+    console.debug('[MEMBER PAYMENT NOTIFICATIONS]', {
       profileId,
-      totalMemberships: juntaIds.length,
-      activeJuntas: activeJuntaIds.length,
-      pendingSchedules: schedulesResult.data?.length ?? 0,
-      userPayments: paymentsResult.data?.length ?? 0,
-      paymentEstados: (paymentsResult.data ?? []).map((p) => ({
-        id: p.id,
-        scheduleId: p.schedule_id,
-        estado: p.estado,
-        payment_status: p.payment_status,
-      })),
+      memberships: memberships ?? [],
+      activeJuntas: juntasData ?? [],
+      schedules,
+      payments,
+      notifications,
     });
   }
 
