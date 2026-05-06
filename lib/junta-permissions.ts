@@ -13,15 +13,14 @@ export function canDeleteJunta(
   if (!currentUserId) return false;
 
   const isCreator = row.admin_id === currentUserId;
-  const isDraft = row.estado === 'borrador';
+  const isDeletableEstado = row.estado === 'borrador' || row.estado === 'cerrada';
   const isDeletedOrBlocked =
     Boolean(row.deleted_at) ||
     row.estado === 'eliminada' ||
     row.estado === 'bloqueada' ||
     row.bloqueada === true;
 
-  // Estado is the source of truth: borrador = deletable, activa = not deletable.
-  // fecha_inicio is intentionally not checked — a borrador junta on its start date
-  // has not yet activated and the creator should still be able to cancel it.
-  return isCreator && isDraft && !isDeletedOrBlocked;
+  // Creators can delete drafts (before activation) and finalized juntas (cerrada).
+  // Active juntas cannot be deleted to protect in-progress rounds.
+  return isCreator && isDeletableEstado && !isDeletedOrBlocked;
 }
