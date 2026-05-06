@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { EstadoCuota, EstadoJunta, EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
+import { EstadoJunta, EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
 
 const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
 
@@ -872,130 +872,57 @@ export async function updatePaymentStatus(params: {
 }
 
 export async function fetchUserPaymentNotifications(profileId: string) {
+  const empty = { juntas: [] as Junta[], schedules: [] as PaymentSchedule[], payments: [] as Payment[] };
+
   if (!hasSupabase || !supabase) {
-    return {
-      ok: true as const,
-      data: { juntas: [] as Junta[], schedules: [] as PaymentSchedule[], payments: [] as Payment[] }
-    };
+    return { ok: true as const, data: empty };
   }
 
-  // Start from junta_members — never from juntas.admin_id
-  const { data: memberships, error: membershipError } = await supabase
+  // Use a SECURITY DEFINER RPC that bypasses RLS entirely.
+  // Resolves the bug where regular members (rol=participante) couldn't see
+  // payment_schedules or payments due to is_junta_member() not evaluating
+  // correctly inside RLS policies for non-owner members.
+  const { data, error } = await supabase
     .schema('public')
-    .from('junta_members')
-    .select('junta_id')
-    .eq('profile_id', profileId)
-    .eq('estado', 'activo');
+    .rpc('get_member_payment_notifications', { p_profile_id: profileId });
 
-  if (membershipError) return { ok: false as const, message: mapSupabaseErrorMessage(membershipError.message) };
-
-  const juntaIds = (memberships ?? []).map((m) => m.junta_id);
-
-  if (!juntaIds.length) {
+  if (error) {
     if (process.env.NODE_ENV === 'development') {
-      console.debug('[PAYMENT NOTIFICATIONS DEBUG]', {
-        authUserId: profileId,
-        profileId,
-        membershipsFound: 0,
-        activeMemberships: [],
-        activeJuntas: [],
-        schedulesFound: 0,
-        paymentsFound: 0,
-        notificationsBuilt: 0,
-        reason: 'no_active_memberships_in_junta_members — check RLS on junta_members or member estado',
-      });
+      console.error('[PAYMENT NOTIFICATIONS] RPC error', { profileId, error });
     }
-    return {
-      ok: true as const,
-      data: { juntas: [] as Junta[], schedules: [] as PaymentSchedule[], payments: [] as Payment[] }
-    };
+    return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
   }
 
-  // Only fetch active juntas — no borrador, no cerrada
-  const { data: juntasData, error: juntasError } = await supabase
-    .schema('public')
-    .from('juntas')
-    .select('id,admin_id,nombre,estado,slug,invite_token,access_code,bloqueada,tipo_junta,incentivo_porcentaje,incentivo_regla,turn_assignment_mode,cuota_base,bolsa_base,moneda,participantes_max,monto_cuota,premio_primero_pct,descuento_ultimo_pct,fee_plataforma_pct,frecuencia_pago,fecha_inicio,dia_limite_pago,penalidad_mora,visibilidad,cerrar_inscripciones,created_at,integrantes_actuales')
-    .in('id', juntaIds)
-    .eq('estado', 'activa' as EstadoJunta);
-
-  if (juntasError) return { ok: false as const, message: mapSupabaseErrorMessage(juntasError.message) };
-
-  const activeJuntaIds = (juntasData ?? []).map((j) => j.id);
-
-  if (!activeJuntaIds.length) {
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('[PAYMENT NOTIFICATIONS DEBUG]', {
-        authUserId: profileId,
-        profileId,
-        membershipsFound: juntaIds.length,
-        activeMemberships: juntaIds,
-        activeJuntas: [],
-        schedulesFound: 0,
-        paymentsFound: 0,
-        notificationsBuilt: 0,
-        reason: 'member_juntas_not_activa_or_rls_blocked_on_juntas — check juntas.estado and RLS policy on juntas table',
-      });
-    }
-    return {
-      ok: true as const,
-      data: { juntas: [] as Junta[], schedules: [] as PaymentSchedule[], payments: [] as Payment[] }
-    };
+  if (!data) {
+    return { ok: true as const, data: empty };
   }
 
-  const [schedulesResult, paymentsResult] = await Promise.all([
-    supabase
-      .schema('public')
-      .from('payment_schedules')
-      .select('id,junta_id,cuota_numero,fecha_vencimiento,monto,estado')
-      .in('junta_id', activeJuntaIds)
-      .in('estado', ['pendiente', 'vencida'] as EstadoCuota[]),
-    supabase
-      .schema('public')
-      .from('payments')
-      .select('id,junta_id,schedule_id,round_id,member_id,profile_id,expected_amount,submitted_amount,monto,estado,receipt_url,comprobante_url,payment_method,operation_number,participant_note,payment_status,submitted_at,internal_note,validated_at,validated_by,rejection_reason,pagado_en')
-      .eq('profile_id', profileId)
-      .in('junta_id', activeJuntaIds)
-  ]);
-
-  if (schedulesResult.error) return { ok: false as const, message: mapSupabaseErrorMessage(schedulesResult.error.message) };
-  if (paymentsResult.error) return { ok: false as const, message: mapSupabaseErrorMessage(paymentsResult.error.message) };
+  const payload = data as { juntas: Junta[]; schedules: PaymentSchedule[]; payments: Payment[] };
 
   if (process.env.NODE_ENV === 'development') {
-    const schedules = schedulesResult.data ?? [];
-    const payments = paymentsResult.data ?? [];
+    const schedules = payload.schedules ?? [];
+    const payments = payload.payments ?? [];
     const notificationsBuilt = schedules.filter((schedule) => {
       const payment = payments.find((p) => p.schedule_id === schedule.id);
       if (!payment) return true;
-      const s = payment.payment_status ?? payment.estado;
+      const s: string = (payment.payment_status ?? payment.estado) as string;
       return s !== 'aprobado' && s !== 'approved' && s !== 'pagado' && s !== 'en_validacion' && s !== 'pendiente_aprobacion' && s !== 'submitted' && s !== 'validando' && s !== 'validating';
     }).length;
-    console.debug('[PAYMENT NOTIFICATIONS DEBUG]', {
-      authUserId: profileId,
+    console.debug('[PAYMENT NOTIFICATIONS]', {
       profileId,
-      membershipsFound: juntaIds.length,
-      activeMemberships: juntaIds,
-      activeJuntas: activeJuntaIds,
+      juntasFound: (payload.juntas ?? []).length,
       schedulesFound: schedules.length,
       paymentsFound: payments.length,
       notificationsBuilt,
-      // SQL para diagnóstico manual (reemplaza EMAIL_DEL_USUARIO_USER):
-      // select jm.profile_id, p.email, jm.junta_id, j.nombre, j.estado as junta_estado,
-      //        jm.estado as member_estado, jm.orden_turno
-      // from public.junta_members jm
-      // join public.profiles p on p.id = jm.profile_id
-      // join public.juntas j on j.id = jm.junta_id
-      // where p.email = 'EMAIL_DEL_USUARIO_USER'
-      // order by j.created_at desc;
     });
   }
 
   return {
     ok: true as const,
     data: {
-      juntas: (juntasData ?? []) as Junta[],
-      schedules: (schedulesResult.data ?? []) as PaymentSchedule[],
-      payments: (paymentsResult.data ?? []) as Payment[]
-    }
+      juntas: (payload.juntas ?? []) as Junta[],
+      schedules: (payload.schedules ?? []) as PaymentSchedule[],
+      payments: (payload.payments ?? []) as Payment[],
+    },
   };
 }
