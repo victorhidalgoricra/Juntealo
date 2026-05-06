@@ -452,19 +452,7 @@ export default function DashboardPage() {
   // Queries from junta_members (not admin_id) so both creators and participants are covered.
   useEffect(() => {
     if (!user?.id) return;
-    const authUserId = user.id;
-    const globalRole = user.global_role ?? 'user';
-    fetchUserPaymentNotifications(authUserId).then((result) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('[PAYMENT NOTIFICATIONS DEBUG] dashboard', {
-          authUserId,
-          globalRole,
-          ok: result.ok,
-          juntas: result.ok ? result.data.juntas.length : 'fetch_error',
-          schedules: result.ok ? result.data.schedules.length : 'fetch_error',
-          payments: result.ok ? result.data.payments.length : 'fetch_error',
-        });
-      }
+    fetchUserPaymentNotifications(user.id).then((result) => {
       if (!result.ok) return;
       setNotifPayload(result.data);
     });
