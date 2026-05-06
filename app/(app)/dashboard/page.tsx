@@ -490,6 +490,15 @@ export default function DashboardPage() {
         ...storeUserPayments,
         ...notifPayload.payments.filter((p) => !storeIds.has(p.id)),
       ];
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[DASHBOARD PAYMENT MERGE]', {
+          source: 'notifPayload',
+          storePayments: storeUserPayments.map((p) => ({ id: p.id, estado: p.estado, payment_status: p.payment_status })),
+          dbPayments: notifPayload.payments.map((p) => ({ id: p.id, estado: p.estado, payment_status: p.payment_status })),
+          mergedPayments: mergedPayments.map((p) => ({ id: p.id, estado: p.estado, payment_status: p.payment_status })),
+        });
+      }
+
       return getPaymentAlertState({
         userId,
         myJuntaIds: juntaIds,
@@ -498,6 +507,14 @@ export default function DashboardPage() {
         payments: mergedPayments
       });
     }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[DASHBOARD PAYMENT MERGE]', {
+        source: 'storeOnly',
+        payments: safePayments.filter((p) => p.profile_id === userId).map((p) => ({ id: p.id, estado: p.estado, payment_status: p.payment_status })),
+      });
+    }
+
     return getPaymentAlertState({
       userId,
       myJuntaIds,
