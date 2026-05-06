@@ -45,6 +45,7 @@ export function buildPaymentDebtItems(params: {
     .map((schedule) => {
       const junta = params.juntas.find((item) => item.id === schedule.junta_id);
       if (!junta) return null;
+      if (junta.estado === 'cerrada') return null;
 
       const juntaMembers = params.members.filter((member) => member.junta_id === junta.id);
       const receiver = getCurrentRoundReceiver({ schedule, members: juntaMembers });

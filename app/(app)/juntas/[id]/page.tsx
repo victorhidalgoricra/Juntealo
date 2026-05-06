@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, confirmPayout, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, deleteDraftJunta, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -86,6 +86,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [activating, setActivating] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [isConfirmingReceipt, setIsConfirmingReceipt] = useState(false);
+  const [isDeletingJunta, setIsDeletingJunta] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -315,7 +316,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     schedules: detailSchedules,
     currentWeek,
     userId: user?.id,
-    juntaActiva
+    juntaActiva: juntaActiva || juntaFinalizada
   });
   const paidParticipants = getPaidParticipants(summary.rows);
   const pendingPayers = getPendingPayers(summary.rows);
@@ -325,7 +326,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       rows: simulation.rows.map((row) => ({ ...row })),
       currentWeek,
       receiverTurn: juntaMembers.find((member) => member.profile_id === user?.id)?.orden_turno ?? null
-    })
+    }).map((row) => juntaFinalizada ? { ...row, weekStatus: 'Entregado' as const, isCurrentWeek: false } : row)
     : [];
   const personal = getUserPersonalJuntaView({
     junta,
@@ -340,6 +341,25 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     incentivoPorcentaje: junta.incentivo_porcentaje,
     incentivoRegla: junta.incentivo_regla
   });
+
+  // When finalizada, override counters so the UI reflects full completion
+  // regardless of any historical data inconsistencies.
+  const displayPaid = juntaFinalizada ? summary.rows.length : summary.paid;
+  const displayPending = juntaFinalizada ? 0 : summary.pending;
+
+  const handleDeleteJunta = async () => {
+    if (!isOwner || !junta || isDeletingJunta) return;
+    const confirmed = window.confirm('¿Seguro que deseas eliminar esta junta? Esta acción no se puede deshacer.');
+    if (!confirmed) return;
+    setIsDeletingJunta(true);
+    const result = await deleteDraftJunta({ juntaId: junta.id, currentProfileId: user!.id });
+    if (!result.ok) {
+      setPaymentInfo((result as { ok: false; message: string }).message ?? 'No se pudo eliminar la junta.');
+      setIsDeletingJunta(false);
+      return;
+    }
+    router.push('/juntas');
+  };
 
   const handleCopyLink = async () => {
     const origin = window.location.origin;
@@ -512,6 +532,15 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             >
               {copyStatus === 'copied' ? 'Enlace copiado' : copyStatus === 'error' ? 'Error al copiar' : 'Copiar enlace'}
             </Button>
+            {isOwner && juntaFinalizada && (
+              <Button
+                variant="outline"
+                onClick={handleDeleteJunta}
+                disabled={isDeletingJunta}
+              >
+                {isDeletingJunta ? 'Eliminando…' : 'Eliminar'}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -533,9 +562,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           {phaseTwoLoading && <Card className="p-3 text-sm text-slate-500">Cargando pagos, cronograma e integrantes…</Card>}
           <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
             <Card className="p-3"><p className="text-xs text-slate-500">Bolsa semana</p><p className="text-2xl font-semibold">S/{((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}</p></Card>
-            <Card className="p-3"><p className="text-xs text-slate-500">Pagos esta semana</p><p className="text-2xl font-semibold">{summary.paid}/{summary.rows.length}</p></Card>
+            <Card className="p-3"><p className="text-xs text-slate-500">Pagos esta semana</p><p className="text-2xl font-semibold">{displayPaid}/{summary.rows.length}</p></Card>
             <Card className="p-3"><p className="text-xs text-slate-500">Turno actual</p><p className="text-2xl font-semibold">#{currentWeek}</p></Card>
-            <Card className="p-3"><p className="text-xs text-slate-500">Pendientes</p><p className="text-2xl font-semibold">{summary.pending}</p></Card>
+            <Card className="p-3"><p className="text-xs text-slate-500">Pendientes</p><p className="text-2xl font-semibold">{displayPending}</p></Card>
             <Card className="p-3"><p className="text-xs text-slate-500">Fecha límite de pago</p><p className="text-2xl font-semibold">{currentRoundDueDate}</p></Card>
           </div>
 
@@ -606,10 +635,12 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   {pendingPayers.map((row) => (
                     <div key={row.id} className="space-y-2">
                       <JuntaPaymentStatusRow row={row} />
-                      <div className="flex gap-2 pl-2">
-                        <Button variant="ghost" onClick={() => alert('Las notificaciones automáticas estarán disponibles próximamente. Por ahora usa WhatsApp para contactar al integrante.')}>Reenviar recordatorio</Button>
-                        <Button variant="ghost" onClick={() => openWhatsAppReminder(row)}>WhatsApp</Button>
-                      </div>
+                      {!juntaFinalizada && (
+                        <div className="flex gap-2 pl-2">
+                          <Button variant="ghost" onClick={() => alert('Las notificaciones automáticas estarán disponibles próximamente. Por ahora usa WhatsApp para contactar al integrante.')}>Reenviar recordatorio</Button>
+                          <Button variant="ghost" onClick={() => openWhatsAppReminder(row)}>WhatsApp</Button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </Card>
@@ -645,7 +676,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               </div>
               <div className="space-y-2">
                 {summary.rows.map((row) => (
-                  <JuntaPaymentStatusRow key={row.id} row={row} showPayAction onPay={() => router.push(`/juntas/${junta.id}/registrar-pago`)} />
+                  <JuntaPaymentStatusRow key={row.id} row={row} showPayAction={!juntaFinalizada} onPay={() => router.push(`/juntas/${junta.id}/registrar-pago`)} />
                 ))}
               </div>
             </Card>
@@ -794,7 +825,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             <div className="flex items-center gap-2"><JuntaScoreBadge score={personal.myRow?.score ?? 70} /><span className="text-xs text-slate-300">Confianza visible para el grupo</span></div>
           </Card>
 
-          {personal.myRow && personal.myRow.status !== 'Pagado' && personal.myRow.status !== 'Recibe' && (
+          {!juntaFinalizada && personal.myRow && personal.myRow.status !== 'Pagado' && personal.myRow.status !== 'Recibe' && (
             <Card className="border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
               Esta semana debes pagar S/{personal.myRow.amount.toFixed(2)}{junta.tipo_junta === 'incentivo' ? ' (incluye ajustes por incentivos).' : '.'}
             </Card>
@@ -829,7 +860,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                 <p>Ajuste: {junta.tipo_junta === 'incentivo' ? incentiveLabel : 'No aplica'}</p>
                 <p>{personal.progressLabel}</p>
               </div>
-              {personal.myRow?.status !== 'Pagado' && personal.myRow?.status !== 'Validando' && (
+              {!juntaFinalizada && personal.myRow?.status !== 'Pagado' && personal.myRow?.status !== 'Validando' && (
                 <Button onClick={() => router.push(`/juntas/${junta.id}/registrar-pago`)}>Pagar ahora →</Button>
               )}
               {personal.myRow?.status === 'Pagado' && <p className="text-sm font-medium text-emerald-600">Ya enviaste tu pago.</p>}
@@ -851,7 +882,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                 {scheduleRows.map((row) => {
                   const isCurrent = row.turno === currentWeek;
                   const isMine = row.isUserTurn;
-                  const status = row.turno < currentWeek ? 'Pagado' : isCurrent ? 'Pagar' : isMine ? 'Tu turno' : 'Por venir';
+                  const status = juntaFinalizada ? 'Pagado' : row.turno < currentWeek ? 'Pagado' : isCurrent ? 'Pagar' : isMine ? 'Tu turno' : 'Por venir';
                   return (
                     <tr key={row.turno} className="border-t">
                       <td className="px-3 py-2">Semana {row.turno}</td>
