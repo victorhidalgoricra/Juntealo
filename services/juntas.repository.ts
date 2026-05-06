@@ -945,7 +945,15 @@ export async function fetchUserPaymentNotifications(profileId: string) {
     console.debug('[PAYMENT NOTIFICATIONS]', {
       profileId,
       totalMemberships: juntaIds.length,
-      notifications: schedulesResult.data?.length ?? 0,
+      activeJuntas: activeJuntaIds.length,
+      pendingSchedules: schedulesResult.data?.length ?? 0,
+      userPayments: paymentsResult.data?.length ?? 0,
+      paymentEstados: (paymentsResult.data ?? []).map((p) => ({
+        id: p.id,
+        scheduleId: p.schedule_id,
+        estado: p.estado,
+        payment_status: p.payment_status,
+      })),
     });
   }
 

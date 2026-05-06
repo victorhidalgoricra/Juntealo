@@ -1,6 +1,7 @@
 import { format, formatDistanceToNowStrict, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Junta, Payment, PaymentSchedule } from '@/types/domain';
+import { normalizePaymentStatus } from './payment-status';
 
 export type PaymentAlertStatus = 'upcoming' | 'due_today' | 'overdue' | 'paid' | 'none' | 'en_validacion';
 
@@ -54,6 +55,12 @@ function getRemainingText(dueDate: Date, now: Date) {
   return `Quedan ${diffHours} ${diffHours === 1 ? 'hora' : 'horas'}.`;
 }
 
+// Normalize payment estado using both payment_status (reliable English field from DB)
+// and estado (may be Spanish DB-native like 'pendiente_aprobacion' or English from store).
+function resolvePaymentNormalizedStatus(payment: Payment) {
+  return normalizePaymentStatus(payment.payment_status ?? payment.estado);
+}
+
 export function getPaymentAlertState(params: {
   userId: string;
   myJuntaIds: string[];
@@ -73,20 +80,37 @@ export function getPaymentAlertState(params: {
           && item.junta_id === schedule.junta_id
           && item.schedule_id === schedule.id
       );
+      const normalizedStatus = payment ? resolvePaymentNormalizedStatus(payment) : undefined;
 
-      return { schedule, payment };
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[DASHBOARD PAYMENT NOTIFICATIONS]', {
+          profileId: params.userId,
+          juntaId: schedule.junta_id,
+          scheduleId: schedule.id,
+          paymentEstado: payment?.estado ?? null,
+          paymentStatus: payment?.payment_status ?? null,
+          normalizedStatus: normalizedStatus ?? 'no_payment',
+          shouldShowNotification: normalizedStatus == null || normalizedStatus === 'rejected' || normalizedStatus === 'overdue' || normalizedStatus === 'pending',
+        });
+      }
+
+      return { schedule, payment, normalizedStatus };
     })
-    .filter((item) => item.payment?.estado !== 'approved')
+    // Suppress approved (and any Spanish equivalents via normalization) — rejected stays visible to re-pay
+    .filter((item) => item.normalizedStatus !== 'approved')
     .sort((a, b) => new Date(a.schedule.fecha_vencimiento).getTime() - new Date(b.schedule.fecha_vencimiento).getTime());
 
   const hasPaidCandidate = params.schedules
     .filter((schedule) => params.myJuntaIds.includes(schedule.junta_id))
     .filter((schedule) => schedule.estado === 'pendiente' || schedule.estado === 'vencida' || schedule.estado === 'pagada')
-    .some((schedule) => params.payments.some((payment) =>
-      payment.profile_id === params.userId
-      && payment.junta_id === schedule.junta_id
-      && payment.schedule_id === schedule.id
-      && payment.estado === 'approved'));
+    .some((schedule) => params.payments.some((payment) => {
+      if (
+        payment.profile_id !== params.userId
+        || payment.junta_id !== schedule.junta_id
+        || payment.schedule_id !== schedule.id
+      ) return false;
+      return resolvePaymentNormalizedStatus(payment) === 'approved';
+    }));
 
   if (pendingCandidates.length === 0) {
     return {
@@ -111,7 +135,9 @@ export function getPaymentAlertState(params: {
   const { dueDate, dueTime } = parseDueDate(next.schedule.fecha_vencimiento);
   const remainingText = getRemainingText(dueDate, now);
 
-  if (next.payment?.estado === 'submitted' || next.payment?.estado === 'validating') {
+  // Check via normalized status so both 'submitted'/'validating' (store) and
+  // 'pendiente_aprobacion' (DB-native Spanish) are handled correctly.
+  if (next.normalizedStatus === 'submitted' || next.normalizedStatus === 'validating') {
     return {
       status: 'en_validacion',
       tone: 'neutral',
