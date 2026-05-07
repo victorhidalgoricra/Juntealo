@@ -69,17 +69,50 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user?.id) return;
 
-    fetchUserJuntaSnapshot(user.id).then((result) => {
-      if (!result.ok) return;
-      setData({
-        juntas: result.data.juntas,
-        members: result.data.members,
-        schedules: result.data.schedules,
-        payments: result.data.payments,
-        payouts: result.data.payouts
+    let cancelled = false;
+    console.log('[dashboard] loading juntas start');
+
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        console.warn('[dashboard] loading timeout – forcing ready');
+        setIsDataReady(true);
+      }
+    }, 10000);
+
+    fetchUserJuntaSnapshot(user.id)
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.ok) {
+          console.error('[dashboard] juntas fetch failed:', result.message);
+          return;
+        }
+        console.log('[dashboard] memberships loaded', result.data.members.length);
+        console.log('[dashboard] schedules loaded', result.data.schedules.length);
+        console.log('[dashboard] final juntas', result.data.juntas.length);
+        setData({
+          juntas: result.data.juntas,
+          members: result.data.members,
+          schedules: result.data.schedules,
+          payments: result.data.payments,
+          payouts: result.data.payouts
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('[dashboard] loading juntas error', err);
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
+        if (!cancelled) {
+          console.log('[dashboard] loading juntas end');
+          setIsDataReady(true);
+        }
       });
-      setIsDataReady(true);
-    });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
   }, [setData, setIsDataReady, user?.id]);
 
   if (!user) {
