@@ -439,6 +439,7 @@ export default function DashboardPage() {
     juntas: Junta[];
     schedules: PaymentSchedule[];
     payments: Payment[];
+    payouts: Payout[];
   } | null>(null);
   const userId = user?.id ?? '';
 
@@ -490,12 +491,21 @@ export default function DashboardPage() {
         ...storeUserPayments,
         ...notifPayload.payments.filter((p) => !storeIds.has(p.id)),
       ];
+      // Use notifPayload.payouts (from SECURITY DEFINER RPC) for turn detection.
+      // safePayouts from the store may be empty if the payouts table RLS blocks
+      // direct queries for regular members, which would cause currentCuota = 1
+      // and allow past-turn vencida schedules to incorrectly win the banner.
+      const alertPayouts = notifPayload.payouts.length > 0 ? notifPayload.payouts : safePayouts;
+
       if (process.env.NODE_ENV === 'development') {
         console.debug('[DASHBOARD PAYMENT MERGE]', {
           source: 'notifPayload',
           storePayments: storeUserPayments.map((p) => ({ id: p.id, estado: p.estado, payment_status: p.payment_status })),
           dbPayments: notifPayload.payments.map((p) => ({ id: p.id, estado: p.estado, payment_status: p.payment_status })),
           mergedPayments: mergedPayments.map((p) => ({ id: p.id, estado: p.estado, payment_status: p.payment_status })),
+          notifPayloadPayouts: notifPayload.payouts.map((po) => ({ id: po.id, juntaId: po.junta_id, rondaNumero: po.ronda_numero, entregadoEn: po.entregado_en })),
+          safePayoutsCount: safePayouts.length,
+          alertPayoutsSource: notifPayload.payouts.length > 0 ? 'notifPayload' : 'store',
         });
       }
 
@@ -505,7 +515,7 @@ export default function DashboardPage() {
         juntas: notifPayload.juntas,
         schedules: notifPayload.schedules,
         payments: mergedPayments,
-        payouts: safePayouts
+        payouts: alertPayouts
       });
     }
 
@@ -513,6 +523,7 @@ export default function DashboardPage() {
       console.debug('[DASHBOARD PAYMENT MERGE]', {
         source: 'storeOnly',
         payments: safePayments.filter((p) => p.profile_id === userId).map((p) => ({ id: p.id, estado: p.estado, payment_status: p.payment_status })),
+        safePayoutsCount: safePayouts.length,
       });
     }
 

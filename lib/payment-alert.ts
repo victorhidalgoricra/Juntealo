@@ -72,15 +72,25 @@ export function getPaymentAlertState(params: {
 }): PaymentAlertState {
   const now = params.now ?? new Date();
 
-  // Derive the current cuota_numero per junta from completed payouts.
-  // Only schedules for the active turno (completedPayouts + 1) are considered —
-  // this prevents past-turno vencida schedules from polluting the banner.
+  // Derive the current cuota_numero per junta from DELIVERED payouts only.
+  // entregado_en marks actual disbursement — pre-assigned but undelivered payouts
+  // must NOT be counted, otherwise currentCuota is inflated and no schedule matches.
   const currentCuotaByJunta = new Map<string, number>();
   if (params.payouts) {
     for (const juntaId of params.myJuntaIds) {
-      const completed = params.payouts.filter((p) => p.junta_id === juntaId).length;
+      const completed = params.payouts.filter((p) => p.junta_id === juntaId && p.entregado_en != null).length;
       currentCuotaByJunta.set(juntaId, completed + 1);
     }
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[PAYMENT ALERT] currentCuotaByJunta', {
+      userId: params.userId,
+      payoutsTotal: (params.payouts ?? []).length,
+      payoutsDelivered: (params.payouts ?? []).filter((p) => p.entregado_en != null).length,
+      currentCuotaByJunta: Object.fromEntries(currentCuotaByJunta),
+      schedulesReceived: params.schedules.map((s) => ({ id: s.id, juntaId: s.junta_id, cuotaNumero: s.cuota_numero, estado: s.estado, fechaVencimiento: s.fecha_vencimiento })),
+    });
   }
 
   const pendingCandidates = params.schedules
@@ -129,6 +139,23 @@ export function getPaymentAlertState(params: {
       return resolvePaymentNormalizedStatus(payment) === 'approved';
     }));
 
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[PAYMENT ALERT] pendingCandidates', {
+      userId: params.userId,
+      count: pendingCandidates.length,
+      candidates: pendingCandidates.map((c) => ({
+        scheduleId: c.schedule.id,
+        juntaId: c.schedule.junta_id,
+        turnoId: c.schedule.cuota_numero,
+        dueDate: c.schedule.fecha_vencimiento,
+        scheduleEstado: c.schedule.estado,
+        paymentId: c.payment?.id ?? null,
+        paymentEstado: c.payment?.estado ?? null,
+        normalizedStatus: c.normalizedStatus ?? 'no_payment',
+      })),
+    });
+  }
+
   if (pendingCandidates.length === 0) {
     return {
       status: hasPaidCandidate ? 'paid' : 'none',
@@ -152,10 +179,12 @@ export function getPaymentAlertState(params: {
   const { dueDate, dueTime } = parseDueDate(next.schedule.fecha_vencimiento);
   const remainingText = getRemainingText(dueDate, now);
 
+  let result: PaymentAlertState;
+
   // Check via normalized status so both 'submitted'/'validating' (store) and
   // 'pendiente_aprobacion' (DB-native Spanish) are handled correctly.
   if (next.normalizedStatus === 'submitted' || next.normalizedStatus === 'validating') {
-    return {
+    result = {
       status: 'en_validacion',
       tone: 'neutral',
       title: `Tu pago de ${junta.nombre} está en validación`,
@@ -169,10 +198,8 @@ export function getPaymentAlertState(params: {
       juntaNombre: junta.nombre,
       hasMultiplePending: pendingCandidates.length > 1
     };
-  }
-
-  if (dueDate.getTime() < now.getTime()) {
-    return {
+  } else if (dueDate.getTime() < now.getTime()) {
+    result = {
       status: 'overdue',
       tone: 'destructive',
       title: `Tienes un pago vencido de S/${next.schedule.monto.toFixed(2)}`,
@@ -186,10 +213,8 @@ export function getPaymentAlertState(params: {
       juntaNombre: junta.nombre,
       hasMultiplePending: pendingCandidates.length > 1
     };
-  }
-
-  if (isSameDay(dueDate, now)) {
-    return {
+  } else if (isSameDay(dueDate, now)) {
+    result = {
       status: 'due_today',
       tone: 'warning',
       title: `Tienes hasta hoy ${dueTime ?? '23:59'} para pagar S/${next.schedule.monto.toFixed(2)}`,
@@ -203,20 +228,36 @@ export function getPaymentAlertState(params: {
       juntaNombre: junta.nombre,
       hasMultiplePending: pendingCandidates.length > 1
     };
+  } else {
+    result = {
+      status: 'upcoming',
+      tone: 'warning',
+      title: `Tu próximo pago vence el ${format(dueDate, "dd 'de' MMMM, HH:mm", { locale: es })}`,
+      subtitle: `${junta.nombre} · S/${next.schedule.monto.toFixed(2)}`,
+      amount: next.schedule.monto,
+      dueDate,
+      dueTime,
+      remainingText,
+      juntaId: junta.id,
+      cuotaId: next.schedule.id,
+      juntaNombre: junta.nombre,
+      hasMultiplePending: pendingCandidates.length > 1
+    };
   }
 
-  return {
-    status: 'upcoming',
-    tone: 'warning',
-    title: `Tu próximo pago vence el ${format(dueDate, "dd 'de' MMMM, HH:mm", { locale: es })}`,
-    subtitle: `${junta.nombre} · S/${next.schedule.monto.toFixed(2)}`,
-    amount: next.schedule.monto,
-    dueDate,
-    dueTime,
-    remainingText,
-    juntaId: junta.id,
-    cuotaId: next.schedule.id,
-    juntaNombre: junta.nombre,
-    hasMultiplePending: pendingCandidates.length > 1
-  };
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[PAYMENT ALERT RESULT]', {
+      status: result.status,
+      paymentId: next.payment?.id ?? null,
+      juntaId: result.juntaId,
+      juntaName: result.juntaNombre,
+      turnoId: next.schedule.cuota_numero,
+      scheduleId: result.cuotaId,
+      dueDate: result.dueDate?.toISOString() ?? null,
+      estado: next.payment?.estado ?? 'sin_pago',
+      source: 'getPaymentAlertState',
+    });
+  }
+
+  return result;
 }
