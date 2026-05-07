@@ -157,6 +157,13 @@ function getActiveJuntas(params: {
         .slice()
         .sort((a, b) => parseCalendarDate(a.fecha_vencimiento).getTime() - parseCalendarDate(b.fecha_vencimiento).getTime())[0];
 
+      // Only show a real turn number when the junta is active AND has a generated schedule.
+      // orden_turno is assigned at join time (before activation), so it must not be
+      // displayed until the cronograma is official.
+      const turno = junta.estado === 'activa' && juntaSchedules.length > 0
+        ? (myTurnMap.get(junta.id) ?? null)
+        : null;
+
       return {
         id: junta.id,
         nombre: junta.nombre,
@@ -164,7 +171,7 @@ function getActiveJuntas(params: {
         cuota: Number(junta.cuota_base ?? junta.monto_cuota ?? 0),
         frecuencia: junta.frecuencia_pago,
         tipo: junta.tipo_junta ?? 'normal',
-        turno: myTurnMap.get(junta.id) ?? null,
+        turno,
         nextDate: nextSchedule ? parseCalendarDate(nextSchedule.fecha_vencimiento) : null,
         status: hasPending ? 'pendiente' : 'al_dia'
       };
@@ -331,6 +338,24 @@ function ContributionSummaryCards({ summary }: { summary: ContributionSummaryDat
   );
 }
 
+function JuntaSkeletonItem() {
+  return (
+    <Card className="flex items-center justify-between gap-3 p-4">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 animate-pulse rounded-xl bg-slate-200" />
+        <div className="space-y-2">
+          <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
+          <div className="h-3 w-48 animate-pulse rounded bg-slate-200" />
+        </div>
+      </div>
+      <div className="space-y-2 text-right">
+        <div className="ml-auto h-4 w-20 animate-pulse rounded bg-slate-200" />
+        <div className="ml-auto h-3 w-14 animate-pulse rounded bg-slate-200" />
+      </div>
+    </Card>
+  );
+}
+
 function JuntaListItem({ item }: { item: JuntaCardData }) {
   return (
     <Link href={`/juntas/${item.id}`}>
@@ -354,7 +379,7 @@ function JuntaListItem({ item }: { item: JuntaCardData }) {
   );
 }
 
-function ActiveJuntasSection({ active, history }: { active: JuntaCardData[]; history: JuntaCardData[] }) {
+function ActiveJuntasSection({ active, history, isLoading }: { active: JuntaCardData[]; history: JuntaCardData[]; isLoading: boolean }) {
   const [tab, setTab] = useState<'activas' | 'historial'>('activas');
   const data = tab === 'activas' ? active : history;
 
@@ -370,7 +395,11 @@ function ActiveJuntasSection({ active, history }: { active: JuntaCardData[]; his
         <button type="button" onClick={() => setTab('historial')} className={`rounded-[var(--r-sm)] border px-4 py-1.5 text-sm transition-colors ${tab === 'historial' ? 'border-accent text-accent' : 'border-border text-muted'}`}>Historial</button>
       </div>
 
-      {data.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <JuntaSkeletonItem key={i} />)}
+        </div>
+      ) : data.length === 0 ? (
         <Card className="p-5 text-sm text-muted">{tab === 'activas' ? 'Aún no tienes juntas activas. Únete o crea una junta para empezar.' : 'Todavía no tienes historial de juntas finalizadas.'}</Card>
       ) : (
         <div className="space-y-2">
@@ -428,7 +457,7 @@ function NextLevelSection({ data }: { data: NextLevelData }) {
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
-  const { juntas, schedules, payments, members, payouts } = useAppStore();
+  const { juntas, schedules, payments, members, payouts, isDataReady } = useAppStore();
   const safeJuntas = useMemo(() => (Array.isArray(juntas) ? juntas : []), [juntas]);
   const safeSchedules = useMemo(() => (Array.isArray(schedules) ? schedules : []), [schedules]);
   const safePayments = useMemo(() => (Array.isArray(payments) ? payments : []), [payments]);
@@ -617,7 +646,7 @@ export default function DashboardPage() {
 
       <ContributionSummaryCards summary={contributionSummary} />
 
-      <ActiveJuntasSection active={activeJuntas} history={historyJuntas} />
+      <ActiveJuntasSection active={activeJuntas} history={historyJuntas} isLoading={!isDataReady} />
 
       <NextLevelSection data={nextLevel} />
 
