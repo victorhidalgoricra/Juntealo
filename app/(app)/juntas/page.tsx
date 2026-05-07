@@ -119,7 +119,9 @@ export default function JuntasDisponiblesPage() {
     const normalizedQuery = query.trim().toLowerCase();
 
     return allJuntas.filter((j) => {
-      const isMine = j.admin_id === user?.id || isUserMember({ juntaId: j.id, userId: user?.id, members: allMembers });
+      const isMine = j.admin_id === user?.id
+        || Boolean(j.is_member_current_user)
+        || isUserMember({ juntaId: j.id, userId: user?.id, members: allMembers });
       const passesFilter =
         activeFilter === 'todas' ||
         (activeFilter === 'publica' && j.visibilidad === 'publica') ||
