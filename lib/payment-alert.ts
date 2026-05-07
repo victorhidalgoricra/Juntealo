@@ -1,6 +1,6 @@
 import { format, formatDistanceToNowStrict, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Junta, Payment, PaymentSchedule } from '@/types/domain';
+import { Junta, Payment, PaymentSchedule, Payout } from '@/types/domain';
 import { normalizePaymentStatus } from './payment-status';
 
 export type PaymentAlertStatus = 'upcoming' | 'due_today' | 'overdue' | 'paid' | 'none' | 'en_validacion';
@@ -67,12 +67,29 @@ export function getPaymentAlertState(params: {
   juntas: Junta[];
   schedules: PaymentSchedule[];
   payments: Payment[];
+  payouts?: Payout[];
   now?: Date;
 }): PaymentAlertState {
   const now = params.now ?? new Date();
+
+  // Derive the current cuota_numero per junta from completed payouts.
+  // Only schedules for the active turno (completedPayouts + 1) are considered —
+  // this prevents past-turno vencida schedules from polluting the banner.
+  const currentCuotaByJunta = new Map<string, number>();
+  if (params.payouts) {
+    for (const juntaId of params.myJuntaIds) {
+      const completed = params.payouts.filter((p) => p.junta_id === juntaId).length;
+      currentCuotaByJunta.set(juntaId, completed + 1);
+    }
+  }
+
   const pendingCandidates = params.schedules
     .filter((schedule) => params.myJuntaIds.includes(schedule.junta_id))
     .filter((schedule) => schedule.estado === 'pendiente' || schedule.estado === 'vencida')
+    .filter((schedule) => {
+      const currentCuota = currentCuotaByJunta.get(schedule.junta_id);
+      return currentCuota === undefined || schedule.cuota_numero === currentCuota;
+    })
     .map((schedule) => {
       const payment = params.payments.find(
         (item) =>

@@ -504,7 +504,8 @@ export default function DashboardPage() {
         myJuntaIds: juntaIds,
         juntas: notifPayload.juntas,
         schedules: notifPayload.schedules,
-        payments: mergedPayments
+        payments: mergedPayments,
+        payouts: safePayouts
       });
     }
 
@@ -520,9 +521,10 @@ export default function DashboardPage() {
       myJuntaIds,
       juntas: safeJuntas,
       schedules: safeSchedules,
-      payments: safePayments
+      payments: safePayments,
+      payouts: safePayouts
     });
-  }, [notifPayload, userId, myJuntaIds, safeJuntas, safeSchedules, safePayments]);
+  }, [notifPayload, userId, myJuntaIds, safeJuntas, safeSchedules, safePayments, safePayouts]);
 
   if (!user) return <Card>Necesitas iniciar sesión para ver tu dashboard.</Card>;
 
