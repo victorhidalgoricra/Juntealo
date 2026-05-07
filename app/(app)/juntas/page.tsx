@@ -35,6 +35,8 @@ const filters = [
 
 type FilterId = (typeof filters)[number]['id'];
 
+const ITEMS_PER_PAGE = 6;
+
 export default function JuntasDisponiblesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -57,6 +59,7 @@ export default function JuntasDisponiblesPage() {
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterId>('todas');
+  const [currentPage, setCurrentPage] = useState(1);
   const autoJoinTriggered = useRef(false);
 
   const reloadCatalog = useCallback(async () => {
@@ -131,6 +134,29 @@ export default function JuntasDisponiblesPage() {
       return passesFilter && passesQuery;
     });
   }, [activeFilter, allJuntas, allMembers, query, user?.id]);
+
+  const totalPages = useMemo(() => Math.ceil(visibleJuntas.length / ITEMS_PER_PAGE), [visibleJuntas.length]);
+
+  const paginatedJuntas = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return visibleJuntas.slice(start, start + ITEMS_PER_PAGE);
+  }, [visibleJuntas, currentPage]);
+
+  const pageNumbers = useMemo((): (number | string)[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages: (number | string)[] = [1];
+    if (currentPage > 3) pages.push('ellipsis-start');
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      pages.push(i);
+    }
+    if (currentPage < totalPages - 2) pages.push('ellipsis-end');
+    pages.push(totalPages);
+    return pages;
+  }, [totalPages, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, activeFilter]);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
@@ -416,6 +442,11 @@ export default function JuntasDisponiblesPage() {
     }
   };
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="space-y-6">
       <Card className="space-y-4 border-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 p-6 text-white shadow-xl">
@@ -473,8 +504,15 @@ export default function JuntasDisponiblesPage() {
           <Link href="/juntas/new"><Button>Crear nueva junta</Button></Link>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {visibleJuntas.map((j) => {
+        <>
+          <div className="flex items-center justify-between text-sm text-slate-500">
+            <p>
+              Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, visibleJuntas.length)} de {visibleJuntas.length} {visibleJuntas.length === 1 ? 'junta' : 'juntas'}
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {paginatedJuntas.map((j) => {
             const juntaId = j.id;
             const isOwner = j.admin_id === user.id;
             const isMember =
@@ -613,7 +651,51 @@ export default function JuntasDisponiblesPage() {
               </Card>
             );
           })}
-        </div>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex flex-col items-center gap-3 pt-2">
+              <div className="flex flex-wrap items-center justify-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                >
+                  Anterior
+                </Button>
+
+                {pageNumbers.map((page) =>
+                  typeof page === 'string' ? (
+                    <span key={page} className="px-2 text-slate-400 select-none">…</span>
+                  ) : (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => handlePageChange(page)}
+                      className={`min-w-[2rem] rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                        currentPage === page
+                          ? 'bg-slate-900 text-white'
+                          : 'border border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === totalPages}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       ))}
     </div>
   );
