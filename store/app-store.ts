@@ -11,7 +11,9 @@ type State = {
   payments: Payment[];
   payouts: Payout[];
   notifications: Notification[];
-  setData: (partial: Partial<State>) => void;
+  isDataReady: boolean;
+  setData: (partial: Partial<Omit<State, 'setData' | 'addNotification' | 'setIsDataReady'>>) => void;
+  setIsDataReady: (v: boolean) => void;
   addNotification: (notification: Omit<Notification, 'id' | 'created_at'> & { id?: string; created_at?: string }) => void;
 };
 
@@ -24,7 +26,9 @@ export const useAppStore = create<State>()(
       payments: [],
       payouts: [],
       notifications: [],
+      isDataReady: false,
       setData: (partial) => set((state) => ({ ...state, ...partial })),
+      setIsDataReady: (v) => set((state) => ({ ...state, isDataReady: v })),
       addNotification: (notification) => set((state) => ({
         ...state,
         notifications: [
@@ -37,6 +41,16 @@ export const useAppStore = create<State>()(
         ]
       }))
     }),
-    { name: 'jd-app' }
+    {
+      name: 'jd-app',
+      partialize: (state) => ({
+        juntas: state.juntas,
+        members: state.members,
+        schedules: state.schedules,
+        payments: state.payments,
+        payouts: state.payouts,
+        notifications: state.notifications,
+      })
+    }
   )
 );

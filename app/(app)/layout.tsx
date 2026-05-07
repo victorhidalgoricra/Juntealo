@@ -17,6 +17,7 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, setUser } = useAuthStore();
   const setData = useAppStore((s) => s.setData);
+  const setIsDataReady = useAppStore((s) => s.setIsDataReady);
 
   useEffect(() => {
     let mounted = true;
@@ -77,8 +78,9 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
         payments: result.data.payments,
         payouts: result.data.payouts
       });
+      setIsDataReady(true);
     });
-  }, [setData, user?.id]);
+  }, [setData, setIsDataReady, user?.id]);
 
   if (!user) {
     return (
