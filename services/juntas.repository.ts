@@ -872,7 +872,7 @@ export async function updatePaymentStatus(params: {
 }
 
 export async function fetchUserPaymentNotifications(profileId: string) {
-  const empty = { juntas: [] as Junta[], schedules: [] as PaymentSchedule[], payments: [] as Payment[] };
+  const empty = { juntas: [] as Junta[], schedules: [] as PaymentSchedule[], payments: [] as Payment[], payouts: [] as Payout[] };
 
   if (!hasSupabase || !supabase) {
     return { ok: true as const, data: empty };
@@ -897,22 +897,24 @@ export async function fetchUserPaymentNotifications(profileId: string) {
     return { ok: true as const, data: empty };
   }
 
-  const payload = data as { juntas: Junta[]; schedules: PaymentSchedule[]; payments: Payment[] };
+  const payload = data as { juntas: Junta[]; schedules: PaymentSchedule[]; payments: Payment[]; payouts: Payout[] };
 
   if (process.env.NODE_ENV === 'development') {
     const schedules = payload.schedules ?? [];
     const payments = payload.payments ?? [];
+    const payouts = payload.payouts ?? [];
     const notificationsBuilt = schedules.filter((schedule) => {
       const payment = payments.find((p) => p.schedule_id === schedule.id);
       if (!payment) return true;
       const s: string = (payment.payment_status ?? payment.estado) as string;
       return s !== 'aprobado' && s !== 'approved' && s !== 'pagado' && s !== 'en_validacion' && s !== 'pendiente_aprobacion' && s !== 'submitted' && s !== 'validando' && s !== 'validating';
     }).length;
-    console.debug('[PAYMENT NOTIFICATIONS]', {
+    console.debug('[PAYMENT NOTIFICATIONS RPC]', {
       profileId,
-      juntasFound: (payload.juntas ?? []).length,
-      schedulesFound: schedules.length,
-      paymentsFound: payments.length,
+      juntasFound: (payload.juntas ?? []).map((j) => ({ id: j.id, nombre: j.nombre })),
+      schedulesFound: schedules.map((s) => ({ id: s.id, juntaId: s.junta_id, cuotaNumero: s.cuota_numero, estado: s.estado, fechaVencimiento: s.fecha_vencimiento })),
+      paymentsFound: payments.map((p) => ({ id: p.id, scheduleId: p.schedule_id, estado: p.estado, paymentStatus: p.payment_status })),
+      payoutsDelivered: payouts.map((po) => ({ id: po.id, juntaId: po.junta_id, rondaNumero: po.ronda_numero, entregadoEn: po.entregado_en })),
       notificationsBuilt,
     });
   }
@@ -923,6 +925,7 @@ export async function fetchUserPaymentNotifications(profileId: string) {
       juntas: (payload.juntas ?? []) as Junta[],
       schedules: (payload.schedules ?? []) as PaymentSchedule[],
       payments: (payload.payments ?? []) as Payment[],
+      payouts: (payload.payouts ?? []) as Payout[],
     },
   };
 }
