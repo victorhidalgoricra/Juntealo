@@ -93,12 +93,14 @@ export function getPaymentAlertState(params: {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    console.debug('[PAYMENT ALERT] currentCuotaByJunta', {
+    console.debug('[PAYMENT ALERT] candidateSchedules (pre-filter)', {
       userId: params.userId,
+      activeJuntaIds: params.myJuntaIds,
       payoutsTotal: (params.payouts ?? []).length,
       payoutsDelivered: (params.payouts ?? []).filter((p) => p.entregado_en != null).length,
       currentCuotaByJunta: Object.fromEntries(currentCuotaByJunta),
-      schedulesReceived: params.schedules.map((s) => ({ id: s.id, juntaId: s.junta_id, cuotaNumero: s.cuota_numero, estado: s.estado, fechaVencimiento: s.fecha_vencimiento })),
+      candidateSchedules: params.schedules.map((s) => ({ id: s.id, juntaId: s.junta_id, cuotaNumero: s.cuota_numero, estado: s.estado, monto: s.monto, fechaVencimiento: s.fecha_vencimiento })),
+      validPayments: params.payments.filter((p) => p.profile_id === params.userId).map((p) => ({ id: p.id, juntaId: p.junta_id, scheduleId: p.schedule_id, estado: p.estado, paymentStatus: p.payment_status })),
     });
   }
 
@@ -198,18 +200,20 @@ export function getPaymentAlertState(params: {
     }));
 
   if (process.env.NODE_ENV === 'development') {
-    console.debug('[PAYMENT ALERT] pendingCandidates', {
+    console.debug('[PAYMENT ALERT] pendingCandidates (post-filter)', {
       userId: params.userId,
       count: pendingCandidates.length,
       candidates: pendingCandidates.map((c) => ({
         scheduleId: c.schedule.id,
         juntaId: c.schedule.junta_id,
-        turnoId: c.schedule.cuota_numero,
+        cuotaNumero: c.schedule.cuota_numero,
+        monto: c.schedule.monto,
         dueDate: c.schedule.fecha_vencimiento,
         scheduleEstado: c.schedule.estado,
         paymentId: c.payment?.id ?? null,
         paymentEstado: c.payment?.estado ?? null,
         normalizedStatus: c.normalizedStatus ?? 'no_payment',
+        isCovered: c.isCoveredBySubmittedOrApprovedPayment,
       })),
     });
   }
@@ -304,19 +308,18 @@ export function getPaymentAlertState(params: {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    console.debug('[PAYMENT ALERT RESULT]', {
+    console.debug('[PAYMENT ALERT] finalPaymentAlert', {
       status: result.status,
-      finalAlertType: result.status,
-      paymentId: next.payment?.id ?? null,
-      scheduleId: result.cuotaId,
       juntaId: result.juntaId,
-      juntaName: result.juntaNombre,
+      juntaNombre: result.juntaNombre,
+      scheduleId: result.cuotaId,
       cuotaNumero: next.schedule.cuota_numero,
+      monto: result.amount,
       dueDate: result.dueDate?.toISOString() ?? null,
-      estado: next.payment?.estado ?? 'sin_pago',
-      payment_status: next.payment?.payment_status ?? null,
-      isCoveredBySubmittedOrApprovedPayment: next.isCoveredBySubmittedOrApprovedPayment,
-      source: 'getPaymentAlertState',
+      paymentId: next.payment?.id ?? null,
+      paymentEstado: next.payment?.estado ?? 'sin_pago',
+      paymentStatus: next.payment?.payment_status ?? null,
+      isCovered: next.isCoveredBySubmittedOrApprovedPayment,
     });
   }
 

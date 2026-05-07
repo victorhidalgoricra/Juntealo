@@ -498,14 +498,12 @@ export default function DashboardPage() {
       const alertPayouts = notifPayload.payouts.length > 0 ? notifPayload.payouts : safePayouts;
 
       if (process.env.NODE_ENV === 'development') {
-        console.debug('[DASHBOARD PAYMENT MERGE]', {
+        console.debug('[PAYMENT ALERT] activeMemberships (via RPC)', {
           source: 'notifPayload',
-          storePayments: storeUserPayments.map((p) => ({ id: p.id, estado: p.estado, payment_status: p.payment_status })),
-          dbPayments: notifPayload.payments.map((p) => ({ id: p.id, estado: p.estado, payment_status: p.payment_status })),
-          mergedPayments: mergedPayments.map((p) => ({ id: p.id, estado: p.estado, payment_status: p.payment_status })),
-          notifPayloadPayouts: notifPayload.payouts.map((po) => ({ id: po.id, juntaId: po.junta_id, rondaNumero: po.ronda_numero, entregadoEn: po.entregado_en })),
-          safePayoutsCount: safePayouts.length,
-          alertPayoutsSource: notifPayload.payouts.length > 0 ? 'notifPayload' : 'store',
+          activeJuntas: notifPayload.juntas.map((j) => ({ id: j.id, nombre: j.nombre, estado: j.estado })),
+          candidateSchedules: notifPayload.schedules.map((s) => ({ id: s.id, juntaId: s.junta_id, cuotaNumero: s.cuota_numero, estado: s.estado, monto: s.monto, fechaVencimiento: s.fecha_vencimiento })),
+          validPayments: mergedPayments.map((p) => ({ id: p.id, juntaId: p.junta_id, scheduleId: p.schedule_id, estado: p.estado, paymentStatus: p.payment_status })),
+          payoutsDelivered: alertPayouts.map((po) => ({ id: po.id, juntaId: po.junta_id, rondaNumero: po.ronda_numero, entregadoEn: po.entregado_en })),
         });
       }
 
@@ -519,27 +517,25 @@ export default function DashboardPage() {
       });
     }
 
-    // Mirror RPC logic exactly: only active memberships (estado='activo') in active juntas
-    // (estado='activa'). Without this filter, historical/inactive junta data from the
-    // store causes false overdue banners for users with no current active membership.
-    const activeMemberJuntaIds = new Set(
-      safeMembers
-        .filter((m) => m.profile_id === userId && m.estado === 'activo')
-        .map((m) => m.junta_id)
-    );
+    // Store-only fallback (before RPC resolves): mirror RPC filters exactly.
+    // active memberships (estado='activo') → active juntas (estado='activa', not deleted/blocked)
+    const activeMemberships = safeMembers.filter((m) => m.profile_id === userId && m.estado === 'activo');
+    const activeMemberJuntaIds = new Set(activeMemberships.map((m) => m.junta_id));
     const storeAlertJuntas = safeJuntas.filter(
-      (j) => activeMemberJuntaIds.has(j.id) && j.estado === 'activa' && !j.deleted_at
+      (j) => activeMemberJuntaIds.has(j.id) && j.estado === 'activa' && !j.deleted_at && !j.bloqueada
     );
     const storeAlertJuntaIds = storeAlertJuntas.map((j) => j.id);
+    const candidateSchedules = safeSchedules.filter((s) => storeAlertJuntaIds.includes(s.junta_id));
+    const relevantPayments = safePayments.filter((p) => p.profile_id === userId && storeAlertJuntaIds.includes(p.junta_id));
 
     if (process.env.NODE_ENV === 'development') {
-      console.debug('[DASHBOARD PAYMENT MERGE]', {
+      console.debug('[PAYMENT ALERT] activeMemberships (store fallback)', {
         source: 'storeOnly',
         userId,
-        activeMemberJuntaIds: Array.from(activeMemberJuntaIds),
-        storeAlertJuntaIds,
-        storeAlertJuntas: storeAlertJuntas.map((j) => ({ id: j.id, nombre: j.nombre, estado: j.estado })),
-        payments: safePayments.filter((p) => p.profile_id === userId).map((p) => ({ id: p.id, juntaId: p.junta_id, estado: p.estado, payment_status: p.payment_status })),
+        activeMemberships: activeMemberships.map((m) => ({ juntaId: m.junta_id, estado: m.estado })),
+        activeJuntas: storeAlertJuntas.map((j) => ({ id: j.id, nombre: j.nombre, estado: j.estado, deletedAt: j.deleted_at, bloqueada: j.bloqueada })),
+        candidateSchedules: candidateSchedules.map((s) => ({ id: s.id, juntaId: s.junta_id, cuotaNumero: s.cuota_numero, estado: s.estado, monto: s.monto })),
+        validPayments: relevantPayments.map((p) => ({ id: p.id, juntaId: p.junta_id, scheduleId: p.schedule_id, estado: p.estado, paymentStatus: p.payment_status })),
         safePayoutsCount: safePayouts.length,
       });
     }
@@ -548,8 +544,8 @@ export default function DashboardPage() {
       userId,
       myJuntaIds: storeAlertJuntaIds,
       juntas: storeAlertJuntas,
-      schedules: safeSchedules,
-      payments: safePayments,
+      schedules: candidateSchedules,
+      payments: relevantPayments,
       payouts: safePayouts
     });
   }, [notifPayload, userId, safeMembers, safeJuntas, safeSchedules, safePayments, safePayouts]);
