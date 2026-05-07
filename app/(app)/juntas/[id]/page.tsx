@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, confirmPayout, deleteDraftJunta, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, deleteDraftJunta, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, joinJuntaAsParticipant, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -75,7 +75,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [loadingJunta, setLoadingJunta] = useState(true);
   const [junta, setJunta] = useState<Junta | null>(juntas.find((j) => j.id === params.id) ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [accessState, setAccessState] = useState<'checking' | 'allowed' | 'unauthorized' | 'blocked' | 'not_found'>('checking');
+  const [accessState, setAccessState] = useState<'checking' | 'allowed' | 'unauthorized' | 'blocked' | 'not_found' | 'can_join'>('checking');
+  const [joiningFromPreview, setJoiningFromPreview] = useState(false);
+  const [joinPreviewError, setJoinPreviewError] = useState<string | null>(null);
   const [phaseTwoLoading, setPhaseTwoLoading] = useState(false);
   const [detailMembers, setDetailMembers] = useState<import('@/types/domain').JuntaMember[]>([]);
   const [detailPayments, setDetailPayments] = useState<typeof payments>([]);
@@ -131,13 +133,19 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           ? membershipResult.isActiveMember
           : activeMembers.some((member) => member.profile_id === user.id);
         const hasAccess = isCreator || isActiveMember;
-        if (!hasAccess) {
-          setAccessState('unauthorized');
-          return;
-        }
 
         if (isJuntaBlockedByDeadline(resolvedJunta)) {
           setAccessState('blocked');
+          return;
+        }
+
+        if (!hasAccess) {
+          const codeParam = searchParams.get('code');
+          if (resolvedJunta.visibilidad === 'privada' && codeParam) {
+            setAccessState('can_join');
+          } else {
+            setAccessState('unauthorized');
+          }
           return;
         }
 
@@ -290,11 +298,58 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     if (juntaResult.ok && juntaResult.data) setJunta(juntaResult.data);
   };
 
+  const handleJoinFromPreview = async () => {
+    if (!user || !junta) return;
+    const codeParam = searchParams.get('code');
+    setJoiningFromPreview(true);
+    setJoinPreviewError(null);
+    const result = await joinJuntaAsParticipant({ juntaId: junta.id, profileId: user.id, accessCode: codeParam ?? undefined });
+    if (!result.ok) {
+      setJoinPreviewError(result.message);
+      setJoiningFromPreview(false);
+      return;
+    }
+    window.location.href = `/juntas/${junta.id}`;
+  };
+
   if (loadingJunta) return <Card>Cargando junta...</Card>;
   if (loadError) return <Card><p className="text-sm text-red-600">No pudimos cargar la junta: {loadError}</p></Card>;
   if (accessState === 'unauthorized') return <Card><p className="text-sm text-slate-600">No tienes permisos para ver esta junta.</p></Card>;
   if (accessState === 'blocked') return <Card><p className="text-sm text-slate-600">Esta junta no está disponible temporalmente.</p></Card>;
   if (accessState === 'not_found') return <Card><p className="text-sm text-slate-600">Junta no encontrada.</p></Card>;
+
+  if (accessState === 'can_join' && junta) {
+    const memberCount = Number(junta.integrantes_actuales ?? 0);
+    const isFull = memberCount >= junta.participantes_max;
+    const isBlocked = isJuntaBlockedByDeadline(junta);
+    return (
+      <Card className="space-y-4 p-5">
+        <div>
+          <h1 className="text-2xl font-semibold">{junta.nombre}</h1>
+          {junta.descripcion && <p className="mt-1 text-sm text-slate-500">{junta.descripcion}</p>}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge>{junta.visibilidad === 'privada' ? 'Privada' : 'Pública'}</Badge>
+            <Badge>{junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</Badge>
+            <Badge>{junta.frecuencia_pago}</Badge>
+            <Badge>{memberCount}/{junta.participantes_max} integrantes</Badge>
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-1">
+          <p className="text-sm text-slate-600">Cuota: <span className="font-semibold">S/{(junta.cuota_base ?? junta.monto_cuota).toFixed(0)}</span></p>
+          {junta.fecha_inicio && <p className="text-sm text-slate-600">Inicio: <span className="font-semibold">{formatCalendarDate(junta.fecha_inicio)}</span></p>}
+        </div>
+        {isFull && <p className="text-sm text-amber-700 rounded-md bg-amber-50 border border-amber-200 p-3">Esta junta ya está completa.</p>}
+        {isBlocked && <p className="text-sm text-red-700 rounded-md bg-red-50 border border-red-200 p-3">Esta junta está bloqueada y no acepta nuevos integrantes.</p>}
+        {!isFull && !isBlocked && (
+          <Button onClick={handleJoinFromPreview} disabled={joiningFromPreview}>
+            {joiningFromPreview ? 'Uniéndote…' : 'Unirte a esta junta'}
+          </Button>
+        )}
+        {joinPreviewError && <p className="text-sm text-red-600">{joinPreviewError}</p>}
+      </Card>
+    );
+  }
+
   if (!junta || !simulation) return <Card><p className="text-sm text-slate-600">Junta no encontrada.</p></Card>;
 
   const juntaActiva = isJuntaActive(junta.estado);
