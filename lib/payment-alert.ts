@@ -61,6 +61,15 @@ function resolvePaymentNormalizedStatus(payment: Payment) {
   return normalizePaymentStatus(payment.payment_status ?? payment.estado);
 }
 
+function isApprovedOrSubmittedPayment(payment: Payment): boolean {
+  const estado = (payment.estado ?? '') as string;
+  const paymentStatus = (payment.payment_status ?? '') as string;
+  return (
+    estado === 'aprobado' || estado === 'pendiente_aprobacion' || estado === 'approved' ||
+    paymentStatus === 'approved' || paymentStatus === 'submitted'
+  );
+}
+
 export function getPaymentAlertState(params: {
   userId: string;
   myJuntaIds: string[];
@@ -109,22 +118,71 @@ export function getPaymentAlertState(params: {
       );
       const normalizedStatus = payment ? resolvePaymentNormalizedStatus(payment) : undefined;
 
+      // isCoveredBySubmittedOrApprovedPayment: true when the exact schedule_id match
+      // has a valid (approved/submitted) payment. Used to suppress the overdue banner.
+      // When payment.schedule_id is null (unlinked payment), this will be false and the
+      // SQL-level NOT EXISTS filter is the authoritative guard in that scenario.
+      const isCoveredBySubmittedOrApprovedPayment = payment != null && isApprovedOrSubmittedPayment(payment);
+
+      // Detect unlinked-payment edge case for debugging.
+      const hasUnlinkedValidPaymentInJunta =
+        !payment &&
+        params.payments.some(
+          (p) =>
+            p.profile_id === params.userId &&
+            p.junta_id === schedule.junta_id &&
+            p.schedule_id == null &&
+            isApprovedOrSubmittedPayment(p)
+        );
+
+      const derivedAlertType =
+        isCoveredBySubmittedOrApprovedPayment
+          ? normalizedStatus === 'submitted' || normalizedStatus === 'validating'
+            ? 'en_validacion'
+            : 'none'
+          : normalizedStatus == null
+          ? new Date(schedule.fecha_vencimiento) < new Date()
+            ? 'overdue'
+            : 'upcoming'
+          : normalizedStatus;
+
       if (process.env.NODE_ENV === 'development') {
         console.debug('[DASHBOARD PAYMENT NOTIFICATIONS]', {
           profileId: params.userId,
           juntaId: schedule.junta_id,
           scheduleId: schedule.id,
-          paymentEstado: payment?.estado ?? null,
-          paymentStatus: payment?.payment_status ?? null,
+          scheduleEstado: schedule.estado,
+          paymentId: payment?.id ?? null,
+          estado: payment?.estado ?? null,
+          payment_status: payment?.payment_status ?? null,
           normalizedStatus: normalizedStatus ?? 'no_payment',
-          shouldShowNotification: normalizedStatus == null || normalizedStatus === 'rejected' || normalizedStatus === 'overdue' || normalizedStatus === 'pending',
+          isCoveredBySubmittedOrApprovedPayment,
+          hasUnlinkedValidPaymentInJunta,
+          finalAlertType: derivedAlertType,
         });
+
+        if (hasUnlinkedValidPaymentInJunta) {
+          console.warn(
+            '[DASHBOARD PAYMENT NOTIFICATIONS] schedule_id=null on a valid payment — ' +
+            'schedule cannot be auto-covered in frontend. Apply SQL migration to fix at source.',
+            { scheduleId: schedule.id, juntaId: schedule.junta_id }
+          );
+        }
       }
 
-      return { schedule, payment, normalizedStatus };
+      return { schedule, payment, normalizedStatus, isCoveredBySubmittedOrApprovedPayment };
     })
-    // Suppress approved (and any Spanish equivalents via normalization) — rejected stays visible to re-pay
-    .filter((item) => item.normalizedStatus !== 'approved')
+    // Suppress schedules already paid (approved). Submitted stays to show en_validacion.
+    // isCoveredBySubmittedOrApprovedPayment is true for both approved and submitted, but
+    // submitted also has normalizedStatus='submitted' which triggers en_validacion above.
+    .filter((item) => {
+      // Approved: remove entirely — no banner needed
+      if (item.normalizedStatus === 'approved') return false;
+      // Covered by approved payment (isCovered=true, normalizedStatus NOT submitted/validating)
+      // handles the unlikely case where isCovered diverges from normalizedStatus.
+      if (item.isCoveredBySubmittedOrApprovedPayment && item.normalizedStatus !== 'submitted' && item.normalizedStatus !== 'validating') return false;
+      return true;
+    })
     .sort((a, b) => new Date(a.schedule.fecha_vencimiento).getTime() - new Date(b.schedule.fecha_vencimiento).getTime());
 
   const hasPaidCandidate = params.schedules
@@ -248,13 +306,16 @@ export function getPaymentAlertState(params: {
   if (process.env.NODE_ENV === 'development') {
     console.debug('[PAYMENT ALERT RESULT]', {
       status: result.status,
+      finalAlertType: result.status,
       paymentId: next.payment?.id ?? null,
+      scheduleId: result.cuotaId,
       juntaId: result.juntaId,
       juntaName: result.juntaNombre,
-      turnoId: next.schedule.cuota_numero,
-      scheduleId: result.cuotaId,
+      cuotaNumero: next.schedule.cuota_numero,
       dueDate: result.dueDate?.toISOString() ?? null,
       estado: next.payment?.estado ?? 'sin_pago',
+      payment_status: next.payment?.payment_status ?? null,
+      isCoveredBySubmittedOrApprovedPayment: next.isCoveredBySubmittedOrApprovedPayment,
       source: 'getPaymentAlertState',
     });
   }

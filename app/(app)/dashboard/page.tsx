@@ -519,23 +519,40 @@ export default function DashboardPage() {
       });
     }
 
+    // Mirror RPC logic exactly: only active memberships (estado='activo') in active juntas
+    // (estado='activa'). Without this filter, historical/inactive junta data from the
+    // store causes false overdue banners for users with no current active membership.
+    const activeMemberJuntaIds = new Set(
+      safeMembers
+        .filter((m) => m.profile_id === userId && m.estado === 'activo')
+        .map((m) => m.junta_id)
+    );
+    const storeAlertJuntas = safeJuntas.filter(
+      (j) => activeMemberJuntaIds.has(j.id) && j.estado === 'activa' && !j.deleted_at
+    );
+    const storeAlertJuntaIds = storeAlertJuntas.map((j) => j.id);
+
     if (process.env.NODE_ENV === 'development') {
       console.debug('[DASHBOARD PAYMENT MERGE]', {
         source: 'storeOnly',
-        payments: safePayments.filter((p) => p.profile_id === userId).map((p) => ({ id: p.id, estado: p.estado, payment_status: p.payment_status })),
+        userId,
+        activeMemberJuntaIds: Array.from(activeMemberJuntaIds),
+        storeAlertJuntaIds,
+        storeAlertJuntas: storeAlertJuntas.map((j) => ({ id: j.id, nombre: j.nombre, estado: j.estado })),
+        payments: safePayments.filter((p) => p.profile_id === userId).map((p) => ({ id: p.id, juntaId: p.junta_id, estado: p.estado, payment_status: p.payment_status })),
         safePayoutsCount: safePayouts.length,
       });
     }
 
     return getPaymentAlertState({
       userId,
-      myJuntaIds,
-      juntas: safeJuntas,
+      myJuntaIds: storeAlertJuntaIds,
+      juntas: storeAlertJuntas,
       schedules: safeSchedules,
       payments: safePayments,
       payouts: safePayouts
     });
-  }, [notifPayload, userId, myJuntaIds, safeJuntas, safeSchedules, safePayments, safePayouts]);
+  }, [notifPayload, userId, safeMembers, safeJuntas, safeSchedules, safePayments, safePayouts]);
 
   if (!user) return <Card>Necesitas iniciar sesión para ver tu dashboard.</Card>;
 
