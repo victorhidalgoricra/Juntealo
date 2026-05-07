@@ -106,7 +106,7 @@ export default function JuntasDisponiblesPage() {
     autoJoinTriggered.current = true;
     findJuntaByAccessCode(code.trim().toUpperCase()).then((result) => {
       if (result.ok && result.data) {
-        window.location.href = `/juntas/${result.data.id}`;
+        window.location.href = `/juntas/${result.data.id}?code=${encodeURIComponent(code.trim().toUpperCase())}`;
       } else {
         setCodeError(result.ok ? 'Código inválido. Revisa el enlace e inténtalo de nuevo.' : result.message);
       }
@@ -207,7 +207,7 @@ export default function JuntasDisponiblesPage() {
 
     const foundJunta = result.data;
     setData({ juntas: [foundJunta, ...allJuntas.filter((j) => j.id !== foundJunta.id)] });
-    window.location.href = `/juntas/${foundJunta.id}`;
+    window.location.href = `/juntas/${foundJunta.id}?code=${encodeURIComponent(normalizedCode)}`;
   };
 
   const handleJoin = async (juntaId: string, accessCode?: string) => {
