@@ -22,7 +22,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { Junta, JuntaMember, Payment, PaymentSchedule, Payout, Profile } from '@/types/domain';
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { getActiveMemberCountByJunta } from '@/lib/junta-members';
-import { JuntaIcon } from '@/lib/junta-icon';
+import { JuntaAvatar } from '@/components/junta-avatar';
 import { CheckCircle2, RefreshCw, Users as UsersIcon, Star } from 'lucide-react';
 
 type UpcomingPayoutData = {
@@ -365,7 +365,7 @@ function JuntaListItem({ item }: { item: JuntaCardData }) {
     <Link href={`/juntas/${item.id}`}>
       <Card hover className="flex items-center justify-between gap-3 p-4">
         <div className="flex items-center gap-3">
-          <JuntaIcon nombre={item.nombre} />
+          <JuntaAvatar nombre={item.nombre} />
           <div>
             <p className="font-semibold text-fg">{item.nombre}</p>
             <p className="text-sm text-muted">{item.miembros} integrantes · {money(item.cuota)}/{item.frecuencia} · {item.tipo === 'incentivo' ? 'con incentivos' : 'normal'}</p>
