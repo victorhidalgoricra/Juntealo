@@ -81,7 +81,9 @@ function getInitials(name: string) {
 
 function getMyJuntaIds(userId: string, juntas: Junta[], members: JuntaMember[]) {
   const owned = juntas.filter((j) => j.admin_id === userId).map((j) => j.id);
-  const memberOf = members.filter((m) => m.profile_id === userId).map((m) => m.junta_id);
+  const memberOf = members
+    .filter((m) => m.profile_id === userId && m.estado !== 'retirado')
+    .map((m) => m.junta_id);
   return Array.from(new Set([...owned, ...memberOf]));
 }
 
@@ -149,10 +151,10 @@ function getActiveJuntas(params: {
 
   return params.juntas
     .filter((junta) => params.myJuntaIds.includes(junta.id))
-    .filter((junta) => junta.estado !== 'cerrada' && !junta.bloqueada)
+    .filter((junta) => junta.estado !== 'cerrada' && junta.estado !== 'eliminada' && !junta.bloqueada)
     .map((junta) => {
       const juntaSchedules = params.schedules.filter((schedule) => schedule.junta_id === junta.id);
-      const hasPending = juntaSchedules.some((schedule) => schedule.estado === 'vencida' || schedule.estado === 'pendiente');
+      const hasPending = juntaSchedules.some((schedule) => schedule.estado === 'vencida');
       const nextSchedule = juntaSchedules
         .slice()
         .sort((a, b) => parseCalendarDate(a.fecha_vencimiento).getTime() - parseCalendarDate(b.fecha_vencimiento).getTime())[0];
