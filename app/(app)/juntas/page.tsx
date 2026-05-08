@@ -15,7 +15,7 @@ import { isJuntaActive } from '@/lib/junta-status';
 import { APP_BUSINESS_TIMEZONE, isJuntaBlockedByDeadline } from '@/lib/junta-blocking';
 import { canDeleteJunta } from '@/lib/junta-permissions';
 import { getActiveMemberCountByJunta, isUserMember } from '@/lib/junta-members';
-import { JuntaIcon } from '@/lib/junta-icon';
+import { JuntaAvatar } from '@/components/junta-avatar';
 import {
   activateJuntaIfReady,
   deleteDraftJunta,
@@ -567,14 +567,14 @@ export default function JuntasDisponiblesPage() {
               <Card key={juntaId} className="flex h-full flex-col justify-between gap-4 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <JuntaIcon nombre={j.nombre} size="lg" />
+                    <JuntaAvatar nombre={j.nombre} size="lg" />
                     <Badge>{j.visibilidad === 'publica' ? 'Pública' : 'Privada'}</Badge>
                   </div>
                   <h3 className="text-lg font-semibold leading-tight">{j.nombre}</h3>
                   {isBlocked && <Badge>Bloqueada</Badge>}
-                  <p className="text-sm text-slate-600">{description}</p>
+                  <p className="text-sm text-muted">{description}</p>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                  <div className="grid grid-cols-2 gap-2 text-xs text-muted">
                     <p><span className="font-medium">Frecuencia:</span> {j.frecuencia_pago}</p>
                     <p><span className="font-medium">Cuota base:</span> S/ {j.cuota_base ?? j.monto_cuota}</p>
                     <p><span className="font-medium">Inicio:</span> {j.fecha_inicio}</p>

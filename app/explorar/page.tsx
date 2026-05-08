@@ -10,7 +10,7 @@ import { fetchMyActiveMembershipsByJuntaIds, fetchPublicJuntas } from '@/service
 import { Junta } from '@/types/domain';
 import { useAuthStore } from '@/store/auth-store';
 import { saveExploreJoinIntent } from '@/lib/explore-join-intent';
-import { JuntaIcon } from '@/lib/junta-icon';
+import { JuntaAvatar } from '@/components/junta-avatar';
 
 export default function ExplorarPage() {
   const router = useRouter();
@@ -142,15 +142,15 @@ export default function ExplorarPage() {
                 : (membershipLoading ? 'Validando...' : (juntaIniciada ? 'En curso' : (cupoCompleto ? 'Cupo completo' : 'Unirme')));
 
               return (
-                <Card key={j.id} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <JuntaIcon nombre={j.nombre} size="md" />
+                <Card key={j.id} className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <JuntaAvatar nombre={j.nombre} size="md" />
                     <Badge>Pública</Badge>
                   </div>
-                  <h2 className="font-semibold">{j.nombre}</h2>
-                  <p className="text-sm text-slate-600 line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
-                  <p className="text-xs text-slate-500">Frecuencia: {j.frecuencia_pago} · Cuota: S/ {j.cuota_base ?? j.monto_cuota}</p>
-                  <p className="text-xs text-slate-500">Inicio: {j.fecha_inicio} · Integrantes: {integrantes}/{j.participantes_max}</p>
+                  <h2 className="font-semibold text-fg">{j.nombre}</h2>
+                  <p className="text-sm text-muted line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
+                  <p className="text-xs text-muted">Frecuencia: {j.frecuencia_pago} · Cuota: S/ {j.cuota_base ?? j.monto_cuota}</p>
+                  <p className="text-xs text-faint">Inicio: {j.fecha_inicio} · Integrantes: {integrantes}/{j.participantes_max}</p>
                   <div className="flex gap-2">
                     <Button
                       disabled={joinDisabled}
