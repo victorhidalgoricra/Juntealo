@@ -275,10 +275,6 @@ export default function JuntasDisponiblesPage() {
     setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: '' }));
     const junta = allJuntas.find((item) => item.id === juntaId);
     if (!junta) return;
-    if (junta.estado === 'activa') {
-      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'No puedes retirarte de una junta activa.' }));
-      return;
-    }
 
     setLeavingId(juntaId);
     const result = await leaveJuntaAsParticipant({ juntaId });
@@ -532,7 +528,7 @@ export default function JuntasDisponiblesPage() {
             const isActive = isJuntaActive(j.estado);
             const canActivate = roleState === 'owner' && j.estado === 'borrador' && cupoCompleto && !isBlocked;
             const canDelete = canDeleteJunta(j, user.id);
-            const canLeave = roleState === 'member' && j.estado === 'borrador';
+            const canLeave = roleState === 'member';
             // eslint-disable-next-line no-console
             console.debug('[JUNTA STATE DEBUG]', {
               juntaId,
@@ -642,9 +638,6 @@ export default function JuntasDisponiblesPage() {
                   )}
                   {roleState === 'visitor' && !isActive && cupoCompleto && (
                     <p className="text-xs text-slate-600">Cupo completo</p>
-                  )}
-                  {roleState === 'member' && !canLeave && (
-                    <p className="text-xs text-slate-600">Esta junta ya está activa y no permite retirarte.</p>
                   )}
                   {joinErrorByJunta[juntaId] && !(roleState === 'owner' && joinErrorByJunta[juntaId].includes('creador no puede retirarse')) && (
                     <p className="text-xs text-red-600">{joinErrorByJunta[juntaId]}</p>
