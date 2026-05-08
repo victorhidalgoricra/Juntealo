@@ -143,11 +143,13 @@ export default function ExplorarPage() {
 
               return (
                 <Card key={j.id} className="space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <JuntaAvatar nombre={j.nombre} size="md" />
-                    <Badge>Pública</Badge>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <JuntaAvatar nombre={j.nombre} size="md" />
+                      <h2 className="truncate font-semibold text-fg">{j.nombre}</h2>
+                    </div>
+                    <Badge className="shrink-0">Pública</Badge>
                   </div>
-                  <h2 className="font-semibold text-fg">{j.nombre}</h2>
                   <p className="text-sm text-muted line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
                   <p className="text-xs text-muted">Frecuencia: {j.frecuencia_pago} · Cuota: S/ {j.cuota_base ?? j.monto_cuota}</p>
                   <p className="text-xs text-faint">Inicio: {j.fecha_inicio} · Integrantes: {integrantes}/{j.participantes_max}</p>
