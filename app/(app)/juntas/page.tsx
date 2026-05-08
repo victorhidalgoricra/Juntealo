@@ -15,6 +15,7 @@ import { isJuntaActive } from '@/lib/junta-status';
 import { APP_BUSINESS_TIMEZONE, isJuntaBlockedByDeadline } from '@/lib/junta-blocking';
 import { canDeleteJunta } from '@/lib/junta-permissions';
 import { getActiveMemberCountByJunta, isUserMember } from '@/lib/junta-members';
+import { JuntaIcon } from '@/lib/junta-icon';
 import {
   activateJuntaIfReady,
   deleteDraftJunta,
@@ -566,9 +567,10 @@ export default function JuntasDisponiblesPage() {
               <Card key={juntaId} className="flex h-full flex-col justify-between gap-4 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-lg font-semibold leading-tight">{j.nombre}</h3>
+                    <JuntaIcon nombre={j.nombre} size="lg" />
                     <Badge>{j.visibilidad === 'publica' ? 'Pública' : 'Privada'}</Badge>
                   </div>
+                  <h3 className="text-lg font-semibold leading-tight">{j.nombre}</h3>
                   {isBlocked && <Badge>Bloqueada</Badge>}
                   <p className="text-sm text-slate-600">{description}</p>
 

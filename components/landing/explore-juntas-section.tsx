@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { RevealOnScroll } from './reveal';
+import { JuntaIcon } from '@/lib/junta-icon';
 
 const publicJuntas = [
-  { emoji: '🚗', name: 'Taxistas Norte', people: '12 personas', fee: 'S/ 800', type: 'Semanal', slots: '3 cupos', open: true },
-  { emoji: '🎓', name: 'Universidad', people: '10 personas', fee: 'S/ 800', type: 'Quincenal', slots: 'Completa', open: false },
-  { emoji: '💼', name: 'Emprendedores', people: '8 personas', fee: 'S/ 1,200', type: 'Mensual', slots: '2 cupos', open: true }
+  { name: 'Taxistas Norte', people: '12 personas', fee: 'S/ 800', type: 'Semanal', slots: '3 cupos', open: true },
+  { name: 'Universidad', people: '10 personas', fee: 'S/ 800', type: 'Quincenal', slots: 'Completa', open: false },
+  { name: 'Emprendedores', people: '8 personas', fee: 'S/ 1,200', type: 'Mensual', slots: '2 cupos', open: true }
 ];
 
 export function ExploreJuntasSection() {
@@ -24,15 +25,18 @@ export function ExploreJuntasSection() {
 
         <div className="space-y-3">
           {publicJuntas.map((junta) => (
-            <article key={junta.name} className="grid grid-cols-[1fr_auto] items-center rounded-[var(--r)] border border-[var(--border)] bg-[var(--bg)] p-4">
-              <div>
-                <p className="text-base font-semibold capitalize text-[var(--text)]">{junta.emoji} {junta.name}</p>
-                <p className="mt-1 text-xs text-[var(--muted)]">{junta.people} · cuota {junta.fee} · {junta.type}</p>
+            <article key={junta.name} className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-[var(--r)] border border-[var(--border)] bg-[var(--bg)] p-4">
+              <div className="flex items-center gap-3">
+                <JuntaIcon nombre={junta.name} size="sm" />
+                <div>
+                  <p className="text-base font-semibold capitalize text-[var(--text)]">{junta.name}</p>
+                  <p className="mt-0.5 text-xs text-[var(--muted)]">{junta.people} · cuota {junta.fee} · {junta.type}</p>
+                </div>
               </div>
 
               <div className="text-right">
                 <p className="font-mono text-sm font-medium text-[var(--text)]">{junta.fee}</p>
-                <p className="mt-1 text-xs text-[var(--muted)]">{junta.slots}</p>
+                <p className="mt-0.5 text-xs text-[var(--muted)]">{junta.slots}</p>
                 <button
                   type="button"
                   disabled={!junta.open}
