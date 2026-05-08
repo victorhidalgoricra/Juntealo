@@ -435,7 +435,7 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
 
   const [ownedResult, membershipResult] = await Promise.all([
     supabase.schema('public').from('juntas').select('id').eq('admin_id', profileId).neq('estado', 'eliminada' as EstadoJunta),
-    supabase.schema('public').from('junta_members').select('junta_id').eq('profile_id', profileId).eq('estado', 'activo')
+    supabase.schema('public').from('junta_members').select('junta_id').eq('profile_id', profileId).neq('estado', 'retirado')
   ]);
 
   if (ownedResult.error) return { ok: false as const, message: mapSupabaseErrorMessage(ownedResult.error.message) };
