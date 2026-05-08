@@ -22,6 +22,8 @@ import { useAuthStore } from '@/store/auth-store';
 import { Junta, JuntaMember, Payment, PaymentSchedule, Payout, Profile } from '@/types/domain';
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { getActiveMemberCountByJunta } from '@/lib/junta-members';
+import { JuntaIcon } from '@/lib/junta-icon';
+import { CheckCircle2, RefreshCw, Users as UsersIcon, Star } from 'lucide-react';
 
 type UpcomingPayoutData = {
   juntaId: string;
@@ -298,17 +300,17 @@ function DashboardKpis({ paymentsOnTime, completedCycles, referredActive }: { pa
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <Card className="p-4 text-center">
-        <p className="text-xl">📅</p>
+        <CheckCircle2 className="mx-auto mb-1 text-emerald-400" size={20} strokeWidth={1.5} />
         <p className="font-mono text-3xl font-bold text-green">{paymentsOnTime}%</p>
         <p className="text-sm text-muted">Pagos a tiempo</p>
       </Card>
       <Card className="p-4 text-center">
-        <p className="text-xl">🔄</p>
+        <RefreshCw className="mx-auto mb-1 text-slate-400" size={20} strokeWidth={1.5} />
         <p className="font-mono text-3xl font-bold text-fg">{completedCycles}</p>
         <p className="text-sm text-muted">Ciclos completados</p>
       </Card>
       <Card className="p-4 text-center">
-        <p className="text-xl">👥</p>
+        <UsersIcon className="mx-auto mb-1 text-slate-400" size={20} strokeWidth={1.5} />
         <p className="font-mono text-3xl font-bold text-fg">{referredActive}</p>
         <p className="text-sm text-muted">Referidos activos</p>
       </Card>
@@ -363,7 +365,7 @@ function JuntaListItem({ item }: { item: JuntaCardData }) {
     <Link href={`/juntas/${item.id}`}>
       <Card hover className="flex items-center justify-between gap-3 p-4">
         <div className="flex items-center gap-3">
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">🚕</div>
+          <JuntaIcon nombre={item.nombre} />
           <div>
             <p className="font-semibold text-fg">{item.nombre}</p>
             <p className="text-sm text-muted">{item.miembros} integrantes · {money(item.cuota)}/{item.frecuencia} · {item.tipo === 'incentivo' ? 'con incentivos' : 'normal'}</p>
@@ -421,7 +423,7 @@ function NextLevelSection({ data }: { data: NextLevelData }) {
       <h2 className="text-xl font-semibold text-fg">{data.title}</h2>
       <Card tint="blue" className="p-4">
         <div className="flex items-start gap-3">
-          <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white">⭐</div>
+          <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Star size={16} strokeWidth={1.5} /></div>
           <div className="flex-1">
             <p className="text-sm text-accent-dark">{data.benefitText}</p>
             <div className="mt-3 flex items-center gap-3">
