@@ -11,7 +11,7 @@ const steps = [
   },
   {
     title: 'Todos aportan',
-    description: 'Yape/Plin/tarjeta, recordatorios automáticos y control de mora.'
+    description: 'Yape, Plin o transferencia bancaria, recordatorios automáticos y control de mora.'
   },
   {
     title: 'El turno cobra',
