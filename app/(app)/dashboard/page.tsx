@@ -646,8 +646,11 @@ export default function DashboardPage() {
   });
 
   // "Mis juntas activas" usa datos del fetch propio (no del store global)
-  // para garantizar que aparezcan al entrar directo al dashboard.
-  const localMyJuntaIds = getMyJuntaIds(user.id, localJuntas, localMembers);
+  // Solo incluye juntas donde el usuario es miembro activo — NO juntas donde solo es admin/creador.
+  const localMyJuntaIds = localMembers
+    .filter((m) => m.profile_id === user.id && m.estado !== 'retirado')
+    .map((m) => m.junta_id)
+    .filter((id, i, arr) => arr.indexOf(id) === i);
   const memberCountByJunta = getActiveMemberCountByJunta(localJuntas, localMembers);
 
   const activeJuntas = getActiveJuntas({
