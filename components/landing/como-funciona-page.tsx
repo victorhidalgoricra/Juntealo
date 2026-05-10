@@ -237,7 +237,7 @@ export function ComoFuncionaPage() {
                     <span className="shrink-0">🔽</span>
                     Los que reciben{' '}
                     <strong className="text-[var(--text)]">después</strong> pagan una{' '}
-                    <strong className="text-[var(--text)]">cuota más baja</strong> — porque ya aportaron más tiempo y "prestaron" su dinero al grupo.
+                    <strong className="text-[var(--text)]">cuota más baja</strong> — porque ya aportaron más tiempo y &quot;prestaron&quot; su dinero al grupo.
                   </li>
                   <li className="flex gap-2 text-[var(--muted)]">
                     <span className="shrink-0">⚖️</span>
