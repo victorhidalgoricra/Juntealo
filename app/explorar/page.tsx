@@ -150,9 +150,9 @@ export default function ExplorarPage() {
                     </div>
                     <Badge className="shrink-0">Pública</Badge>
                   </div>
-                  <p className="text-sm text-muted line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
-                  <p className="text-xs text-muted">Frecuencia: {j.frecuencia_pago} · Cuota: S/ {j.cuota_base ?? j.monto_cuota}</p>
-                  <p className="text-xs text-faint">Inicio: {j.fecha_inicio} · Integrantes: {integrantes}/{j.participantes_max}</p>
+                  <p className="text-sm text-slate-600 line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
+                  <p className="text-xs text-slate-500">Frecuencia: {j.frecuencia_pago} · Cuota: S/ {j.cuota_base ?? j.monto_cuota}</p>
+                  <p className="text-xs text-slate-500">Inicio: {j.fecha_inicio} · Integrantes: {integrantes}/{j.participantes_max}</p>
                   <div className="flex gap-2">
                     <Button
                       disabled={joinDisabled}

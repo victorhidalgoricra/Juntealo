@@ -574,9 +574,9 @@ export default function JuntasDisponiblesPage() {
                     <Badge className="shrink-0">{j.visibilidad === 'publica' ? 'Pública' : 'Privada'}</Badge>
                   </div>
                   {isBlocked && <Badge>Bloqueada</Badge>}
-                  <p className="text-sm text-muted">{description}</p>
+                  <p className="text-sm text-slate-600">{description}</p>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs text-muted">
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
                     <p><span className="font-medium">Frecuencia:</span> {j.frecuencia_pago}</p>
                     <p><span className="font-medium">Cuota base:</span> S/ {j.cuota_base ?? j.monto_cuota}</p>
                     <p><span className="font-medium">Inicio:</span> {j.fecha_inicio}</p>
