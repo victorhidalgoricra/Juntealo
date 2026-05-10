@@ -260,92 +260,24 @@ export function ComoFuncionaPage() {
               ))}
             </div>
           ) : (
-            <div className="mt-5 space-y-4">
-              <div className="rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-5">
-                <h4 className="text-sm font-semibold">¿Cómo funcionan los incentivos?</h4>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-                  No todos pagan la misma cuota. El sistema ajusta el monto según el turno:
-                </p>
-                <ul className="mt-3 space-y-2.5 text-sm">
-                  <li className="flex gap-2 text-[var(--muted)]">
-                    <span className="shrink-0">🔼</span>
-                    Los que reciben la bolsa <strong className="text-[var(--text)]">primero</strong> pagan una{' '}
-                    <strong className="text-[var(--text)]">cuota más alta</strong> — están recibiendo dinero antes de haberlo aportado todo.
-                  </li>
-                  <li className="flex gap-2 text-[var(--muted)]">
-                    <span className="shrink-0">🔽</span>
-                    Los que reciben{' '}
-                    <strong className="text-[var(--text)]">después</strong> pagan una{' '}
-                    <strong className="text-[var(--text)]">cuota más baja</strong> — porque ya aportaron más tiempo y &quot;prestaron&quot; su dinero al grupo.
-                  </li>
-                  <li className="flex gap-2 text-[var(--muted)]">
-                    <span className="shrink-0">⚖️</span>
-                    La bolsa que recibe cada persona es la misma. Solo varía el costo total de participar según el turno.
-                  </li>
-                </ul>
-
-                <div className="mt-5 overflow-x-auto">
-                  <table className="w-full min-w-[400px] border-collapse text-sm">
-                    <thead>
-                      <tr className="border-b border-[var(--border)]">
-                        {['Turno', 'Recibe', 'Cuota que paga', 'Costo total del ciclo'].map((h) => (
-                          <th key={h} className="pb-2 pr-4 text-left text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)] last:pr-0">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-[var(--border)]">
-                        <td className="py-2.5 pr-4 font-medium">#1 (primero)</td>
-                        <td className="py-2.5 pr-4">S/ 1,000</td>
-                        <td className="py-2.5 pr-4 font-medium text-[var(--destructive)]">S/ 150/sem</td>
-                        <td className="py-2.5 font-medium text-[var(--destructive)]">S/ 1,200 <span className="text-xs font-normal">(paga más)</span></td>
-                      </tr>
-                      <tr className="border-b border-[var(--border)]">
-                        <td className="py-2.5 pr-4 font-medium">#5 (medio)</td>
-                        <td className="py-2.5 pr-4">S/ 1,000</td>
-                        <td className="py-2.5 pr-4 font-medium text-[var(--muted)]">S/ 100/sem</td>
-                        <td className="py-2.5 font-medium text-[var(--muted)]">S/ 1,000 <span className="text-xs font-normal">(equilibrio)</span></td>
-                      </tr>
-                      <tr>
-                        <td className="py-2.5 pr-4 font-medium">#10 (último)</td>
-                        <td className="py-2.5 pr-4">S/ 1,000</td>
-                        <td className="py-2.5 pr-4 font-medium text-[var(--green)]">S/ 70/sem</td>
-                        <td className="py-2.5 font-medium text-[var(--green)]">S/ 700 <span className="text-xs font-normal">(paga menos)</span></td>
-                      </tr>
-                    </tbody>
-                  </table>
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {incentivosFeatures.map((f) => (
+                <div
+                  key={f.title}
+                  className="group rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-5 transition-shadow hover:shadow-sm"
+                >
+                  <span
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-xl"
+                    style={{ background: f.accentBg }}
+                  >
+                    {f.icon}
+                  </span>
+                  <h4 className="mt-3 text-sm font-bold leading-snug tracking-tight text-[var(--text)]">
+                    {f.title}
+                  </h4>
+                  <p className="mt-1.5 text-xs leading-relaxed text-[var(--muted)]">{f.desc}</p>
                 </div>
-                <p className="mt-3 text-xs text-[var(--muted)]">
-                  No hay penalidades ni intereses — es un acuerdo transparente del grupo desde el inicio.
-                </p>
-              </div>
-
-              <div>
-                <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--muted)]">
-                  ¿Qué cambia con incentivos?
-                </p>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {incentivosFeatures.map((f) => (
-                    <div
-                      key={f.title}
-                      className="group rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-5 transition-shadow hover:shadow-sm"
-                    >
-                      <span
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-xl"
-                        style={{ background: f.accentBg }}
-                      >
-                        {f.icon}
-                      </span>
-                      <h4 className="mt-3 text-sm font-bold leading-snug tracking-tight text-[var(--text)]">
-                        {f.title}
-                      </h4>
-                      <p className="mt-1.5 text-xs leading-relaxed text-[var(--muted)]">{f.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              ))}
             </div>
           )}
         </RevealOnScroll>
