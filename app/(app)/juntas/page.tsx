@@ -566,7 +566,7 @@ export default function JuntasDisponiblesPage() {
             return (
               <Card key={juntaId} className="flex h-full flex-col justify-between gap-4 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-3">
                       <JuntaAvatar nombre={j.nombre} size="lg" />
                       <h3 className="truncate text-lg font-semibold leading-tight">{j.nombre}</h3>
