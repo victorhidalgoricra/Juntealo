@@ -143,7 +143,7 @@ export default function ExplorarPage() {
 
               return (
                 <Card key={j.id} className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-3">
                       <JuntaAvatar nombre={j.nombre} size="md" />
                       <h2 className="truncate font-semibold text-fg">{j.nombre}</h2>
