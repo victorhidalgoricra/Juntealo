@@ -23,6 +23,8 @@ import {
   getUserPersonalJuntaView,
   WeeklyMemberRow
 } from '@/lib/junta-detail-view';
+import { RachaCard } from '@/components/ui/racha-card';
+import { computeJuntaRacha } from '@/lib/racha';
 
 type MainView = 'general' | 'personal';
 type GeneralTab = 'integrantes' | 'cronograma' | 'pagos' | 'turnos';
@@ -244,6 +246,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     return getActiveMembersForJunta(junta, detailMembers);
   }, [detailMembers, junta]);
   const currentUserName = useMemo(() => user?.nombre?.split(' ')[0] ?? 'Tú', [user?.nombre]);
+  const juntaRacha = useMemo(() => {
+    if (!user) return null;
+    return computeJuntaRacha({ juntaId: params.id, userId: user.id, payments: detailPayments, schedules: detailSchedules });
+  }, [params.id, user, detailPayments, detailSchedules]);
 
   const simulation = useMemo(() => {
     if (!junta) return null;
@@ -879,6 +885,16 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             <p className="text-sm text-slate-300">Fecha estimada: {personal.myTurnRow?.fechaRonda ?? 'Pendiente'} · {personal.myTurnRow ? `en ${Math.max(personal.myTurnRow.turno - currentWeek, 0)} semanas` : 'sin turno asignado'}</p>
             <div className="flex items-center gap-2"><JuntaScoreBadge score={personal.myRow?.score ?? 70} /><span className="text-xs text-slate-300">Confianza visible para el grupo</span></div>
           </Card>
+
+          {juntaRacha && (
+            <RachaCard
+              semanasActual={juntaRacha.semanasActual}
+              recordPersonal={juntaRacha.recordPersonal}
+              proximoHito={juntaRacha.proximoHito}
+              estado={juntaRacha.estado}
+              horasRestantes={juntaRacha.horasRestantes}
+            />
+          )}
 
           {!juntaFinalizada && personal.myRow && personal.myRow.status !== 'Pagado' && personal.myRow.status !== 'Recibe' && (
             <Card className="border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
