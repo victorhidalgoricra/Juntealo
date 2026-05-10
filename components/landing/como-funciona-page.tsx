@@ -14,6 +14,37 @@ const normalFeatures = [
   { icon: '🔄', title: 'Turnos automáticos', desc: 'El sistema gestiona el orden y confirma quién cobra en cada período.' },
 ];
 
+const incentivosFeatures = [
+  {
+    icon: '💸',
+    title: 'Recibe antes',
+    desc: 'Quienes toman los primeros turnos acceden al dinero antes, cuando más lo necesitan.',
+    accent: 'var(--accent)',
+    accentBg: 'var(--accent-bg)',
+  },
+  {
+    icon: '📉',
+    title: 'Pagas menos si cobras después',
+    desc: 'Los últimos turnos reciben la misma bolsa, pero con cuotas más bajas durante todo el ciclo.',
+    accent: 'var(--green)',
+    accentBg: 'var(--green-bg)',
+  },
+  {
+    icon: '⚖️',
+    title: 'Sistema equilibrado',
+    desc: 'El grupo se balancea automáticamente para que todos reciban exactamente la misma bolsa de dinero.',
+    accent: 'var(--accent)',
+    accentBg: 'var(--accent-bg)',
+  },
+  {
+    icon: '🤝',
+    title: 'Ideal para grupos nuevos',
+    desc: 'Personas con distintas necesidades pueden participar sin depender de confianza total previa.',
+    accent: 'var(--green)',
+    accentBg: 'var(--green-bg)',
+  },
+];
+
 const faqs = [
   {
     q: '¿Qué pasa si alguien no paga?',
@@ -291,14 +322,29 @@ export function ComoFuncionaPage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {normalFeatures.map((f) => (
-                  <div key={f.title} className="rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-4">
-                    <span className="text-xl">{f.icon}</span>
-                    <h4 className="mt-2 text-sm font-semibold">{f.title}</h4>
-                    <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{f.desc}</p>
-                  </div>
-                ))}
+              <div>
+                <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--muted)]">
+                  ¿Qué cambia con incentivos?
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {incentivosFeatures.map((f) => (
+                    <div
+                      key={f.title}
+                      className="group rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-5 transition-shadow hover:shadow-sm"
+                    >
+                      <span
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-xl"
+                        style={{ background: f.accentBg }}
+                      >
+                        {f.icon}
+                      </span>
+                      <h4 className="mt-3 text-sm font-bold leading-snug tracking-tight text-[var(--text)]">
+                        {f.title}
+                      </h4>
+                      <p className="mt-1.5 text-xs leading-relaxed text-[var(--muted)]">{f.desc}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
