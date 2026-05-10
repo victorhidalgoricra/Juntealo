@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { LandingNavbar } from './landing-navbar';
 import { RevealOnScroll } from './reveal';
@@ -48,21 +48,30 @@ export function ComoFuncionaPage() {
   const [cuota, setCuota] = useState(400);
   const [frecuencia, setFrecuencia] = useState<'Semanal' | 'Quincenal' | 'Mensual'>('Semanal');
   const [simTipo, setSimTipo] = useState<TipoJunta>('normal');
+  const [turnoActivo, setTurnoActivo] = useState(2);
+
+  useEffect(() => {
+    setTurnoActivo((prev) => Math.min(prev, personas));
+  }, [personas]);
 
   const bolsa = personas * cuota;
   const totalGrupo = bolsa * personas;
   const duracionLabel = `${personas} ${frecuencia === 'Semanal' ? 'semanas' : frecuencia === 'Quincenal' ? 'quincenas' : 'meses'}`;
   const cuotaMax = Math.round(cuota * 1.2);
-  const cuotaMin = Math.round(cuota * 0.7);
+  const cuotaMin = Math.round(cuota * 0.8);
 
+  // Redistribución lineal simétrica: suma de turnosCuota = personas × cuota exactamente.
+  // Turno i=0 paga más (+20%), turno i=N-1 paga menos (-20%), el central queda neutro.
   const turnosCuota = Array.from({ length: personas }, (_, i) => {
-    const factor = personas > 1 ? 1.2 - (0.5 / (personas - 1)) * i : 1;
-    return Math.round(cuota * factor);
+    if (personas === 1) return cuota;
+    const delta = Math.round(cuota * 0.2 * (1 - (2 * i) / (personas - 1)));
+    return cuota + delta;
   });
 
   const turnColor = (i: number) => {
-    if (i === 0) return 'bg-[var(--dark-1)] text-white';
-    if (i < 3) return 'bg-[var(--green-bg)] text-[var(--green)] border border-[var(--green)]';
+    const num = i + 1;
+    if (num < turnoActivo) return 'bg-[var(--green-bg)] text-[var(--green)] border border-[var(--green)]';
+    if (num === turnoActivo) return 'bg-[var(--dark-1)] text-white';
     return 'bg-[var(--border)] text-[var(--muted)]';
   };
 
@@ -399,7 +408,10 @@ export function ComoFuncionaPage() {
             </div>
 
             <div className="mt-6">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Vista de turnos</p>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Vista de turnos</p>
+                <span className="text-[11px] text-[var(--muted)]">Toca un turno para simular</span>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {Array.from({ length: personas }, (_, i) => (
                   <div key={i} className="flex flex-col items-center gap-1">
@@ -407,7 +419,8 @@ export function ComoFuncionaPage() {
                       <span className="font-mono text-[10px] text-[var(--muted)]">S/{turnosCuota[i]}</span>
                     )}
                     <span
-                      className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${turnColor(i)}`}
+                      onClick={() => setTurnoActivo(i + 1)}
+                      className={`inline-flex cursor-pointer select-none items-center justify-center rounded-full px-3 py-1 text-xs font-semibold transition-opacity hover:opacity-80 ${turnColor(i)}`}
                     >
                       T{i + 1}
                     </span>
