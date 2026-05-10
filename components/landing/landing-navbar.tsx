@@ -3,7 +3,8 @@ import { JuntealoLogo } from '@/components/ui/juntealo-logo';
 
 const navLinks = [
   { href: '/', label: 'Inicio' },
-  { href: '/explorar', label: 'Explorar juntas' }
+  { href: '/como-funciona', label: '¿Cómo funciona?' },
+  { href: '/explorar', label: 'Explorar juntas' },
 ];
 
 export function LandingNavbar() {
