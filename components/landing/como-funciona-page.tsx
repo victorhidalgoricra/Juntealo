@@ -478,19 +478,21 @@ export function ComoFuncionaPage() {
         <section className="bg-[var(--dark-1)]">
           <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center md:py-[72px]">
             <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-              Tu grupo ya está listo para empezar
+              ¿Listo para tu primera junta digital?
             </h2>
-            <p className="mt-3 text-sm text-[var(--dark-text)] md:text-base">Gratis, sin app, sin burocracia.</p>
+            <p className="mt-3 text-sm text-[var(--dark-text)] md:text-base">
+              Gratis, sin app, sin burocracia. Tu grupo empieza hoy.
+            </p>
             <Link
               href="/register"
-              className="mt-6 inline-flex rounded-[var(--r-sm)] bg-[var(--green)] px-6 py-3 text-sm font-bold text-white transition hover:opacity-90"
+              className="mt-6 inline-flex rounded-[var(--r-sm)] bg-white px-5 py-3 text-sm font-semibold text-[var(--dark-1)] transition hover:bg-[var(--faint)]"
             >
-              Crear mi junta gratis →
+              Crear mi junta →
             </Link>
             <p className="mt-4">
               <a
                 href="mailto:hola@juntealo.com"
-                className="text-sm text-[var(--dark-muted)] underline underline-offset-2 transition-colors hover:text-[var(--dark-text)]"
+                className="text-sm text-[var(--dark-muted)] transition-colors hover:text-white hover:underline hover:underline-offset-2"
               >
                 ¿Tienes dudas? Habla con nosotros
               </a>
