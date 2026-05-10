@@ -24,6 +24,8 @@ import { parseCalendarDate } from '@/lib/calendar-date';
 import { getActiveMemberCountByJunta } from '@/lib/junta-members';
 import { JuntaAvatar } from '@/components/junta-avatar';
 import { CheckCircle2, RefreshCw, Users as UsersIcon, Star } from 'lucide-react';
+import { RachaCard } from '@/components/ui/racha-card';
+import { computeGlobalRacha } from '@/lib/racha';
 
 type UpcomingPayoutData = {
   juntaId: string;
@@ -485,6 +487,10 @@ export default function DashboardPage() {
     () => (user ? getMyJuntaIds(user.id, safeJuntas, safeMembers) : []),
     [safeJuntas, safeMembers, user]
   );
+  const globalRacha = useMemo(
+    () => (user ? computeGlobalRacha({ userId: user.id, payments: safePayments, schedules: safeSchedules, juntaIds: myJuntaIds }) : null),
+    [user, safePayments, safeSchedules, myJuntaIds]
+  );
   const displayName = user ? getDisplayName(user.nombre, user.email) : 'Miembro';
 
   // Fresh fetch for payment notifications — never relies on stale Zustand data.
@@ -680,6 +686,16 @@ export default function DashboardPage() {
       {paymentAlert.status !== 'none' && paymentAlert.status !== 'paid' && <PendingPaymentBanner data={paymentAlert} />}
 
       <JuntaScoreCard score={score} />
+
+      {globalRacha && (
+        <RachaCard
+          semanasActual={globalRacha.semanasActual}
+          recordPersonal={globalRacha.recordPersonal}
+          proximoHito={globalRacha.proximoHito}
+          estado={globalRacha.estado}
+          horasRestantes={globalRacha.horasRestantes}
+        />
+      )}
 
       <DashboardKpis paymentsOnTime={paymentRate} completedCycles={completedCycles} referredActive={scoreStats.successfulReferrals} />
 
