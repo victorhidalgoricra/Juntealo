@@ -525,38 +525,21 @@ export default function DashboardPage() {
 
     fetchUserJuntaSnapshot(user.id)
       .then((result) => {
-        if (!result.ok) {
-          console.error('[dashboard:misJuntas] fetch failed', result.message);
-          return;
-        }
-
         const { juntas: fetchedJuntas, members: fetchedMembers, schedules: fetchedSchedules, payments: fetchedPayments, payouts: fetchedPayouts } = result.data;
 
-        // isOwner = junta.admin_id === user.id
-        const ownerCount = fetchedJuntas.filter((j) => j.admin_id === user.id).length;
-        // isActiveMember = profile_id === user.id, estado !== retirado
-        const memberCount = fetchedMembers.filter(
-          (m) => m.profile_id === user.id && m.estado !== 'retirado'
-        ).length;
-
-        console.log('[dashboard:misJuntas] profileId', user.id);
-        console.log('[dashboard:misJuntas] ownerJuntas', ownerCount);
-        console.log('[dashboard:misJuntas] memberJuntas', memberCount);
-        console.log('[dashboard:misJuntas] finalJuntas', fetchedJuntas.length);
-
-        // Un solo setState para evitar renders parciales
         setLocalJuntas(fetchedJuntas);
         setLocalMembers(fetchedMembers);
         setLocalSchedules(fetchedSchedules);
 
-        // Mantiene el store global sincronizado para las demás secciones del dashboard
-        setData({ juntas: fetchedJuntas, members: fetchedMembers, schedules: fetchedSchedules, payments: fetchedPayments, payouts: fetchedPayouts });
+        if (fetchedJuntas.length > 0) {
+          setData({ juntas: fetchedJuntas, members: fetchedMembers, schedules: fetchedSchedules, payments: fetchedPayments, payouts: fetchedPayouts });
+        }
       })
       .finally(() => {
-        console.log('[dashboard:misJuntas] isLoading false');
         setJuntasIsLoading(false);
       });
-  }, [user?.id, setData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const paymentAlert = useMemo(() => {
     if (notifPayload) {
