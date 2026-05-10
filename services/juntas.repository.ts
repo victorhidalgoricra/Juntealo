@@ -420,46 +420,57 @@ export async function deleteDraftJunta(params: { juntaId: string; currentProfile
 
 
 export async function fetchUserJuntaSnapshot(profileId: string) {
-  if (!hasSupabase || !supabase) {
-    return {
-      ok: true as const,
-      data: {
-        juntas: [] as Junta[],
-        members: [] as JuntaMember[],
-        schedules: [] as any[],
-        payments: [] as any[],
-        payouts: [] as any[]
-      }
-    };
-  }
+  const empty = {
+    ok: true as const,
+    data: {
+      juntas: [] as Junta[],
+      members: [] as JuntaMember[],
+      schedules: [] as any[],
+      payments: [] as any[],
+      payouts: [] as any[]
+    }
+  };
 
-  const [ownedResult, membershipResult] = await Promise.all([
+  if (!hasSupabase || !supabase) return empty;
+
+  // Query A: juntas owned by user (admin_id)
+  // Query B: juntas where user is an active member
+  // Both use allSettled — failure of one does not block the other.
+  const [ownedSettled, membershipSettled] = await Promise.allSettled([
     supabase.schema('public').from('juntas').select('id').eq('admin_id', profileId).neq('estado', 'eliminada' as EstadoJunta),
-    supabase.schema('public').from('junta_members').select('junta_id').eq('profile_id', profileId).neq('estado', 'retirado')
+    supabase.schema('public').from('junta_members').select('junta_id').eq('profile_id', profileId).in('estado', ['activo', 'pendiente', 'moroso', 'invitado'])
   ]);
 
-  if (ownedResult.error) return { ok: false as const, message: mapSupabaseErrorMessage(ownedResult.error.message) };
-  if (membershipResult.error) return { ok: false as const, message: mapSupabaseErrorMessage(membershipResult.error.message) };
+  const ownedIds: string[] = [];
+  const memberIds: string[] = [];
 
-  const juntaIds = Array.from(new Set([
-    ...((ownedResult.data ?? []).map((row) => row.id)),
-    ...((membershipResult.data ?? []).map((row) => row.junta_id))
-  ]));
-
-  if (juntaIds.length === 0) {
-    return {
-      ok: true as const,
-      data: {
-        juntas: [] as Junta[],
-        members: [] as JuntaMember[],
-        schedules: [] as any[],
-        payments: [] as any[],
-        payouts: [] as any[]
-      }
-    };
+  if (ownedSettled.status === 'fulfilled' && !ownedSettled.value.error) {
+    ownedIds.push(...(ownedSettled.value.data ?? []).map((r) => r.id));
+  } else {
+    const err = ownedSettled.status === 'rejected' ? ownedSettled.reason : ownedSettled.value.error;
+    console.error('[dashboard-my-juntas] owned query failed:', err);
   }
 
-  const [juntasResult, membersResult, schedulesSettled, paymentsSettled, payoutsSettled] = await Promise.allSettled([
+  if (membershipSettled.status === 'fulfilled' && !membershipSettled.value.error) {
+    memberIds.push(...(membershipSettled.value.data ?? []).map((r) => r.junta_id));
+  } else {
+    const err = membershipSettled.status === 'rejected' ? membershipSettled.reason : membershipSettled.value.error;
+    console.error('[dashboard-my-juntas] membership query failed:', err);
+  }
+
+  console.log('[dashboard-my-juntas] profileId', profileId);
+  console.log('[dashboard-my-juntas] ownerJuntas', ownedIds.length);
+  console.log('[dashboard-my-juntas] memberJuntas', memberIds.length);
+
+  const juntaIds = Array.from(new Set([...ownedIds, ...memberIds]));
+
+  if (juntaIds.length === 0) {
+    console.log('[dashboard-my-juntas] finalJuntas', 0);
+    return empty;
+  }
+
+  // Fetch full data for all relevant juntas — every query is non-blocking.
+  const [juntasSettled, membersSettled, schedulesSettled, paymentsSettled, payoutsSettled] = await Promise.allSettled([
     supabase.schema('public').from('juntas').select('id,admin_id,slug,invite_token,access_code,bloqueada,tipo_junta,incentivo_porcentaje,incentivo_regla,turn_assignment_mode,cuota_base,bolsa_base,nombre,descripcion,moneda,participantes_max,monto_cuota,premio_primero_pct,descuento_ultimo_pct,fee_plataforma_pct,frecuencia_pago,fecha_inicio,dia_limite_pago,penalidad_mora,visibilidad,cerrar_inscripciones,estado,created_at,integrantes_actuales').in('id', juntaIds),
     supabase.schema('public').from('junta_members').select('id,junta_id,profile_id,estado,rol,orden_turno,created_at').in('junta_id', juntaIds),
     supabase.schema('public').from('payment_schedules').select('id,junta_id,cuota_numero,fecha_vencimiento,monto,estado').in('junta_id', juntaIds),
@@ -467,25 +478,28 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
     supabase.schema('public').from('payouts').select('id,junta_id,ronda_numero,profile_id,monto_pozo,entregado_en,observaciones').in('junta_id', juntaIds)
   ]);
 
-  const juntasData = juntasResult.status === 'fulfilled' ? juntasResult.value : null;
-  const membersData = membersResult.status === 'fulfilled' ? membersResult.value : null;
-
-  if (!juntasData || juntasData.error) return { ok: false as const, message: juntasData?.error ? mapSupabaseErrorMessage(juntasData.error.message) : 'Error cargando juntas' };
-  if (!membersData || membersData.error) return { ok: false as const, message: membersData?.error ? mapSupabaseErrorMessage(membersData.error.message) : 'Error cargando miembros' };
-
+  const juntasData = juntasSettled.status === 'fulfilled' ? (juntasSettled.value.data ?? []) : [];
+  const membersData = membersSettled.status === 'fulfilled' ? (membersSettled.value.data ?? []) : [];
   const schedulesData = schedulesSettled.status === 'fulfilled' ? (schedulesSettled.value.data ?? []) : [];
   const paymentsData = paymentsSettled.status === 'fulfilled' ? (paymentsSettled.value.data ?? []) : [];
   const payoutsData = payoutsSettled.status === 'fulfilled' ? (payoutsSettled.value.data ?? []) : [];
 
-  if (schedulesSettled.status === 'rejected') console.error('[snapshot] schedules query failed:', schedulesSettled.reason);
-  if (paymentsSettled.status === 'rejected') console.error('[snapshot] payments query failed:', paymentsSettled.reason);
-  if (payoutsSettled.status === 'rejected') console.error('[snapshot] payouts query failed:', payoutsSettled.reason);
+  if (juntasSettled.status === 'rejected' || (juntasSettled.status === 'fulfilled' && juntasSettled.value.error)) {
+    const err = juntasSettled.status === 'rejected' ? juntasSettled.reason : juntasSettled.value.error;
+    console.error('[dashboard-my-juntas] error', err);
+  }
+  if (membersSettled.status === 'rejected') console.error('[dashboard-my-juntas] members fetch failed:', membersSettled.reason);
+  if (schedulesSettled.status === 'rejected') console.error('[dashboard-my-juntas] schedules fetch failed:', schedulesSettled.reason);
+  if (paymentsSettled.status === 'rejected') console.error('[dashboard-my-juntas] payments fetch failed:', paymentsSettled.reason);
+  if (payoutsSettled.status === 'rejected') console.error('[dashboard-my-juntas] payouts fetch failed:', payoutsSettled.reason);
+
+  console.log('[dashboard-my-juntas] finalJuntas', juntasData.length);
 
   return {
     ok: true as const,
     data: {
-      juntas: (juntasData.data ?? []) as Junta[],
-      members: (membersData.data ?? []) as JuntaMember[],
+      juntas: juntasData as Junta[],
+      members: membersData as JuntaMember[],
       schedules: schedulesData,
       payments: paymentsData,
       payouts: payoutsData

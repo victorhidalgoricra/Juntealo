@@ -247,10 +247,25 @@ export function buildJuntaScoreStatsFromDomain(params: {
   const weekFrom = new Date(now);
   weekFrom.setDate(weekFrom.getDate() - 7);
 
+  // Juntas where user is an active member (not retired)
+  const activeMemberJuntaIds = new Set(
+    params.members
+      .filter((m) => m.profile_id === params.userId && m.estado !== 'retirado')
+      .map((m) => m.junta_id)
+  );
+
+  // Full set for streak/completedCycles: owned (non-eliminated) + active memberships
   const myJuntaIds = new Set([
-    ...params.juntas.filter((junta) => junta.admin_id === params.userId).map((junta) => junta.id),
-    ...params.members.filter((member) => member.profile_id === params.userId).map((member) => member.junta_id)
+    ...params.juntas.filter((j) => j.admin_id === params.userId && j.estado !== 'eliminada').map((j) => j.id),
+    ...activeMemberJuntaIds
   ]);
+
+  // For incumplimiento counting: only currently active juntas where user is a member
+  const activeParticipationIds = new Set(
+    params.juntas
+      .filter((j) => activeMemberJuntaIds.has(j.id) && j.estado === 'activa')
+      .map((j) => j.id)
+  );
 
   const myPayments = params.payments.filter((payment) => payment.profile_id === params.userId && myJuntaIds.has(payment.junta_id));
   const paymentBySchedule = new Map(myPayments.map((payment) => [`${payment.junta_id}-${payment.schedule_id}`, payment]));
@@ -286,6 +301,16 @@ export function buildJuntaScoreStatsFromDomain(params: {
         if (isRecent) onTimePaymentsRecent += 1;
         if (isThisWeek) onTimePaymentsThisWeek += 1;
       }
+      return;
+    }
+
+    // Payment is in review — do not count as incumplimiento yet
+    if (payment?.estado === 'submitted' || payment?.estado === 'validating') {
+      return;
+    }
+
+    // Only count incumplimientos for currently active juntas where user is an active member
+    if (!activeParticipationIds.has(schedule.junta_id)) {
       return;
     }
 

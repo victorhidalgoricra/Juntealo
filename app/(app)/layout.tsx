@@ -83,7 +83,7 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
       .then((result) => {
         if (cancelled) return;
         if (!result.ok) {
-          console.error('[dashboard] juntas fetch failed:', result.message);
+          console.error('[dashboard] juntas fetch failed');
           return;
         }
         console.log('[dashboard] memberships loaded', result.data.members.length);

@@ -91,7 +91,7 @@ export default function JuntasDisponiblesPage() {
     });
 
     if (!snapshotResult.ok) {
-      console.error('[Juntas disponibles] error loading snapshot', snapshotResult.message);
+      console.error('[Juntas disponibles] error loading snapshot');
     }
 
     setLoading(false);
