@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card';
 import { getPaymentAlertState, type PaymentAlertState } from '@/lib/payment-alert';
 import { getJuntaEngagementLayer, type JuntaMission, type LevelUnlocks } from '@/services/junta-engagement.service';
 import { fetchProfilesByIds } from '@/services/profile.service';
-import { fetchUserPaymentNotifications } from '@/services/juntas.repository';
+import { fetchUserPaymentNotifications, fetchUserJuntaSnapshot } from '@/services/juntas.repository';
 import {
   buildJuntaScoreStatsFromDomain,
   getScoreBadge,
@@ -461,7 +461,7 @@ function NextLevelSection({ data }: { data: NextLevelData }) {
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
-  const { juntas, schedules, payments, members, payouts, isDataReady } = useAppStore();
+  const { juntas, schedules, payments, members, payouts, isDataReady, setData } = useAppStore();
   const safeJuntas = useMemo(() => (Array.isArray(juntas) ? juntas : []), [juntas]);
   const safeSchedules = useMemo(() => (Array.isArray(schedules) ? schedules : []), [schedules]);
   const safePayments = useMemo(() => (Array.isArray(payments) ? payments : []), [payments]);
@@ -475,6 +475,11 @@ export default function DashboardPage() {
     payouts: Payout[];
   } | null>(null);
   const userId = user?.id ?? '';
+
+  const [juntasIsLoading, setJuntasIsLoading] = useState(true);
+  const [localJuntas, setLocalJuntas] = useState<Junta[]>([]);
+  const [localMembers, setLocalMembers] = useState<JuntaMember[]>([]);
+  const [localSchedules, setLocalSchedules] = useState<PaymentSchedule[]>([]);
 
   const myJuntaIds = useMemo(
     () => (user ? getMyJuntaIds(user.id, safeJuntas, safeMembers) : []),
@@ -509,6 +514,49 @@ export default function DashboardPage() {
       setProfilesById(mapped);
     });
   }, [myJuntaIds, safeMembers, user, userId]);
+
+  // Fetch propio del dashboard — independiente del layout y del store global.
+  // Garantiza que "Mis juntas activas" se cargue al entrar directamente al dashboard
+  // sin depender de haber visitado otra pantalla primero.
+  useEffect(() => {
+    if (!user?.id) return;
+
+    setJuntasIsLoading(true);
+
+    fetchUserJuntaSnapshot(user.id)
+      .then((result) => {
+        if (!result.ok) {
+          console.error('[dashboard:misJuntas] fetch failed', result.message);
+          return;
+        }
+
+        const { juntas: fetchedJuntas, members: fetchedMembers, schedules: fetchedSchedules, payments: fetchedPayments, payouts: fetchedPayouts } = result.data;
+
+        // isOwner = junta.admin_id === user.id
+        const ownerCount = fetchedJuntas.filter((j) => j.admin_id === user.id).length;
+        // isActiveMember = profile_id === user.id, estado !== retirado
+        const memberCount = fetchedMembers.filter(
+          (m) => m.profile_id === user.id && m.estado !== 'retirado'
+        ).length;
+
+        console.log('[dashboard:misJuntas] profileId', user.id);
+        console.log('[dashboard:misJuntas] ownerJuntas', ownerCount);
+        console.log('[dashboard:misJuntas] memberJuntas', memberCount);
+        console.log('[dashboard:misJuntas] finalJuntas', fetchedJuntas.length);
+
+        // Un solo setState para evitar renders parciales
+        setLocalJuntas(fetchedJuntas);
+        setLocalMembers(fetchedMembers);
+        setLocalSchedules(fetchedSchedules);
+
+        // Mantiene el store global sincronizado para las demás secciones del dashboard
+        setData({ juntas: fetchedJuntas, members: fetchedMembers, schedules: fetchedSchedules, payments: fetchedPayments, payouts: fetchedPayouts });
+      })
+      .finally(() => {
+        console.log('[dashboard:misJuntas] isLoading false');
+        setJuntasIsLoading(false);
+      });
+  }, [user?.id, setData]);
 
   const paymentAlert = useMemo(() => {
     if (notifPayload) {
@@ -614,20 +662,23 @@ export default function DashboardPage() {
     myJuntaIds
   });
 
-  const memberCountByJunta = getActiveMemberCountByJunta(safeJuntas, safeMembers);
+  // "Mis juntas activas" usa datos del fetch propio (no del store global)
+  // para garantizar que aparezcan al entrar directo al dashboard.
+  const localMyJuntaIds = getMyJuntaIds(user.id, localJuntas, localMembers);
+  const memberCountByJunta = getActiveMemberCountByJunta(localJuntas, localMembers);
 
   const activeJuntas = getActiveJuntas({
-    juntas: safeJuntas,
-    myJuntaIds,
-    members: safeMembers,
-    schedules: safeSchedules,
+    juntas: localJuntas,
+    myJuntaIds: localMyJuntaIds,
+    members: localMembers,
+    schedules: localSchedules,
     userId: user.id,
     memberCountByJunta
   });
 
   const historyJuntas = getJuntaHistory({
-    juntas: safeJuntas,
-    myJuntaIds
+    juntas: localJuntas,
+    myJuntaIds: localMyJuntaIds
   });
 
   const approvedCount = scoreStats.onTimePaymentsRecent + scoreStats.onTimePaymentsLifetime;
@@ -650,7 +701,7 @@ export default function DashboardPage() {
 
       <ContributionSummaryCards summary={contributionSummary} />
 
-      <ActiveJuntasSection active={activeJuntas} history={historyJuntas} isLoading={!isDataReady} />
+      <ActiveJuntasSection active={activeJuntas} history={historyJuntas} isLoading={juntasIsLoading} />
 
       <NextLevelSection data={nextLevel} />
 
