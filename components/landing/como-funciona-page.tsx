@@ -44,7 +44,7 @@ const faqs = [
 export function ComoFuncionaPage() {
   const [tipoActivo, setTipoActivo] = useState<TipoJunta>('normal');
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
-  const [personas, setPersonas] = useState(8);
+  const [personas, setPersonas] = useState(5);
   const [cuota, setCuota] = useState(400);
   const [frecuencia, setFrecuencia] = useState<'Semanal' | 'Quincenal' | 'Mensual'>('Semanal');
   const [simTipo, setSimTipo] = useState<TipoJunta>('normal');
@@ -55,7 +55,6 @@ export function ComoFuncionaPage() {
   }, [personas]);
 
   const bolsa = personas * cuota;
-  const totalGrupo = bolsa * personas;
   const duracionLabel = `${personas} ${frecuencia === 'Semanal' ? 'semanas' : frecuencia === 'Quincenal' ? 'quincenas' : 'meses'}`;
   const cuotaMax = Math.round(cuota * 1.2);
   const cuotaMin = Math.round(cuota * 0.8);
@@ -319,18 +318,15 @@ export function ComoFuncionaPage() {
                     {personas}
                   </span>
                 </label>
-                <input
-                  type="range"
-                  min={3}
-                  max={20}
+                <select
                   value={personas}
                   onChange={(e) => setPersonas(+e.target.value)}
-                  className="w-full accent-[var(--accent)]"
-                />
-                <div className="mt-1 flex justify-between text-[11px] text-[var(--muted)]">
-                  <span>3</span>
-                  <span>20</span>
-                </div>
+                  className="w-full rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                >
+                  {Array.from({ length: 17 }, (_, i) => i + 4).map((n) => (
+                    <option key={n} value={n}>{n} personas</option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -342,15 +338,15 @@ export function ComoFuncionaPage() {
                 </label>
                 <input
                   type="range"
-                  min={50}
+                  min={20}
                   max={2000}
-                  step={50}
+                  step={10}
                   value={cuota}
                   onChange={(e) => setCuota(+e.target.value)}
                   className="w-full accent-[var(--accent)]"
                 />
                 <div className="mt-1 flex justify-between text-[11px] text-[var(--muted)]">
-                  <span>S/ 50</span>
+                  <span>S/ 20</span>
                   <span>S/ 2,000</span>
                 </div>
               </div>
@@ -391,11 +387,10 @@ export function ComoFuncionaPage() {
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
               {[
                 { label: 'Bolsa por turno', value: `S/ ${bolsa.toLocaleString('es-PE')}` },
                 { label: 'Duración del ciclo', value: duracionLabel },
-                { label: 'Total del grupo', value: `S/ ${totalGrupo.toLocaleString('es-PE')}` },
                 simTipo === 'incentivos'
                   ? { label: 'Rango de cuotas', value: `S/ ${cuotaMin} – S/ ${cuotaMax}` }
                   : { label: 'Cuota por período', value: `S/ ${cuota.toLocaleString('es-PE')}` },
