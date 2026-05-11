@@ -11,7 +11,8 @@ const schemas = {
   junta_creada: baseSchema.extend({
     userName: z.string(),
     juntaName: z.string(),
-    joinCode: z.string(),
+    isPrivate: z.boolean(),
+    joinCode: z.string().optional(),
     juntaUrl: z.string().url(),
   }),
   nuevo_integrante: baseSchema.extend({

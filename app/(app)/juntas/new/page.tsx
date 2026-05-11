@@ -349,12 +349,14 @@ export default function NewJuntaPage() {
                 if (!persist.ok) throw new Error(persist.message);
 
                 const juntaUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/juntas/${payload.juntaId}`;
+                const isPrivate = payload.junta.visibilidad === 'privada';
                 const emailPayload = {
                   type: 'junta_creada',
                   to: user.email,
                   userName: user.nombre,
                   juntaName: payload.junta.nombre,
-                  joinCode: payload.accessCode ?? payload.junta.invite_token ?? payload.juntaId,
+                  isPrivate,
+                  ...(isPrivate && payload.accessCode ? { joinCode: payload.accessCode } : {}),
                   juntaUrl,
                 };
                 console.log('[email] sending junta_creada', { to: user.email, juntaName: payload.junta.nombre });

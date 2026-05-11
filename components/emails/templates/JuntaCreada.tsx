@@ -7,33 +7,41 @@ import { EmailDivider } from '../components/EmailDivider'
 export interface JuntaCreadaProps {
   userName: string
   juntaName: string
-  joinCode: string
+  isPrivate: boolean
+  joinCode?: string
   juntaUrl: string
 }
 
-export function JuntaCreada({ userName, juntaName, joinCode, juntaUrl }: JuntaCreadaProps) {
+export function JuntaCreada({ userName, juntaName, isPrivate, joinCode, juntaUrl }: JuntaCreadaProps) {
+  const preview = isPrivate
+    ? `Tu junta "${juntaName}" está lista. Comparte el código con tus integrantes.`
+    : `Tu junta "${juntaName}" está lista. Comparte el link para invitar integrantes.`
+
   return (
-    <EmailLayout preview={`Tu junta "${juntaName}" está lista. Comparte el código con tus integrantes.`}>
+    <EmailLayout preview={preview}>
 
       <Text style={greeting}>Hola, {userName} 👋</Text>
 
       <Text style={headline}>Tu junta fue creada</Text>
 
       <Text style={body}>
-        <strong style={strong}>{juntaName}</strong> está lista. Ahora puedes invitar a tus
-        integrantes compartiendo el código de acceso.
+        <strong style={strong}>{juntaName}</strong> está lista.{' '}
+        {isPrivate
+          ? 'Ahora puedes invitar a tus integrantes compartiendo el código de acceso.'
+          : 'Puedes compartir el link de tu junta para invitar integrantes.'}
       </Text>
 
       <EmailDivider spacing="md" />
 
-      {/* Join code card */}
-      <Section style={codeCard}>
-        <Text style={codeLabel}>CÓDIGO DE ACCESO</Text>
-        <Text style={codeValue}>{joinCode}</Text>
-        <Text style={codeHint}>Comparte este código con quienes quieras invitar</Text>
-      </Section>
+      {isPrivate && joinCode && (
+        <Section style={codeCard}>
+          <Text style={codeLabel}>CÓDIGO DE ACCESO</Text>
+          <Text style={codeValue}>{joinCode}</Text>
+          <Text style={codeHint}>Comparte este código solo con quienes quieras invitar</Text>
+        </Section>
+      )}
 
-      <EmailDivider spacing="md" />
+      {isPrivate && joinCode && <EmailDivider spacing="md" />}
 
       <Row>
         <Column>
@@ -42,8 +50,10 @@ export function JuntaCreada({ userName, juntaName, joinCode, juntaUrl }: JuntaCr
       </Row>
 
       <Text style={tip}>
-        <strong style={strong}>Tip:</strong> Los integrantes pueden unirse desde la app usando
-        el código o el enlace de invitación.
+        <strong style={strong}>Tip:</strong>{' '}
+        {isPrivate
+          ? 'Los integrantes pueden unirse desde la app usando el código o el enlace de invitación.'
+          : 'Los integrantes pueden unirse desde la app usando el enlace de tu junta.'}
       </Text>
 
     </EmailLayout>
@@ -53,6 +63,7 @@ export function JuntaCreada({ userName, juntaName, joinCode, juntaUrl }: JuntaCr
 JuntaCreada.PreviewProps = {
   userName: 'Carlos',
   juntaName: 'Junta Familia 2025',
+  isPrivate: true,
   joinCode: 'FAM-2025',
   juntaUrl: 'https://juntealo.com/junta/fam-2025',
 } satisfies JuntaCreadaProps
