@@ -33,6 +33,13 @@ export async function sendTransactionalEmail({
   from = DEFAULT_FROM,
   replyTo,
 }: SendEmailOptions): Promise<SendEmailResult> {
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[email] RESEND_API_KEY is not set — skipping send', { to, subject })
+    return { id: null, error: 'RESEND_API_KEY not configured' }
+  }
+
+  console.log('[email] sending', { to, subject })
+
   const html = await render(template)
 
   const { data, error } = await getResend().emails.send({
@@ -44,8 +51,10 @@ export async function sendTransactionalEmail({
   })
 
   if (error) {
+    console.error('[email] failed', { to, subject, error: error.message })
     return { id: null, error: error.message }
   }
 
+  console.log('[email] sent', { id: data?.id, to, subject })
   return { id: data?.id ?? null, error: null }
 }
