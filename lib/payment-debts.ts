@@ -1,7 +1,7 @@
 import { isSameDay } from 'date-fns';
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { getCurrentRoundReceiver, getParticipantDisplayName, getReceiverPaymentDetails } from '@/lib/payment-instructions';
-import { Junta, JuntaMember, Payment, PaymentSchedule, Profile } from '@/types/domain';
+import { Junta, JuntaMember, Payment, PaymentSchedule, Payout, Profile } from '@/types/domain';
 
 export type PaymentDebtStatus = 'pendiente' | 'vence_hoy' | 'vencida' | 'pagada' | 'en_validacion';
 
@@ -18,6 +18,7 @@ export type PaymentDebtItem = {
   receiverMethod: string;
   receiverMethodConfigured: boolean;
   myPayoutConfigured: boolean;
+  isMyReceivingTurn: boolean;
   status: PaymentDebtStatus;
 };
 
@@ -33,6 +34,7 @@ export function buildPaymentDebtItems(params: {
   members: JuntaMember[];
   schedules: PaymentSchedule[];
   payments: Payment[];
+  payouts?: Payout[];
   profilesById: Record<string, Profile>;
   fallbackProfile?: Profile | null;
   now?: Date;
@@ -40,8 +42,24 @@ export function buildPaymentDebtItems(params: {
   const now = params.now ?? new Date();
   const myJuntaIds = getMyJuntaIdsForPayments(params.userId, params.juntas, params.members);
 
+  // Derive the current cuota per junta from delivered payouts so we skip
+  // historical schedules that were already handled in prior rounds.
+  const currentCuotaByJunta = new Map<string, number>();
+  if (params.payouts) {
+    for (const juntaId of myJuntaIds) {
+      const delivered = params.payouts.filter((p) => p.junta_id === juntaId && p.entregado_en != null).length;
+      currentCuotaByJunta.set(juntaId, delivered + 1);
+    }
+  }
+
   return params.schedules
     .filter((schedule) => myJuntaIds.includes(schedule.junta_id))
+    .filter((schedule) => {
+      // Drop schedules from rounds before the current one to avoid surfacing
+      // old missed cuotas that should no longer require action.
+      const currentCuota = currentCuotaByJunta.get(schedule.junta_id);
+      return currentCuota === undefined || schedule.cuota_numero >= currentCuota;
+    })
     .map((schedule) => {
       const junta = params.juntas.find((item) => item.id === schedule.junta_id);
       if (!junta) return null;
@@ -57,6 +75,8 @@ export function buildPaymentDebtItems(params: {
         && payment.junta_id === junta.id
         && payment.schedule_id === schedule.id
       );
+
+      const isMyReceivingTurn = receiver?.profile_id === params.userId;
 
       const dueDate = parseCalendarDate(schedule.fecha_vencimiento);
       const isApproved = userPayment?.estado === 'approved' || (userPayment?.estado as string) === 'pagado';
@@ -84,6 +104,7 @@ export function buildPaymentDebtItems(params: {
         receiverMethod: receiverPayment.methodLabel,
         receiverMethodConfigured: receiverPayment.isConfigured,
         myPayoutConfigured: myPaymentConfig.isConfigured,
+        isMyReceivingTurn,
         status
       } satisfies PaymentDebtItem;
     })
