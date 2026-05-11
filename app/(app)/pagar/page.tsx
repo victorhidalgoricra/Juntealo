@@ -21,7 +21,7 @@ function money(value: number) {
 export default function PagarPage() {
   const user = useAuthStore((s) => s.user);
   const searchParams = useSearchParams();
-  const { juntas, members, schedules, payments, setData } = useAppStore();
+  const { juntas, members, schedules, payments, payouts, setData } = useAppStore();
   const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
 
   useEffect(() => {
@@ -58,11 +58,12 @@ export default function PagarPage() {
     members,
     schedules,
     payments,
+    payouts,
     profilesById,
     fallbackProfile: user
-  }), [juntas, members, payments, profilesById, schedules, user]);
+  }), [juntas, members, payments, payouts, profilesById, schedules, user]);
 
-  const pendingDebts = useMemo(() => debts.filter((item) => item.status !== 'pagada' && item.status !== 'en_validacion'), [debts]);
+  const pendingDebts = useMemo(() => debts.filter((item) => item.status !== 'pagada' && item.status !== 'en_validacion' && !item.isMyReceivingTurn), [debts]);
   const overdueCount = pendingDebts.filter((item) => item.status === 'vencida').length;
   const dueTodayCount = pendingDebts.filter((item) => item.status === 'vence_hoy').length;
   const totalPending = pendingDebts.reduce((acc, item) => acc + item.monto, 0);

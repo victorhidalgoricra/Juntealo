@@ -17,12 +17,14 @@ function money(value: number) {
 }
 
 function pickActionablePerJunta(items: PaymentDebtItem[]): PaymentDebtItem[] {
-  // Items come sorted by dueDate ASC from buildPaymentDebtItems.
-  // For each junta, we want the earliest non-pagada cuota (lowest cuota_numero).
-  // Sort per-junta by cuotaNumero to guarantee correctness regardless of date order.
+  // For each junta pick the lowest cuota_numero that:
+  //   • is not already paid
+  //   • is not the user's own receiving turn
+  // Sort per-junta by cuotaNumero so we always get the real next pending cuota.
   const byJunta = new Map<string, PaymentDebtItem[]>();
   for (const item of items) {
     if (item.status === 'pagada') continue;
+    if (item.isMyReceivingTurn) continue;
     const list = byJunta.get(item.juntaId) ?? [];
     list.push(item);
     byJunta.set(item.juntaId, list);
@@ -40,7 +42,7 @@ function pickActionablePerJunta(items: PaymentDebtItem[]): PaymentDebtItem[] {
 
 export function NotificationsPanel() {
   const user = useAuthStore((s) => s.user);
-  const { notifications, juntas, members, schedules, payments, setData } = useAppStore();
+  const { notifications, juntas, members, schedules, payments, payouts, setData } = useAppStore();
   const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
 
   useEffect(() => {
@@ -64,11 +66,12 @@ export function NotificationsPanel() {
       members,
       schedules,
       payments,
+      payouts,
       profilesById,
       fallbackProfile: user,
     });
     return pickActionablePerJunta(all);
-  }, [juntas, members, payments, profilesById, schedules, user]);
+  }, [juntas, members, payments, payouts, profilesById, schedules, user]);
 
   const handleMarkAllRead = async () => {
     const unread = notifications.filter((n) => !n.leida);
