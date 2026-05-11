@@ -348,6 +348,25 @@ export default function NewJuntaPage() {
                 const persist = await createJuntaRecord(payload.junta);
                 if (!persist.ok) throw new Error(persist.message);
 
+                const juntaUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/juntas/${payload.juntaId}`;
+                const emailPayload = {
+                  type: 'junta_creada',
+                  to: user.email,
+                  userName: user.nombre,
+                  juntaName: payload.junta.nombre,
+                  joinCode: payload.accessCode ?? payload.junta.invite_token ?? payload.juntaId,
+                  juntaUrl,
+                };
+                console.log('[email] sending junta_creada', { to: user.email, juntaName: payload.junta.nombre });
+                fetch('/api/emails/send', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(emailPayload),
+                })
+                  .then((res) => res.json())
+                  .then((result) => console.log('[email] sent', result))
+                  .catch((error) => console.error('[email] failed', error));
+
                 const schedule = generarCronograma({
                   juntaId: payload.juntaId,
                   participantes: values.participantes_max,
