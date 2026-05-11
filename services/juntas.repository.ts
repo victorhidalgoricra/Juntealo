@@ -951,3 +951,16 @@ export async function fetchUserPaymentNotifications(profileId: string) {
     },
   };
 }
+
+export async function markNotificationsRead(profileId: string, ids?: string[]) {
+  if (!hasSupabase || !supabase) return { ok: true as const };
+  let query = supabase
+    .schema('public')
+    .from('notifications')
+    .update({ leida: true })
+    .eq('profile_id', profileId);
+  if (ids && ids.length > 0) query = query.in('id', ids);
+  const { error } = await query;
+  if (error) return { ok: false as const, message: error.message };
+  return { ok: true as const };
+}
