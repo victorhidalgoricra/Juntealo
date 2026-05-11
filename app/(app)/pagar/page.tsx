@@ -62,7 +62,7 @@ export default function PagarPage() {
     fallbackProfile: user
   }), [juntas, members, payments, profilesById, schedules, user]);
 
-  const pendingDebts = useMemo(() => debts.filter((item) => item.status !== 'pagada'), [debts]);
+  const pendingDebts = useMemo(() => debts.filter((item) => item.status !== 'pagada' && item.status !== 'en_validacion'), [debts]);
   const overdueCount = pendingDebts.filter((item) => item.status === 'vencida').length;
   const dueTodayCount = pendingDebts.filter((item) => item.status === 'vence_hoy').length;
   const totalPending = pendingDebts.reduce((acc, item) => acc + item.monto, 0);

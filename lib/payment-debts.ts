@@ -3,7 +3,7 @@ import { parseCalendarDate } from '@/lib/calendar-date';
 import { getCurrentRoundReceiver, getParticipantDisplayName, getReceiverPaymentDetails } from '@/lib/payment-instructions';
 import { Junta, JuntaMember, Payment, PaymentSchedule, Profile } from '@/types/domain';
 
-export type PaymentDebtStatus = 'pendiente' | 'vence_hoy' | 'vencida' | 'pagada';
+export type PaymentDebtStatus = 'pendiente' | 'vence_hoy' | 'vencida' | 'pagada' | 'en_validacion';
 
 export type PaymentDebtItem = {
   id: string;
@@ -59,18 +59,17 @@ export function buildPaymentDebtItems(params: {
       );
 
       const dueDate = parseCalendarDate(schedule.fecha_vencimiento);
-      // Treat submitted/validating/approved/pagado as "handled" — don't show a pending CTA.
-      const paymentIsHandled = userPayment?.estado === 'approved'
-        || userPayment?.estado === 'submitted'
-        || userPayment?.estado === 'validating'
-        || (userPayment?.estado as string) === 'pagado';
-      const status: PaymentDebtStatus = paymentIsHandled
+      const isApproved = userPayment?.estado === 'approved' || (userPayment?.estado as string) === 'pagado';
+      const isValidating = userPayment?.estado === 'submitted' || userPayment?.estado === 'validating';
+      const status: PaymentDebtStatus = isApproved
         ? 'pagada'
-        : dueDate.getTime() < now.getTime()
-          ? 'vencida'
-          : isSameDay(dueDate, now)
-            ? 'vence_hoy'
-            : 'pendiente';
+        : isValidating
+          ? 'en_validacion'
+          : dueDate.getTime() < now.getTime()
+            ? 'vencida'
+            : isSameDay(dueDate, now)
+              ? 'vence_hoy'
+              : 'pendiente';
 
       return {
         id: `${junta.id}:${schedule.id}`,
