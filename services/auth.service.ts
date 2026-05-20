@@ -1,3 +1,39 @@
+import type { User } from '@supabase/supabase-js';
+import { resolveGlobalRole } from '@/services/auth-role.service';
+import { fetchProfileById } from '@/services/profile.service';
+import { Profile } from '@/types/domain';
+
+export async function buildProfileFromAuthUser(user: User, fallbackEmail?: string): Promise<Profile> {
+  const email = user.email ?? fallbackEmail ?? '';
+  const profileResult = await fetchProfileById(user.id);
+  if (!profileResult.ok) {
+    console.warn('[Auth] profile lookup failed, continuing with auth payload', profileResult.message);
+  }
+
+  const profile = profileResult.ok ? profileResult.data : null;
+  const globalRole = await resolveGlobalRole(email);
+
+  return {
+    id: user.id,
+    email: profile?.email ?? email,
+    nombre: profile?.nombre ?? user.user_metadata?.full_name ?? email.split('@')[0] ?? 'Usuario',
+    first_name: profile?.first_name,
+    second_name: profile?.second_name,
+    paternal_last_name: profile?.paternal_last_name,
+    celular: profile?.celular ?? user.user_metadata?.phone ?? '',
+    dni: profile?.dni ?? user.user_metadata?.dni,
+    foto_url: profile?.foto_url,
+    preferred_payout_method: profile?.preferred_payout_method,
+    payout_account_name: profile?.payout_account_name,
+    payout_phone_number: profile?.payout_phone_number,
+    payout_bank_name: profile?.payout_bank_name,
+    payout_account_number: profile?.payout_account_number,
+    payout_cci: profile?.payout_cci,
+    payout_notes: profile?.payout_notes,
+    global_role: globalRole
+  };
+}
+
 function getNormalizedMessage(errorOrMessage: unknown) {
   if (typeof errorOrMessage === 'string') return errorOrMessage.toLowerCase();
   if (errorOrMessage instanceof Error) return errorOrMessage.message.toLowerCase();

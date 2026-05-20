@@ -13,7 +13,7 @@ import { resolveGlobalRole } from '@/services/auth-role.service';
 import { useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { mapAuthErrorMessage } from '@/services/auth.service';
+import { buildProfileFromAuthUser, mapAuthErrorMessage } from '@/services/auth.service';
 import { ensureProfileExists, fetchProfileById } from '@/services/profile.service';
 import { clearExploreJoinIntent, readExploreJoinIntent } from '@/lib/explore-join-intent';
 import { fetchMyActiveMembership } from '@/services/juntas.repository';
@@ -79,7 +79,6 @@ export function LoginPageClient() {
         const user = data.user;
         if (!user) throw new Error('No se pudo obtener sesión.');
 
-        const globalRole = await resolveGlobalRole(values.email);
         const profileResult = await fetchProfileById(user.id);
         if (!profileResult.ok) {
           console.warn('[Login] profile lookup failed, continuing with auth payload', profileResult.message);
@@ -98,34 +97,7 @@ export function LoginPageClient() {
           }
         }
 
-        let refreshedProfile = profileResult.ok ? profileResult.data : null;
-        if (!refreshedProfile) {
-          const retryProfile = await fetchProfileById(user.id);
-          if (!retryProfile.ok) {
-            console.warn('[Login] profile retry failed, continuing with auth payload', retryProfile.message);
-          } else {
-            refreshedProfile = retryProfile.data;
-          }
-        }
-        setUser({
-          id: user.id,
-          email: refreshedProfile?.email ?? values.email,
-          nombre: refreshedProfile?.nombre ?? user.user_metadata?.full_name ?? values.email.split('@')[0],
-          first_name: refreshedProfile?.first_name,
-          second_name: refreshedProfile?.second_name,
-          paternal_last_name: refreshedProfile?.paternal_last_name,
-          celular: refreshedProfile?.celular ?? user.user_metadata?.phone ?? '',
-          dni: refreshedProfile?.dni,
-          foto_url: refreshedProfile?.foto_url,
-          preferred_payout_method: refreshedProfile?.preferred_payout_method,
-          payout_account_name: refreshedProfile?.payout_account_name,
-          payout_phone_number: refreshedProfile?.payout_phone_number,
-          payout_bank_name: refreshedProfile?.payout_bank_name,
-          payout_account_number: refreshedProfile?.payout_account_number,
-          payout_cci: refreshedProfile?.payout_cci,
-          payout_notes: refreshedProfile?.payout_notes,
-          global_role: globalRole
-        });
+        setUser(await buildProfileFromAuthUser(user, values.email));
         const nextPath = await resolvePostLoginRoute({
           profileId: user.id,
           fallbackRedirect: redirect
