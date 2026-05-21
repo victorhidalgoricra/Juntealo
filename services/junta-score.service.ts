@@ -87,6 +87,7 @@ export type JuntaScoreBreakdown = {
   referrals: number;
   healthyBehavior: number;
   penalties: number;
+  missionBonus: number;
 };
 
 export type UserJuntaScoreResult = {
@@ -136,7 +137,7 @@ export function getScoreProgress(score: number): number {
   return toScore(clamp(score));
 }
 
-export function getUserJuntaScore(userId: string, stats: JuntaScoreStats): UserJuntaScoreResult {
+export function getUserJuntaScore(userId: string, stats: JuntaScoreStats, missionBonusPoints = 0): UserJuntaScoreResult {
   const recentWeightedTotal =
     stats.onTimePaymentsRecent +
     (stats.latePaymentsRecent * 1.25) +
@@ -176,7 +177,8 @@ export function getUserJuntaScore(userId: string, stats: JuntaScoreStats): UserJ
     + (stats.abandonedMidCycleCount * JUNTA_SCORE_CONFIG.penalties.abandonedMidCycle)
     + (stats.suspiciousAbuseAttempts * JUNTA_SCORE_CONFIG.penalties.suspiciousAbuse);
 
-  const rawScore = punctualityScore + completedCyclesScore + consistencyScore + referralsScore + healthyBehaviorBase - penaltyPoints;
+  const safeMissionBonus = Math.max(0, missionBonusPoints);
+  const rawScore = punctualityScore + completedCyclesScore + consistencyScore + referralsScore + healthyBehaviorBase - penaltyPoints + safeMissionBonus;
   const score = toScore(rawScore);
   const level = getScoreLevel(score);
   const nextLevel = getNextLevel(score);
@@ -196,6 +198,10 @@ export function getUserJuntaScore(userId: string, stats: JuntaScoreStats): UserJ
   }
   if (referralUnits > 0) {
     reasons.push('Tus referencias validadas y referidos exitosos suman puntos (con tope anti-abuso).');
+  }
+
+  if (safeMissionBonus > 0) {
+    reasons.push(`+${safeMissionBonus} punto(s) por misiones completadas esta semana.`);
   }
 
   if (stats.latePaymentsRecent > 0) {
@@ -223,7 +229,8 @@ export function getUserJuntaScore(userId: string, stats: JuntaScoreStats): UserJ
       consistency: toScore(consistencyScore),
       referrals: toScore(referralsScore),
       healthyBehavior: toScore(healthyBehaviorBase),
-      penalties: toScore(penaltyPoints)
+      penalties: toScore(penaltyPoints),
+      missionBonus: safeMissionBonus
     },
     reasons,
     warnings
