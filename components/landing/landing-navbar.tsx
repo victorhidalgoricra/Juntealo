@@ -4,6 +4,7 @@ import { JuntealoLogo } from '@/components/ui/juntealo-logo';
 const navLinks = [
   { href: '/', label: 'Inicio' },
   { href: '/como-funciona', label: '¿Cómo funciona?' },
+  { href: '/beneficios', label: 'Beneficios' },
   { href: '/explorar', label: 'Explorar juntas' },
 ];
 
