@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getPaymentAlertState, type PaymentAlertState } from '@/lib/payment-alert';
-import { getJuntaEngagementLayer, type JuntaMission, type LevelUnlocks } from '@/services/junta-engagement.service';
+import { getJuntaEngagementLayer, getWeekKey, type JuntaMission, type LevelUnlocks } from '@/services/junta-engagement.service';
 import { fetchProfilesByIds } from '@/services/profile.service';
 import { fetchUserPaymentNotifications, fetchUserJuntaSnapshot } from '@/services/juntas.repository';
 import {
@@ -17,6 +17,7 @@ import {
   type UserJuntaScoreResult,
   getUserJuntaScore
 } from '@/services/junta-score.service';
+import { claimMission, fetchClaimedMissions, recordRachaMilestone, type ClaimedMission } from '@/services/missions.repository';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { Junta, JuntaMember, Payment, PaymentSchedule, Payout, Profile } from '@/types/domain';
@@ -62,6 +63,7 @@ type NextLevelData = {
   unlocks: LevelUnlocks | null;
   gainText: string;
   lossText: string;
+  missionClaimedThisWeek: boolean;
 };
 
 function money(value: number) {
@@ -201,7 +203,11 @@ function getJuntaHistory(params: { juntas: Junta[]; myJuntaIds: string[] }): Jun
     }));
 }
 
-function getNextLevelProgress(score: UserJuntaScoreResult, engagement: ReturnType<typeof getJuntaEngagementLayer>): NextLevelData {
+function getNextLevelProgress(
+  score: UserJuntaScoreResult,
+  engagement: ReturnType<typeof getJuntaEngagementLayer>,
+  claimedThisWeek: Set<string>
+): NextLevelData {
   const nextLevel = engagement.nextLevel ?? 'Élite';
   const unlockCopy = engagement.nextLevelUnlocks
     ? `Límite ${engagement.nextLevelUnlocks.maxJuntaMembers} miembros · aporte hasta S/ ${engagement.nextLevelUnlocks.maxContributionPerRound.toLocaleString('es-PE')}.`
@@ -215,7 +221,8 @@ function getNextLevelProgress(score: UserJuntaScoreResult, engagement: ReturnTyp
     warning: engagement.levelDropWarning,
     unlocks: engagement.nextLevelUnlocks,
     gainText: engagement.causeAndEffect.gainIfPayToday,
-    lossText: engagement.causeAndEffect.lossIfLateToday
+    lossText: engagement.causeAndEffect.lossIfLateToday,
+    missionClaimedThisWeek: claimedThisWeek.has(engagement.featuredMission.id)
   };
 }
 
@@ -416,9 +423,18 @@ function ActiveJuntasSection({ active, history, isLoading }: { active: JuntaCard
   );
 }
 
-function NextLevelSection({ data }: { data: NextLevelData }) {
+function NextLevelSection({
+  data,
+  onClaimMission,
+  isClaiming
+}: {
+  data: NextLevelData;
+  onClaimMission: (mission: JuntaMission) => void;
+  isClaiming: boolean;
+}) {
   const progressPct = Math.round((data.currentScore / data.targetScore) * 100);
   const missionPct = Math.round((data.mission.progressCurrent / data.mission.progressTarget) * 100);
+  const canClaim = data.mission.status === 'completed' && !data.missionClaimedThisWeek;
 
   return (
     <section className="space-y-3">
@@ -439,9 +455,26 @@ function NextLevelSection({ data }: { data: NextLevelData }) {
       </Card>
 
       <Card className="p-4">
-        <p className="text-sm font-semibold text-fg">{data.mission.title}</p>
-        <p className="mt-1 text-sm text-fg/80">{data.mission.description}</p>
-        <p className="mt-1 text-xs text-green">Recompensa: +{data.mission.rewardPoints} pts</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-fg">{data.mission.title}</p>
+            <p className="mt-1 text-sm text-fg/80">{data.mission.description}</p>
+            <p className="mt-1 text-xs text-green">Recompensa: +{data.mission.rewardPoints} pts al score</p>
+          </div>
+          {data.missionClaimedThisWeek && (
+            <span className="mt-0.5 shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">Reclamado</span>
+          )}
+          {canClaim && (
+            <Button
+              size="sm"
+              disabled={isClaiming}
+              onClick={() => onClaimMission(data.mission)}
+              className="shrink-0"
+            >
+              {isClaiming ? 'Reclamando...' : 'Reclamar'}
+            </Button>
+          )}
+        </div>
         <div className="mt-3 flex items-center gap-3">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
             <div className="h-full rounded-full bg-muted transition-[width] duration-700" style={{ width: `${missionPct}%` }} />
@@ -483,6 +516,9 @@ export default function DashboardPage() {
   const [localMembers, setLocalMembers] = useState<JuntaMember[]>([]);
   const [localSchedules, setLocalSchedules] = useState<PaymentSchedule[]>([]);
 
+  const [claimedMissions, setClaimedMissions] = useState<ClaimedMission[]>([]);
+  const [isClaiming, setIsClaiming] = useState(false);
+
   const myJuntaIds = useMemo(
     () => (user ? getMyJuntaIds(user.id, safeJuntas, safeMembers) : []),
     [safeJuntas, safeMembers, user]
@@ -520,6 +556,21 @@ export default function DashboardPage() {
       setProfilesById(mapped);
     });
   }, [myJuntaIds, safeMembers, user, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetchClaimedMissions(userId).then(setClaimedMissions);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!globalRacha || !userId) return;
+    const milestones = [4, 8, 12] as const;
+    for (const hito of milestones) {
+      if (globalRacha.semanasActual >= hito) {
+        recordRachaMilestone({ profileId: userId, juntaId: null, hitoSemanas: hito });
+      }
+    }
+  }, [globalRacha?.semanasActual, userId]);
 
   // Fetch propio del dashboard — independiente del layout y del store global.
   // Garantiza que "Mis juntas activas" se cargue al entrar directamente al dashboard
@@ -630,12 +681,43 @@ export default function DashboardPage() {
     schedules: safeSchedules
   });
 
-  const score = getUserJuntaScore(user.id, scoreStats);
+  const currentWeekKey = getWeekKey();
+  const claimedThisWeek = new Set(
+    claimedMissions.filter((m) => m.week_key === currentWeekKey).map((m) => m.mission_id)
+  );
+  const missionBonusThisWeek = claimedMissions
+    .filter((m) => m.week_key === currentWeekKey)
+    .reduce((sum, m) => sum + m.bonus_points, 0);
+
+  const score = getUserJuntaScore(user.id, scoreStats, missionBonusThisWeek);
   const engagement = getJuntaEngagementLayer({
     userId: user.id,
     score,
     stats: scoreStats
   });
+
+  async function handleClaimMission(mission: JuntaMission) {
+    if (!user || isClaiming) return;
+    setIsClaiming(true);
+    const result = await claimMission({
+      profileId: user.id,
+      missionId: mission.id,
+      weekKey: currentWeekKey,
+      bonusPoints: mission.rewardPoints
+    });
+    if (result.ok) {
+      setClaimedMissions((prev) => [
+        ...prev,
+        {
+          mission_id: mission.id,
+          week_key: currentWeekKey,
+          bonus_points: mission.rewardPoints,
+          claimed_at: new Date().toISOString()
+        }
+      ]);
+    }
+    setIsClaiming(false);
+  }
 
   const upcomingPayout = getUpcomingPayout({
     userId: user.id,
@@ -677,7 +759,7 @@ export default function DashboardPage() {
   const lateCount = scoreStats.latePaymentsRecent + scoreStats.defaultPaymentsRecent;
   const paymentRate = approvedCount + lateCount > 0 ? Math.round((approvedCount / (approvedCount + lateCount)) * 100) : 0;
   const completedCycles = safeJuntas.filter((junta) => myJuntaIds.includes(junta.id) && junta.estado === 'cerrada').length;
-  const nextLevel = getNextLevelProgress(score, engagement);
+  const nextLevel = getNextLevelProgress(score, engagement, claimedThisWeek);
 
   return (
     <div className="space-y-5">
@@ -705,7 +787,7 @@ export default function DashboardPage() {
 
       <ActiveJuntasSection active={activeJuntas} history={historyJuntas} isLoading={juntasIsLoading} />
 
-      <NextLevelSection data={nextLevel} />
+      <NextLevelSection data={nextLevel} onClaimMission={handleClaimMission} isClaiming={isClaiming} />
 
       <div className="flex gap-2">
         <Link href="/juntas/new"><Button>Crear nueva junta</Button></Link>

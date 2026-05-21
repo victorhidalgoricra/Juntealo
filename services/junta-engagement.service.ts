@@ -86,6 +86,20 @@ export const LEVEL_UNLOCKS_CONFIG: Record<JuntaScoreLevel, LevelUnlocks> = {
   }
 };
 
+export function getLevelCreationLimits(level: JuntaScoreLevel): LevelUnlocks {
+  return LEVEL_UNLOCKS_CONFIG[level];
+}
+
+export function getWeekKey(date?: Date): string {
+  const d = date ?? new Date();
+  const day = d.getUTCDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setUTCDate(d.getUTCDate() + diffToMonday);
+  monday.setUTCHours(0, 0, 0, 0);
+  return monday.toISOString().slice(0, 10);
+}
+
 const MISSION_REWARDS = {
   payOnTimeThisWeek: 3,
   completeCurrentCycle: 8,

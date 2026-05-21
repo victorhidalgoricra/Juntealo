@@ -19,6 +19,8 @@ import {
   generateTurnIncentives,
   getIncentivePreviewRows
 } from '@/services/incentive.service';
+import { getLevelCreationLimits } from '@/services/junta-engagement.service';
+import { buildJuntaScoreStatsFromDomain, getUserJuntaScore } from '@/services/junta-score.service';
 
 const steps = [
   { id: 1, title: 'Información básica' },
@@ -101,7 +103,22 @@ export default function NewJuntaPage() {
   const allJuntas = useAppStore((s) => (Array.isArray(s.juntas) ? s.juntas : []));
   const allSchedules = useAppStore((s) => (Array.isArray(s.schedules) ? s.schedules : []));
   const allMembers = useAppStore((s) => (Array.isArray(s.members) ? s.members : []));
+  const allPayments = useAppStore((s) => (Array.isArray(s.payments) ? s.payments : []));
   const setData = useAppStore((s) => s.setData);
+
+  const userLevel = useMemo(() => {
+    if (!user) return 'Nuevo' as const;
+    const stats = buildJuntaScoreStatsFromDomain({
+      userId: user.id,
+      juntas: allJuntas,
+      members: allMembers,
+      payments: allPayments,
+      schedules: allSchedules
+    });
+    return getUserJuntaScore(user.id, stats).level;
+  }, [user, allJuntas, allMembers, allPayments, allSchedules]);
+
+  const levelLimits = getLevelCreationLimits(userLevel);
 
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
@@ -222,6 +239,18 @@ export default function NewJuntaPage() {
         setError('monto_cuota', { message: 'La cuota base mínima es S/20.' });
         return false;
       }
+      if (participants > levelLimits.maxJuntaMembers) {
+        setError('participantes_max', {
+          message: `Tu nivel ${userLevel} permite hasta ${levelLimits.maxJuntaMembers} integrantes. Sube de nivel para crear grupos más grandes.`
+        });
+        return false;
+      }
+      if (cuota > levelLimits.maxContributionPerRound) {
+        setError('monto_cuota', {
+          message: `Tu nivel ${userLevel} permite cuotas de hasta S/ ${levelLimits.maxContributionPerRound.toLocaleString('es-PE')}. Mejora tu score para aumentar el límite.`
+        });
+        return false;
+      }
 
       clearErrors(['participantes_max', 'monto_cuota']);
       return true;
@@ -233,9 +262,16 @@ export default function NewJuntaPage() {
         return false;
       }
 
+      if (values.tipo_junta === 'incentivo' && !levelLimits.incentiveJuntasEnabled) {
+        setError('incentivo_porcentaje', {
+          message: `Las juntas con incentivos requieren nivel Plata o superior. Tu nivel actual es ${userLevel}.`
+        });
+        return false;
+      }
+
       if (values.tipo_junta === 'incentivo' && !hasValidIncentiveConfig(values.participantes_max, firstHalfIncentives)) {
-          setError('incentivo_porcentaje', { message: 'Ingresa porcentajes enteros entre 1% y 20% para todos los turnos iniciales.' });
-          return false;
+        setError('incentivo_porcentaje', { message: 'Ingresa porcentajes enteros entre 1% y 20% para todos los turnos iniciales.' });
+        return false;
       }
 
       clearErrors(['fecha_inicio', 'incentivo_porcentaje']);
@@ -440,6 +476,14 @@ export default function NewJuntaPage() {
 
             {step === 2 && (
               <div className="space-y-3">
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                  <span className="font-semibold">Nivel {userLevel}:</span> puedes crear grupos de hasta{' '}
+                  <span className="font-semibold">{levelLimits.maxJuntaMembers} integrantes</span> con cuotas de hasta{' '}
+                  <span className="font-semibold">S/ {levelLimits.maxContributionPerRound.toLocaleString('es-PE')}</span>.
+                  {!levelLimits.incentiveJuntasEnabled && (
+                    <span className="ml-1">Las juntas con incentivos requieren nivel Plata o superior.</span>
+                  )}
+                </div>
                 <div>
                   <label className="text-sm font-medium">Tamaño del grupo (4–20)</label>
                   <Input type="number" min={4} max={20} step={1} {...register('participantes_max', { valueAsNumber: true })} />
