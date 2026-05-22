@@ -1,4 +1,4 @@
-import { Junta, JuntaMember, Payment, PaymentSchedule, Profile } from '@/types/domain';
+import { Junta, JuntaMember, Payment, PaymentSchedule, PublicProfile } from '@/types/domain';
 import {
   buildJuntaScoreStatsFromDomain,
   getUserJuntaScore,
@@ -20,7 +20,7 @@ export type RankingEntry = {
   isCurrentUser: boolean;
 };
 
-function getShortDisplayName(profile?: Profile): string {
+function getShortDisplayName(profile?: PublicProfile): string {
   const nombre = (profile?.nombre ?? '').trim();
   if (nombre) {
     const parts = nombre.split(/\s+/).filter(Boolean);
@@ -28,16 +28,6 @@ function getShortDisplayName(profile?: Profile): string {
       return `${parts[0]} ${parts[1][0].toUpperCase()}.`;
     }
     return parts[0] ?? 'Miembro';
-  }
-  const emailName = (profile?.email ?? '')
-    .split('@')[0]
-    ?.replace(/[._-]+/g, ' ')
-    .trim();
-  if (emailName) {
-    const parts = emailName.split(/\s+/).filter(Boolean);
-    return parts.length >= 2
-      ? `${parts[0].charAt(0).toUpperCase() + parts[0].slice(1)} ${parts[1][0].toUpperCase()}.`
-      : emailName.charAt(0).toUpperCase() + emailName.slice(1);
   }
   return 'Miembro';
 }
@@ -56,7 +46,7 @@ export function computeRanking(params: {
   members: JuntaMember[];
   schedules: PaymentSchedule[];
   payments: Payment[];
-  profilesById: Record<string, Profile>;
+  profilesById: Record<string, PublicProfile>;
 }): RankingEntry[] {
   const profileIds = Object.keys(params.profilesById);
   if (profileIds.length === 0) return [];

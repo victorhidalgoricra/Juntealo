@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Trophy } from 'lucide-react';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { fetchAllProfiles } from '@/services/profile.service';
+import { fetchPublicProfilesForRanking } from '@/services/profile.service';
 import { computeRanking, type RankingEntry } from '@/services/ranking.service';
 import { type JuntaScoreLevel } from '@/services/junta-score.service';
-import { Profile } from '@/types/domain';
+import { PublicProfile } from '@/types/domain';
 import { cn } from '@/lib/utils';
 
 const LEVEL_BADGE: Record<JuntaScoreLevel, { bg: string; text: string }> = {
@@ -236,19 +236,25 @@ export default function RankingPage() {
   const safeSchedules= useMemo(() => (Array.isArray(schedules) ? schedules : []), [schedules]);
   const safePayments = useMemo(() => (Array.isArray(payments)  ? payments  : []), [payments]);
 
-  const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
+  const [profilesById, setProfilesById] = useState<Record<string, PublicProfile>>({});
   const [loadingProfiles, setLoadingProfiles] = useState(true);
 
   useEffect(() => {
     setLoadingProfiles(true);
-    fetchAllProfiles()
+    fetchPublicProfilesForRanking()
       .then((result) => {
         if (!result.ok) return;
-        const mapped = result.data.reduce<Record<string, Profile>>((acc, p) => {
+        const mapped = result.data.reduce<Record<string, PublicProfile>>((acc, p) => {
           acc[p.id] = p;
           return acc;
         }, {});
-        if (user && !mapped[user.id]) mapped[user.id] = user;
+        if (user && !mapped[user.id]) {
+          mapped[user.id] = { id: user.id, nombre: (user as unknown as PublicProfile).nombre ?? '' };
+        }
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[ranking] perfiles recibidos:', result.data.length);
+          console.debug('[ranking] IDs en mapa:', Object.keys(mapped).length);
+        }
         setProfilesById(mapped);
       })
       .finally(() => setLoadingProfiles(false));
@@ -257,7 +263,7 @@ export default function RankingPage() {
 
   const ranking = useMemo(() => {
     if (!user || Object.keys(profilesById).length === 0) return [];
-    return computeRanking({
+    const entries = computeRanking({
       currentUserId: user.id,
       juntas:    safeJuntas,
       members:   safeMembers,
@@ -265,6 +271,10 @@ export default function RankingPage() {
       payments:  safePayments,
       profilesById,
     });
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[ranking] entries calculados:', entries.length);
+    }
+    return entries;
   }, [user, safeJuntas, safeMembers, safeSchedules, safePayments, profilesById]);
 
   const isLoading = !isDataReady || loadingProfiles;

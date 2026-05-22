@@ -33,6 +33,16 @@ export interface Profile {
   global_role?: GlobalRole;
 }
 
+export interface PublicProfile {
+  id: string;
+  nombre: string;
+  first_name?: string;
+  second_name?: string;
+  paternal_last_name?: string;
+  foto_url?: string;
+  created_at?: string;
+}
+
 export interface Junta {
   id: string;
   admin_id: string;
