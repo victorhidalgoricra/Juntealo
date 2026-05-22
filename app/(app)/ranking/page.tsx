@@ -1,171 +1,229 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Trophy, TrendingUp, Users } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Trophy } from 'lucide-react';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { fetchProfilesByIds } from '@/services/profile.service';
+import { fetchAllProfiles } from '@/services/profile.service';
 import { computeRanking, type RankingEntry } from '@/services/ranking.service';
+import { type JuntaScoreLevel } from '@/services/junta-score.service';
 import { Profile } from '@/types/domain';
 import { cn } from '@/lib/utils';
 
-const TOP3_STYLES: Record<number, { icon: string; ring: string }> = {
-  1: { icon: '🥇', ring: 'ring-yellow-400/50 bg-yellow-50' },
-  2: { icon: '🥈', ring: 'ring-slate-400/50 bg-slate-50' },
-  3: { icon: '🥉', ring: 'ring-orange-400/50 bg-orange-50' },
+const LEVEL_BADGE: Record<JuntaScoreLevel, { bg: string; text: string }> = {
+  Nuevo:  { bg: 'bg-gray-100',   text: 'text-gray-500'   },
+  Bronce: { bg: 'bg-orange-50',  text: 'text-orange-600' },
+  Plata:  { bg: 'bg-slate-100',  text: 'text-slate-500'  },
+  Oro:    { bg: 'bg-amber-50',   text: 'text-amber-600'  },
+  Élite:  { bg: 'bg-violet-50',  text: 'text-violet-600' },
 };
 
-function RankingSkeletonRow() {
+const TOP3_MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+const COL_HEADER = 'px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted';
+
+function LevelBadge({ level, size = 'sm' }: { level: JuntaScoreLevel; size?: 'xs' | 'sm' }) {
+  const { bg, text } = LEVEL_BADGE[level];
   return (
-    <Card className="flex items-center gap-4 p-4">
-      <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-slate-200" />
-      <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-slate-200" />
-      <div className="flex-1 space-y-2">
-        <div className="h-4 w-36 animate-pulse rounded bg-slate-200" />
-        <div className="h-3 w-24 animate-pulse rounded bg-slate-200" />
-      </div>
-      <div className="space-y-2 text-right">
-        <div className="ml-auto h-5 w-12 animate-pulse rounded bg-slate-200" />
-        <div className="ml-auto h-3 w-16 animate-pulse rounded bg-slate-200" />
-      </div>
-    </Card>
+    <span
+      className={cn(
+        'inline-flex items-center rounded-md font-medium',
+        bg,
+        text,
+        size === 'xs' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
+      )}
+    >
+      {level}
+    </span>
   );
 }
 
-function PositionBadge({ position }: { position: number }) {
-  const style = TOP3_STYLES[position];
-  if (style) {
+function PositionCell({ position }: { position: number }) {
+  const medal = TOP3_MEDAL[position];
+  if (medal) {
     return (
-      <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-2 text-lg', style.ring)}>
-        {style.icon}
-      </div>
+      <span className="inline-flex h-7 w-7 items-center justify-center text-base" aria-label={`Posición ${position}`}>
+        {medal}
+      </span>
     );
   }
   return (
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-sm font-bold text-muted">
-      {position}
-    </div>
+    <span className="text-sm font-medium tabular-nums text-muted">{position}</span>
   );
 }
 
-function UserAvatar({ initials, isCurrentUser }: { initials: string; isCurrentUser: boolean }) {
+function LeaderboardRow({ entry, position }: { entry: RankingEntry; position: number }) {
+  const isTop3 = position <= 3;
+
   return (
-    <div
+    <tr
+      style={entry.isCurrentUser ? { boxShadow: 'inset 3px 0 0 var(--accent)' } : undefined}
       className={cn(
-        'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold',
-        isCurrentUser ? 'bg-accent text-white' : 'bg-accent-bg text-accent'
+        'border-b border-border/30 last:border-0 transition-colors',
+        entry.isCurrentUser
+          ? 'bg-accent/[0.03] hover:bg-accent/[0.06]'
+          : isTop3
+          ? 'hover:bg-muted/5'
+          : 'hover:bg-muted/5'
       )}
     >
-      {initials}
-    </div>
-  );
-}
+      {/* # */}
+      <td className="w-12 px-4 py-4 text-center">
+        <PositionCell position={position} />
+      </td>
 
-function RankingRow({ entry, position }: { entry: RankingEntry; position: number }) {
-  const juntaCount = entry.juntasActivas + entry.juntasCompletadas;
-
-  return (
-    <Card
-      className={cn(
-        'flex items-center gap-3 p-4',
-        entry.isCurrentUser && 'border-accent/40 bg-accent/5 ring-1 ring-accent/20'
-      )}
-    >
-      <PositionBadge position={position} />
-
-      <UserAvatar initials={entry.initials} isCurrentUser={entry.isCurrentUser} />
-
-      <div className="min-w-0 flex-1">
-        <p className={cn('truncate font-semibold text-fg', entry.isCurrentUser && 'text-accent')}>
-          {entry.displayName}
-          {entry.isCurrentUser && (
-            <span className="ml-1.5 text-xs font-normal text-accent/60">(tú)</span>
-          )}
-        </p>
-        <div className="mt-0.5 flex items-center gap-1.5">
-          <span className="text-xs text-muted">{entry.badge}</span>
-          {juntaCount > 0 && (
-            <span className="text-xs text-muted">
-              · {juntaCount} junta{juntaCount !== 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="hidden shrink-0 text-right sm:block">
-        {entry.paymentsOnTimePct !== null ? (
-          <>
-            <p className="text-sm font-semibold text-green">{entry.paymentsOnTimePct}%</p>
-            <p className="text-[11px] text-muted">a tiempo</p>
-          </>
-        ) : (
-          <>
-            <p className="text-sm font-semibold text-muted">–</p>
-            <p className="text-[11px] text-muted">sin historial</p>
-          </>
-        )}
-      </div>
-
-      <div className="shrink-0 text-right">
-        <p className={cn('font-mono text-2xl font-bold leading-none', entry.isCurrentUser ? 'text-accent' : 'text-fg')}>
-          {entry.score}
-        </p>
-        <p className="text-[11px] text-muted">pts</p>
-      </div>
-    </Card>
-  );
-}
-
-function CurrentUserCard({
-  entry,
-  position,
-  total,
-}: {
-  entry: RankingEntry;
-  position: number;
-  total: number;
-}) {
-  const topPct = total > 1 ? Math.round((1 - (position - 1) / (total - 1)) * 100) : 100;
-
-  return (
-    <Card dark className="text-white">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center self-center rounded-full border-[4px] border-emerald-400">
-          <p className="font-mono text-3xl font-bold leading-none">{entry.score}</p>
-          <p className="text-[10px] text-[var(--dark-muted)]">/ 100</p>
-        </div>
-
-        <div className="flex-1 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="dark">{entry.badge}</Badge>
-            <span className="text-sm text-[var(--dark-muted)]">Posición #{position} de {total}</span>
+      {/* Miembro */}
+      <td className="px-4 py-4">
+        <div className="flex items-center gap-3">
+          <div
+            className={cn(
+              'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
+              entry.isCurrentUser ? 'bg-accent text-white' : 'bg-accent-bg text-accent'
+            )}
+            aria-hidden="true"
+          >
+            {entry.initials}
           </div>
-          <p className="text-xl font-bold">{entry.displayName}</p>
-          <div className="flex flex-wrap gap-4 text-sm text-[var(--dark-muted)]">
-            {entry.juntasActivas > 0 && (
-              <span>{entry.juntasActivas} junta{entry.juntasActivas !== 1 ? 's' : ''} activa{entry.juntasActivas !== 1 ? 's' : ''}</span>
-            )}
-            {entry.juntasCompletadas > 0 && (
-              <span>{entry.juntasCompletadas} ciclo{entry.juntasCompletadas !== 1 ? 's' : ''} completado{entry.juntasCompletadas !== 1 ? 's' : ''}</span>
-            )}
-            {entry.paymentsOnTimePct !== null && (
-              <span className="text-emerald-400">{entry.paymentsOnTimePct}% pagos a tiempo</span>
-            )}
-          </div>
-          <div className="flex items-center gap-3 pt-1">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-emerald-400 transition-[width] duration-700"
-                style={{ width: `${topPct}%` }}
-              />
+          <div className="min-w-0">
+            <p className={cn('truncate text-sm font-semibold', entry.isCurrentUser ? 'text-accent' : 'text-fg')}>
+              {entry.displayName}
+              {entry.isCurrentUser && (
+                <span className="ml-1.5 text-xs font-normal text-accent/60">(tú)</span>
+              )}
+            </p>
+            <div className="mt-1">
+              <LevelBadge level={entry.level} size="xs" />
             </div>
-            <p className="text-[11px] text-[var(--dark-muted)]">Top {topPct}%</p>
           </div>
         </div>
+      </td>
+
+      {/* Score */}
+      <td className="px-4 py-4 text-right">
+        <span
+          className={cn(
+            'font-mono text-xl font-bold tabular-nums leading-none',
+            entry.isCurrentUser ? 'text-accent' : 'text-fg'
+          )}
+        >
+          {entry.score}
+        </span>
+      </td>
+
+      {/* Puntuales */}
+      <td className="hidden px-4 py-4 text-right sm:table-cell">
+        {entry.onTimePayments > 0 ? (
+          <span className="text-sm font-medium tabular-nums text-fg">{entry.onTimePayments}</span>
+        ) : (
+          <span className="text-sm text-muted">—</span>
+        )}
+      </td>
+
+      {/* Ciclos */}
+      <td className="hidden px-4 py-4 text-right sm:table-cell">
+        <span className="text-sm font-medium tabular-nums text-fg">
+          {entry.juntasCompletadas}
+        </span>
+      </td>
+
+      {/* Nivel */}
+      <td className="px-4 py-4 text-right">
+        <LevelBadge level={entry.level} size="sm" />
+      </td>
+    </tr>
+  );
+}
+
+function LeaderboardTable({ ranking }: { ranking: RankingEntry[] }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-surface shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px]" role="table" aria-label="Ranking de miembros">
+          <thead>
+            <tr className="border-b border-border/40">
+              <th className={cn(COL_HEADER, 'w-12 text-center')} scope="col">#</th>
+              <th className={cn(COL_HEADER, 'text-left')} scope="col">Miembro</th>
+              <th className={cn(COL_HEADER, 'text-right')} scope="col">Score</th>
+              <th className={cn(COL_HEADER, 'hidden text-right sm:table-cell')} scope="col">Puntuales</th>
+              <th className={cn(COL_HEADER, 'hidden text-right sm:table-cell')} scope="col">Ciclos</th>
+              <th className={cn(COL_HEADER, 'text-right')} scope="col">Nivel</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranking.map((entry, index) => (
+              <LeaderboardRow key={entry.profileId} entry={entry} position={index + 1} />
+            ))}
+          </tbody>
+        </table>
       </div>
-    </Card>
+    </div>
+  );
+}
+
+function LeaderboardSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-surface shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px]">
+          <thead>
+            <tr className="border-b border-border/40">
+              <th className={cn(COL_HEADER, 'w-12 text-center')}>#</th>
+              <th className={cn(COL_HEADER, 'text-left')}>Miembro</th>
+              <th className={cn(COL_HEADER, 'text-right')}>Score</th>
+              <th className={cn(COL_HEADER, 'hidden text-right sm:table-cell')}>Puntuales</th>
+              <th className={cn(COL_HEADER, 'hidden text-right sm:table-cell')}>Ciclos</th>
+              <th className={cn(COL_HEADER, 'text-right')}>Nivel</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 7 }, (_, i) => (
+              <tr key={i} className="border-b border-border/30 last:border-0">
+                <td className="w-12 px-4 py-4 text-center">
+                  <div className="mx-auto h-7 w-7 animate-pulse rounded-full bg-muted/20" />
+                </td>
+                <td className="px-4 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-muted/20" />
+                    <div className="space-y-2">
+                      <div className={cn('h-3.5 animate-pulse rounded bg-muted/20', i % 3 === 0 ? 'w-28' : i % 3 === 1 ? 'w-24' : 'w-32')} />
+                      <div className="h-3 w-10 animate-pulse rounded bg-muted/10" />
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-4 text-right">
+                  <div className="ml-auto h-6 w-8 animate-pulse rounded bg-muted/20" />
+                </td>
+                <td className="hidden px-4 py-4 sm:table-cell">
+                  <div className="ml-auto h-4 w-5 animate-pulse rounded bg-muted/20" />
+                </td>
+                <td className="hidden px-4 py-4 sm:table-cell">
+                  <div className="ml-auto h-4 w-4 animate-pulse rounded bg-muted/20" />
+                </td>
+                <td className="px-4 py-4 text-right">
+                  <div className="ml-auto h-5 w-14 animate-pulse rounded-md bg-muted/20" />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-surface p-12 text-center shadow-sm">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/10">
+        <Trophy className="text-muted" size={22} strokeWidth={1.5} />
+      </div>
+      <div>
+        <p className="font-semibold text-fg">Sin datos de ranking aún</p>
+        <p className="mt-1 text-sm text-muted">
+          Únete o crea una junta para aparecer en el ranking.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -173,23 +231,17 @@ export default function RankingPage() {
   const user = useAuthStore((s) => s.user);
   const { juntas, members, schedules, payments, isDataReady } = useAppStore();
 
-  const safeJuntas = useMemo(() => (Array.isArray(juntas) ? juntas : []), [juntas]);
-  const safeMembers = useMemo(() => (Array.isArray(members) ? members : []), [members]);
-  const safeSchedules = useMemo(() => (Array.isArray(schedules) ? schedules : []), [schedules]);
-  const safePayments = useMemo(() => (Array.isArray(payments) ? payments : []), [payments]);
+  const safeJuntas   = useMemo(() => (Array.isArray(juntas)    ? juntas    : []), [juntas]);
+  const safeMembers  = useMemo(() => (Array.isArray(members)   ? members   : []), [members]);
+  const safeSchedules= useMemo(() => (Array.isArray(schedules) ? schedules : []), [schedules]);
+  const safePayments = useMemo(() => (Array.isArray(payments)  ? payments  : []), [payments]);
 
   const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
   const [loadingProfiles, setLoadingProfiles] = useState(true);
 
   useEffect(() => {
-    const profileIds = Array.from(new Set(safeMembers.map((m) => m.profile_id)));
-    if (profileIds.length === 0) {
-      setLoadingProfiles(false);
-      return;
-    }
-
     setLoadingProfiles(true);
-    fetchProfilesByIds(profileIds)
+    fetchAllProfiles()
       .then((result) => {
         if (!result.ok) return;
         const mapped = result.data.reduce<Record<string, Profile>>((acc, p) => {
@@ -199,107 +251,49 @@ export default function RankingPage() {
         if (user && !mapped[user.id]) mapped[user.id] = user;
         setProfilesById(mapped);
       })
-      .finally(() => {
-        setLoadingProfiles(false);
-      });
-  }, [safeMembers, user]);
+      .finally(() => setLoadingProfiles(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const ranking = useMemo(() => {
-    if (!user || safeMembers.length === 0) return [];
+    if (!user || Object.keys(profilesById).length === 0) return [];
     return computeRanking({
       currentUserId: user.id,
-      juntas: safeJuntas,
-      members: safeMembers,
+      juntas:    safeJuntas,
+      members:   safeMembers,
       schedules: safeSchedules,
-      payments: safePayments,
+      payments:  safePayments,
       profilesById,
     });
   }, [user, safeJuntas, safeMembers, safeSchedules, safePayments, profilesById]);
-
-  const currentUserEntry = ranking.find((e) => e.isCurrentUser) ?? null;
-  const currentUserPosition = currentUserEntry ? ranking.indexOf(currentUserEntry) + 1 : null;
 
   const isLoading = !isDataReady || loadingProfiles;
 
   if (!user) return null;
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
+    <div className="space-y-6">
       <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Trophy className="text-accent" size={22} strokeWidth={1.5} />
+        <div className="mb-1 flex items-center gap-2">
+          <Trophy className="text-accent" size={20} strokeWidth={1.5} />
           <h1 className="text-2xl font-semibold text-fg">Ranking</h1>
         </div>
         <p className="text-sm text-muted">
-          Clasificación por score de reputación financiera entre los participantes de tus juntas.
+          Reputación financiera de todos los miembros de Juntaz.
         </p>
       </div>
 
-      {/* Current user card */}
-      {!isLoading && currentUserEntry && currentUserPosition && (
-        <CurrentUserCard
-          entry={currentUserEntry}
-          position={currentUserPosition}
-          total={ranking.length}
-        />
+      {isLoading ? (
+        <LeaderboardSkeleton />
+      ) : ranking.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <LeaderboardTable ranking={ranking} />
       )}
 
-      {/* Stats bar */}
       {!isLoading && ranking.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="p-4 text-center">
-            <Users className="mx-auto mb-1 text-slate-400" size={18} strokeWidth={1.5} />
-            <p className="font-mono text-2xl font-bold text-fg">{ranking.length}</p>
-            <p className="text-xs text-muted">Participantes</p>
-          </Card>
-          <Card className="p-4 text-center">
-            <Trophy className="mx-auto mb-1 text-yellow-500" size={18} strokeWidth={1.5} />
-            <p className="font-mono text-2xl font-bold text-fg">
-              #{currentUserPosition ?? '–'}
-            </p>
-            <p className="text-xs text-muted">Tu posición</p>
-          </Card>
-          <Card className="p-4 text-center">
-            <TrendingUp className="mx-auto mb-1 text-emerald-500" size={18} strokeWidth={1.5} />
-            <p className="font-mono text-2xl font-bold text-fg">
-              {currentUserEntry?.score ?? '–'}
-            </p>
-            <p className="text-xs text-muted">Tu score</p>
-          </Card>
-        </div>
-      )}
-
-      {/* Leaderboard */}
-      <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-fg">Tabla de posiciones</h2>
-
-        {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <RankingSkeletonRow key={i} />
-            ))}
-          </div>
-        ) : ranking.length === 0 ? (
-          <Card className="p-8 text-center">
-            <Trophy className="mx-auto mb-3 text-slate-300" size={36} strokeWidth={1} />
-            <p className="font-semibold text-fg">Sin datos de ranking aún</p>
-            <p className="mt-1 text-sm text-muted">
-              Únete o crea una junta para aparecer en el ranking y comparar tu reputación con otros participantes.
-            </p>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            {ranking.map((entry, index) => (
-              <RankingRow key={entry.profileId} entry={entry} position={index + 1} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {ranking.length > 0 && (
         <p className="text-center text-xs text-muted">
-          El ranking incluye a los participantes de tus juntas activas e históricas.
+          Ordenado por score de reputación · {ranking.length} miembro{ranking.length !== 1 ? 's' : ''}
         </p>
       )}
     </div>

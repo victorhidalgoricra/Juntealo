@@ -15,24 +15,39 @@ export type RankingEntry = {
   badge: string;
   juntasActivas: number;
   juntasCompletadas: number;
+  onTimePayments: number;
   paymentsOnTimePct: number | null;
   isCurrentUser: boolean;
 };
 
-function getDisplayName(nombre?: string, email?: string): string {
-  const fromNombre = (nombre ?? '').trim();
-  if (fromNombre) return fromNombre;
-  const fromEmail = (email ?? '').split('@')[0]?.replace(/[._-]+/g, ' ').trim();
-  return fromEmail
-    ? fromEmail.replace(/\b\w/g, (c) => c.toUpperCase())
-    : 'Miembro';
+function getShortDisplayName(profile?: Profile): string {
+  const nombre = (profile?.nombre ?? '').trim();
+  if (nombre) {
+    const parts = nombre.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0]} ${parts[1][0].toUpperCase()}.`;
+    }
+    return parts[0] ?? 'Miembro';
+  }
+  const emailName = (profile?.email ?? '')
+    .split('@')[0]
+    ?.replace(/[._-]+/g, ' ')
+    .trim();
+  if (emailName) {
+    const parts = emailName.split(/\s+/).filter(Boolean);
+    return parts.length >= 2
+      ? `${parts[0].charAt(0).toUpperCase() + parts[0].slice(1)} ${parts[1][0].toUpperCase()}.`
+      : emailName.charAt(0).toUpperCase() + emailName.slice(1);
+  }
+  return 'Miembro';
 }
 
 function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const cleaned = name.replace(/\.$/, '').trim();
+  const parts = cleaned.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return 'JD';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 export function computeRanking(params: {
@@ -43,7 +58,7 @@ export function computeRanking(params: {
   payments: Payment[];
   profilesById: Record<string, Profile>;
 }): RankingEntry[] {
-  const profileIds = Array.from(new Set(params.members.map((m) => m.profile_id)));
+  const profileIds = Object.keys(params.profilesById);
   if (profileIds.length === 0) return [];
 
   const entries = profileIds.map((profileId): RankingEntry => {
@@ -83,7 +98,7 @@ export function computeRanking(params: {
         ? Math.round((stats.onTimePaymentsLifetime / totalPayments) * 100)
         : null;
 
-    const displayName = getDisplayName(profile?.nombre, profile?.email);
+    const displayName = getShortDisplayName(profile);
 
     return {
       profileId,
@@ -94,6 +109,7 @@ export function computeRanking(params: {
       badge: getScoreBadge(scoreResult.level),
       juntasActivas,
       juntasCompletadas,
+      onTimePayments: stats.onTimePaymentsLifetime,
       paymentsOnTimePct,
       isCurrentUser: profileId === params.currentUserId,
     };

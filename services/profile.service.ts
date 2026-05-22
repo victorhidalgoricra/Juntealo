@@ -90,6 +90,17 @@ export async function fetchProfilesByIds(profileIds: string[]) {
   return { ok: true as const, data: (data ?? []) as Profile[] };
 }
 
+export async function fetchAllProfiles() {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Profile[] };
+  const { data, error } = await supabase
+    .schema('public')
+    .from('profiles')
+    .select(profileSelectFields)
+    .order('id');
+  if (error) return { ok: false as const, message: error.message };
+  return { ok: true as const, data: (data ?? []) as Profile[] };
+}
+
 export async function fetchProfileById(profileId: string) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: null as Profile | null };
 
