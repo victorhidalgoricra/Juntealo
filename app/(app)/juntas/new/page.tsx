@@ -252,7 +252,14 @@ export default function NewJuntaPage() {
         return false;
       }
 
-      clearErrors(['participantes_max', 'monto_cuota']);
+      if (values.tipo_junta === 'incentivo' && !levelLimits.incentiveJuntasEnabled) {
+        setError('tipo_junta', {
+          message: 'Las juntas con incentivos requieren nivel Plata o superior.'
+        });
+        return false;
+      }
+
+      clearErrors(['participantes_max', 'monto_cuota', 'tipo_junta']);
       return true;
     }
 
@@ -370,6 +377,11 @@ export default function NewJuntaPage() {
               const schemaOk = await trigger(['nombre', 'participantes_max', 'monto_cuota', 'fecha_inicio', 'visibilidad', 'tipo_junta', 'frecuencia_pago']);
               if (!validBasics || !validStructure || !validIncentive || !schemaOk) {
                 setStep((prev) => (prev < 4 ? prev : 1));
+                return;
+              }
+
+              if (values.tipo_junta === 'incentivo' && !levelLimits.incentiveJuntasEnabled) {
+                setErrorMsg('Las juntas con incentivos requieren nivel Plata o superior.');
                 return;
               }
 
@@ -526,15 +538,31 @@ export default function NewJuntaPage() {
                     </button>
                     <button
                       type="button"
+                      disabled={!levelLimits.incentiveJuntasEnabled}
                       onClick={() => {
+                        if (!levelLimits.incentiveJuntasEnabled) return;
                         setValue('tipo_junta', 'incentivo', { shouldDirty: true, shouldValidate: true });
                       }}
-                      className={`rounded-md border p-3 text-left ${form.tipo_junta === 'incentivo' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300'}`}
+                      className={`rounded-md border p-3 text-left ${
+                        form.tipo_junta === 'incentivo'
+                          ? 'border-slate-900 bg-slate-900 text-white'
+                          : !levelLimits.incentiveJuntasEnabled
+                            ? 'cursor-not-allowed border-slate-200 bg-slate-50 opacity-60'
+                            : 'border-slate-300'
+                      }`}
                     >
                       <p className="font-semibold">Con incentivos</p>
                       <p className="text-xs opacity-80">Premia turnos tardíos con redistribución interna.</p>
+                      {!levelLimits.incentiveJuntasEnabled && (
+                        <span className="mt-1 inline-block rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                          Disponible desde nivel Plata
+                        </span>
+                      )}
                     </button>
                   </div>
+                  {formState.errors.tipo_junta && (
+                    <p className="text-xs text-red-600">{formState.errors.tipo_junta.message}</p>
+                  )}
                 </div>
 
               </div>
