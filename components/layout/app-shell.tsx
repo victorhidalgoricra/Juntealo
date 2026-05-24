@@ -18,6 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard',  label: 'Dashboard' },
   { href: '/juntas',     label: 'Juntas disponibles' },
   { href: '/juntas/new', label: 'Crear junta' },
+  { href: '/ranking',    label: 'Ranking' },
   { href: '/account',    label: 'Mi cuenta' },
   { href: '/admin',      label: 'Backoffice', requiresBackoffice: true },
 ];

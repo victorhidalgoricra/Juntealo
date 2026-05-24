@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { Profile } from '@/types/domain';
+import { Profile, PublicProfile } from '@/types/domain';
 import { normalizeDni, normalizePhone } from '@/lib/profile-normalization';
 
 const profileSelectFields =
@@ -88,6 +88,26 @@ export async function fetchProfilesByIds(profileIds: string[]) {
 
   if (error) return { ok: false as const, message: error.message };
   return { ok: true as const, data: (data ?? []) as Profile[] };
+}
+
+export async function fetchAllProfiles() {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Profile[] };
+  const { data, error } = await supabase
+    .schema('public')
+    .from('profiles')
+    .select(profileSelectFields)
+    .order('id');
+  if (error) return { ok: false as const, message: error.message };
+  return { ok: true as const, data: (data ?? []) as Profile[] };
+}
+
+export async function fetchPublicProfilesForRanking() {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as PublicProfile[] };
+  const { data, error } = await supabase
+    .schema('public')
+    .rpc('get_public_profiles_for_ranking');
+  if (error) return { ok: false as const, message: error.message };
+  return { ok: true as const, data: (data ?? []) as PublicProfile[] };
 }
 
 export async function fetchProfileById(profileId: string) {
