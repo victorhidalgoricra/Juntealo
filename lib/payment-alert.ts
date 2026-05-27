@@ -1,7 +1,8 @@
 import { format, formatDistanceToNowStrict, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Junta, Payment, PaymentSchedule, Payout } from '@/types/domain';
+import { Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
 import { normalizePaymentStatus } from './payment-status';
+import { getCurrentRoundReceiver } from './payment-instructions';
 
 export type PaymentAlertStatus = 'upcoming' | 'due_today' | 'overdue' | 'paid' | 'none' | 'en_validacion';
 
@@ -77,6 +78,7 @@ export function getPaymentAlertState(params: {
   schedules: PaymentSchedule[];
   payments: Payment[];
   payouts?: Payout[];
+  members?: JuntaMember[];
   now?: Date;
 }): PaymentAlertState {
   const now = params.now ?? new Date();
@@ -110,6 +112,13 @@ export function getPaymentAlertState(params: {
     .filter((schedule) => {
       const currentCuota = currentCuotaByJunta.get(schedule.junta_id);
       return currentCuota === undefined || schedule.cuota_numero === currentCuota;
+    })
+    .filter((schedule) => {
+      // Receiver of the current cuota does not owe a payment for their own receiving turn.
+      if (!params.members || params.members.length === 0) return true;
+      const juntaMembers = params.members.filter((m) => m.junta_id === schedule.junta_id);
+      const receiver = getCurrentRoundReceiver({ schedule, members: juntaMembers });
+      return receiver?.profile_id !== params.userId;
     })
     .map((schedule) => {
       const payment = params.payments.find(
