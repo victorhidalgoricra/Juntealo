@@ -35,6 +35,8 @@ type ScoreConfig = {
     healthyActions: number;
     streakWeeks: number;
     completedCycles: number;
+    /** Maximum total penalty deduction — prevents permanent floor trapping */
+    totalPenalties: number;
   };
   penalties: {
     latePayment: number;
@@ -67,7 +69,8 @@ export const JUNTA_SCORE_CONFIG: ScoreConfig = {
     references: 3,
     healthyActions: 5,
     streakWeeks: 12,
-    completedCycles: 6
+    completedCycles: 6,
+    totalPenalties: 35
   },
   penalties: {
     latePayment: 3,
@@ -102,6 +105,7 @@ export type UserJuntaScoreResult = {
 };
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min, value));
+const ACTIVE_SCORE_MEMBER_STATES: JuntaMember['estado'][] = ['activo', 'moroso'];
 
 function ratio(numerator: number, denominator: number) {
   if (denominator <= 0) return 0;
@@ -110,6 +114,10 @@ function ratio(numerator: number, denominator: number) {
 
 function toScore(value: number) {
   return Math.round(clamp(value));
+}
+
+function getPaymentRegisteredAt(payment: Payment): string | undefined {
+  return payment.submitted_at ?? payment.pagado_en ?? payment.validated_at;
 }
 
 export function getScoreLevel(score: number): JuntaScoreLevel {
@@ -133,8 +141,17 @@ export function getScoreBadge(level: JuntaScoreLevel): string {
   return JUNTA_SCORE_CONFIG.levels.find((tier) => tier.level === level)?.badge ?? '🟢 Nuevo';
 }
 
+/**
+ * Returns progress (0–100) within the current level tier.
+ * E.g. Plata spans 50–69 (19 pts). A score of 60 = ~52% progress within Plata.
+ */
 export function getScoreProgress(score: number): number {
-  return toScore(clamp(score));
+  const safeScore = clamp(score);
+  const tier = JUNTA_SCORE_CONFIG.levels.find((t) => safeScore >= t.min && safeScore <= t.max);
+  if (!tier) return 100;
+  const tierRange = tier.max - tier.min;
+  if (tierRange <= 0) return 100;
+  return Math.round(((safeScore - tier.min) / tierRange) * 100);
 }
 
 export function getUserJuntaScore(userId: string, stats: JuntaScoreStats, missionBonusPoints = 0): UserJuntaScoreResult {
@@ -151,8 +168,12 @@ export function getUserJuntaScore(userId: string, stats: JuntaScoreStats, missio
   const punctualityRecent = ratio(stats.onTimePaymentsRecent, recentWeightedTotal || 1);
   const punctualityLifetime = ratio(stats.onTimePaymentsLifetime, lifetimeWeightedTotal || 1);
   const punctualityComposite = (punctualityRecent * 0.7) + (punctualityLifetime * 0.3);
+  const paymentEvidence = Math.max(recentWeightedTotal, lifetimeWeightedTotal);
+  const confidenceMultiplier = paymentEvidence <= 0
+    ? 0
+    : 0.35 + (ratio(Math.min(paymentEvidence, 6), 6) * 0.65);
 
-  const punctualityScore = punctualityComposite * JUNTA_SCORE_CONFIG.weights.punctuality;
+  const punctualityScore = punctualityComposite * confidenceMultiplier * JUNTA_SCORE_CONFIG.weights.punctuality;
   const completedCyclesScore =
     ratio(Math.min(stats.completedCycles, JUNTA_SCORE_CONFIG.caps.completedCycles), JUNTA_SCORE_CONFIG.caps.completedCycles)
     * JUNTA_SCORE_CONFIG.weights.completedCycles;
@@ -171,11 +192,13 @@ export function getUserJuntaScore(userId: string, stats: JuntaScoreStats, missio
     JUNTA_SCORE_CONFIG.caps.healthyActions
   ) * JUNTA_SCORE_CONFIG.weights.healthyBehavior;
 
-  const penaltyPoints =
+  const rawPenaltyPoints =
     (stats.latePaymentsRecent * JUNTA_SCORE_CONFIG.penalties.latePayment)
     + (stats.defaultPaymentsRecent * JUNTA_SCORE_CONFIG.penalties.defaultPayment)
     + (stats.abandonedMidCycleCount * JUNTA_SCORE_CONFIG.penalties.abandonedMidCycle)
     + (stats.suspiciousAbuseAttempts * JUNTA_SCORE_CONFIG.penalties.suspiciousAbuse);
+  // Cap total penalties to avoid permanent score trapping when history is old.
+  const penaltyPoints = Math.min(rawPenaltyPoints, JUNTA_SCORE_CONFIG.caps.totalPenalties);
 
   const safeMissionBonus = Math.max(0, missionBonusPoints);
   const rawScore = punctualityScore + completedCyclesScore + consistencyScore + referralsScore + healthyBehaviorBase - penaltyPoints + safeMissionBonus;
@@ -254,10 +277,10 @@ export function buildJuntaScoreStatsFromDomain(params: {
   const weekFrom = new Date(now);
   weekFrom.setDate(weekFrom.getDate() - 7);
 
-  // Juntas where user is an active member (not retired)
+  // Juntas where the user has a score-bearing membership.
   const activeMemberJuntaIds = new Set(
     params.members
-      .filter((m) => m.profile_id === params.userId && m.estado !== 'retirado')
+      .filter((m) => m.profile_id === params.userId && ACTIVE_SCORE_MEMBER_STATES.includes(m.estado))
       .map((m) => m.junta_id)
   );
 
@@ -270,7 +293,7 @@ export function buildJuntaScoreStatsFromDomain(params: {
   // For incumplimiento counting: only currently active juntas where user is a member
   const activeParticipationIds = new Set(
     params.juntas
-      .filter((j) => activeMemberJuntaIds.has(j.id) && j.estado === 'activa')
+      .filter((j) => j.estado === 'activa' && (activeMemberJuntaIds.has(j.id) || j.admin_id === params.userId))
       .map((j) => j.id)
   );
 
@@ -291,10 +314,10 @@ export function buildJuntaScoreStatsFromDomain(params: {
     const dueDate = new Date(schedule.fecha_vencimiento);
     const key = `${schedule.junta_id}-${schedule.id}`;
     const payment = paymentBySchedule.get(key);
-    const isRecent = dueDate >= recentFrom;
-    const isThisWeek = dueDate >= weekFrom;
+    const isRecent = dueDate >= recentFrom && dueDate <= now;
+    const isThisWeek = dueDate >= weekFrom && dueDate <= now;
 
-    const paidAt = payment?.validated_at ?? payment?.submitted_at ?? payment?.pagado_en;
+    const paidAt = payment ? getPaymentRegisteredAt(payment) : undefined;
     const paidDate = paidAt ? new Date(paidAt) : null;
 
     if (payment?.estado === 'approved') {
@@ -333,7 +356,10 @@ export function buildJuntaScoreStatsFromDomain(params: {
 
   const approvedDates = myPayments
     .filter((payment) => payment.estado === 'approved')
-    .map((payment) => new Date(payment.validated_at ?? payment.submitted_at ?? payment.pagado_en).getTime())
+    .map(getPaymentRegisteredAt)
+    .filter((registeredAt): registeredAt is string => Boolean(registeredAt))
+    .map((registeredAt) => new Date(registeredAt).getTime())
+    .filter(Number.isFinite)
     .sort((a, b) => a - b);
 
   let activeStreakWeeks = 0;
@@ -369,7 +395,9 @@ export function buildJuntaScoreStatsFromDomain(params: {
     activeStreakWeeks,
     successfulReferrals: params.successfulReferrals ?? 0,
     validatedReferences: params.validatedReferences ?? 0,
-    healthyActions: params.healthyActions ?? Math.max(0, 5 - abandonedMidCycleCount),
+    // healthyActions is a separate positive signal (e.g. profile verification, dispute resolutions).
+    // Abandoned cycles are already penalised via abandonedMidCycleCount — do not subtract here too.
+    healthyActions: params.healthyActions ?? 0,
     abandonedMidCycleCount,
     suspiciousAbuseAttempts
   };

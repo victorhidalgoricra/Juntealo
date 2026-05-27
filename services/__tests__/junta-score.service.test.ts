@@ -5,6 +5,7 @@ import {
   getScoreLevel,
   getNextLevel,
   getPointsToNextLevel,
+  getScoreProgress,
   JUNTA_SCORE_CONFIG,
   type JuntaScoreStats
 } from '../junta-score.service';
@@ -81,6 +82,31 @@ describe('getPointsToNextLevel', () => {
   });
 });
 
+describe('getScoreProgress', () => {
+  it('returns 0% at the floor of a level', () => {
+    // Bronce: 30–49 → score 30 = 0% within Bronce
+    expect(getScoreProgress(30)).toBe(0);
+  });
+
+  it('returns 100% at the ceiling of a level', () => {
+    // Bronce: 30–49 → score 49 = 100% within Bronce
+    expect(getScoreProgress(49)).toBe(100);
+  });
+
+  it('returns relative progress for a mid-level score', () => {
+    // Plata: 50–69 (range = 19). Score 60 → (60-50)/19 = 52.6% → rounds to 53%
+    expect(getScoreProgress(60)).toBe(53);
+  });
+
+  it('returns 100% at Élite ceiling (100)', () => {
+    expect(getScoreProgress(100)).toBe(100);
+  });
+
+  it('clamps negative scores to floor of Nuevo (0%)', () => {
+    expect(getScoreProgress(-5)).toBe(0);
+  });
+});
+
 describe('getUserJuntaScore', () => {
   it('new user with no activity stays at Nuevo level', () => {
     // emptyStats has healthyActions:5 which gives 5pts (the baseline "no bad behavior" bonus)
@@ -100,6 +126,19 @@ describe('getUserJuntaScore', () => {
     const result = getUserJuntaScore('user1', stats);
     expect(result.score).toBeGreaterThan(50);
     expect(['Plata', 'Oro', 'Élite']).toContain(result.level);
+  });
+
+  it('does not over-promote a user from a single on-time payment', () => {
+    const stats: JuntaScoreStats = {
+      ...emptyStats,
+      onTimePaymentsRecent: 1,
+      onTimePaymentsLifetime: 1
+    };
+
+    const result = getUserJuntaScore('user1', stats);
+
+    expect(result.score).toBeLessThan(30);
+    expect(result.level).toBe('Nuevo');
   });
 
   it('penalties from late payments reduce score', () => {
@@ -214,6 +253,53 @@ describe('getUserJuntaScore', () => {
     const abuseScore = getUserJuntaScore('user1', abuseStats);
     expect(abuseScore.score).toBeLessThanOrEqual(lateScore.score);
   });
+
+  it('penalty cap prevents permanent score trapping — many incumplimientos do not exceed cap', () => {
+    const massDefaultStats: JuntaScoreStats = {
+      ...emptyStats,
+      onTimePaymentsRecent: 10,
+      onTimePaymentsLifetime: 10,
+      defaultPaymentsRecent: 100,
+      latePaymentsRecent: 100,
+      abandonedMidCycleCount: 10,
+      suspiciousAbuseAttempts: 5
+    };
+    const result = getUserJuntaScore('user1', massDefaultStats);
+    // Raw penalties would be 100*8 + 100*3 + 10*7 + 5*10 = 1270, but cap is 35.
+    // Score should not be stuck at 0 due to unbounded penalties.
+    expect(result.breakdown.penalties).toBeLessThanOrEqual(JUNTA_SCORE_CONFIG.caps.totalPenalties);
+  });
+
+  it('abandoned mid-cycle does not double-penalize via healthyActions', () => {
+    // abandonedMidCycleCount=1 should only apply the -7 fixed penalty.
+    // Use enough on-time payments so the score stays above 0 after the penalty (avoids clamping distortion).
+    const base: JuntaScoreStats = {
+      ...emptyStats,
+      healthyActions: 5,
+      onTimePaymentsRecent: 6,
+      onTimePaymentsLifetime: 6
+    };
+    const withAbandonment: JuntaScoreStats = { ...base, abandonedMidCycleCount: 1 };
+    const withoutAbandonment: JuntaScoreStats = { ...base, abandonedMidCycleCount: 0 };
+
+    const diff = getUserJuntaScore('user1', withoutAbandonment).score
+      - getUserJuntaScore('user1', withAbandonment).score;
+    // Difference must equal exactly the abandonedMidCycle penalty (7), not 7 + lost healthyBehavior pts.
+    expect(diff).toBe(JUNTA_SCORE_CONFIG.penalties.abandonedMidCycle);
+  });
+
+  it('progressToNextLevel reflects position within current level, not absolute score', () => {
+    const zeroStats: JuntaScoreStats = { ...emptyStats, healthyActions: 0 };
+    // Score 30 = floor of Bronce → 0% progress within Bronce
+    const atBronceFloor = getUserJuntaScore('user1', zeroStats, 30);
+    expect(atBronceFloor.score).toBe(30);
+    expect(atBronceFloor.progressToNextLevel).toBe(0);
+
+    // Score 49 = ceiling of Bronce → 100% progress within Bronce
+    const atBronceCeiling = getUserJuntaScore('user1', zeroStats, 49);
+    expect(atBronceCeiling.score).toBe(49);
+    expect(atBronceCeiling.progressToNextLevel).toBe(100);
+  });
 });
 
 describe('buildJuntaScoreStatsFromDomain', () => {
@@ -228,6 +314,36 @@ describe('buildJuntaScoreStatsFromDomain', () => {
     expect(result.onTimePaymentsRecent).toBe(0);
     expect(result.defaultPaymentsRecent).toBe(0);
     expect(result.completedCycles).toBe(0);
+    expect(result.healthyActions).toBe(0);
+  });
+
+  it('healthyActions defaults to 0 from domain (not subtracted by abandonment count)', () => {
+    // Fix: abandoned cycles must NOT reduce healthyActions — that caused double-penalty.
+    const result = buildJuntaScoreStatsFromDomain({
+      userId: 'user1',
+      juntas: [],
+      members: [
+        { id: 'm1', junta_id: 'j1', profile_id: 'user1', estado: 'retirado' } as never,
+        { id: 'm2', junta_id: 'j2', profile_id: 'user1', estado: 'retirado' } as never
+      ],
+      payments: [],
+      schedules: []
+    });
+    expect(result.abandonedMidCycleCount).toBe(2);
+    // healthyActions must still be 0, not (5 - 2) = 3
+    expect(result.healthyActions).toBe(0);
+  });
+
+  it('accepts explicit healthyActions from caller', () => {
+    const result = buildJuntaScoreStatsFromDomain({
+      userId: 'user1',
+      juntas: [],
+      members: [],
+      payments: [],
+      schedules: [],
+      healthyActions: 3
+    });
+    expect(result.healthyActions).toBe(3);
   });
 
   it('counts on-time payment when submitted before deadline', () => {
@@ -249,6 +365,46 @@ describe('buildJuntaScoreStatsFromDomain', () => {
           profile_id: 'user1',
           estado: 'approved',
           submitted_at: submittedAt,
+          pagado_en: submittedAt
+        } as never
+      ],
+      schedules: [
+        {
+          id: scheduleId,
+          junta_id: juntaId,
+          fecha_vencimiento: deadline.toISOString(),
+          estado: 'pagada',
+          cuota_numero: 1
+        } as never
+      ],
+      now
+    });
+
+    expect(result.onTimePaymentsLifetime).toBe(1);
+    expect(result.latePaymentsLifetime).toBe(0);
+  });
+
+  it('uses payment submission date, not validation date, to determine punctuality', () => {
+    const juntaId = 'junta1';
+    const scheduleId = 'schedule1';
+    const deadline = new Date('2024-01-10');
+    const submittedAt = new Date('2024-01-09').toISOString();
+    const validatedAt = new Date('2024-01-12').toISOString();
+    const now = new Date('2024-02-01');
+
+    const result = buildJuntaScoreStatsFromDomain({
+      userId: 'user1',
+      juntas: [{ id: juntaId, admin_id: 'user1', estado: 'activa' } as never],
+      members: [{ id: 'm1', junta_id: juntaId, profile_id: 'user1', estado: 'activo' } as never],
+      payments: [
+        {
+          id: 'pay1',
+          junta_id: juntaId,
+          schedule_id: scheduleId,
+          profile_id: 'user1',
+          estado: 'approved',
+          submitted_at: submittedAt,
+          validated_at: validatedAt,
           pagado_en: submittedAt
         } as never
       ],
@@ -351,5 +507,72 @@ describe('buildJuntaScoreStatsFromDomain', () => {
     });
 
     expect(result.defaultPaymentsRecent).toBe(0);
+  });
+
+  it('does not count defaults for invited or pending members', () => {
+    const juntaId = 'junta1';
+    const now = new Date('2024-02-15');
+    const deadline = new Date('2024-02-10');
+
+    const result = buildJuntaScoreStatsFromDomain({
+      userId: 'user1',
+      juntas: [{ id: juntaId, admin_id: 'owner1', estado: 'activa' } as never],
+      members: [
+        { id: 'm1', junta_id: juntaId, profile_id: 'user1', estado: 'pendiente' } as never,
+        { id: 'm2', junta_id: 'junta2', profile_id: 'user1', estado: 'invitado' } as never
+      ],
+      payments: [],
+      schedules: [
+        {
+          id: 'schedule1',
+          junta_id: juntaId,
+          fecha_vencimiento: deadline.toISOString(),
+          estado: 'vencida',
+          cuota_numero: 1
+        } as never
+      ],
+      now
+    });
+
+    expect(result.defaultPaymentsRecent).toBe(0);
+    expect(result.defaultPaymentsLifetime).toBe(0);
+  });
+
+  it('does not treat future approved schedules as this week activity', () => {
+    const juntaId = 'junta1';
+    const scheduleId = 'schedule1';
+    const now = new Date('2024-02-15');
+    const futureDueDate = new Date('2024-02-20');
+
+    const result = buildJuntaScoreStatsFromDomain({
+      userId: 'user1',
+      juntas: [{ id: juntaId, admin_id: 'user1', estado: 'activa' } as never],
+      members: [{ id: 'm1', junta_id: juntaId, profile_id: 'user1', estado: 'activo' } as never],
+      payments: [
+        {
+          id: 'pay1',
+          junta_id: juntaId,
+          schedule_id: scheduleId,
+          profile_id: 'user1',
+          estado: 'approved',
+          submitted_at: new Date('2024-02-14').toISOString(),
+          pagado_en: new Date('2024-02-14').toISOString()
+        } as never
+      ],
+      schedules: [
+        {
+          id: scheduleId,
+          junta_id: juntaId,
+          fecha_vencimiento: futureDueDate.toISOString(),
+          estado: 'pagada',
+          cuota_numero: 1
+        } as never
+      ],
+      now
+    });
+
+    expect(result.onTimePaymentsThisWeek).toBe(0);
+    expect(result.onTimePaymentsRecent).toBe(0);
+    expect(result.onTimePaymentsLifetime).toBe(1);
   });
 });
