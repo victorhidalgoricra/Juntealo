@@ -634,7 +634,8 @@ export default function DashboardPage() {
         juntas: notifPayload.juntas,
         schedules: notifPayload.schedules,
         payments: mergedPayments,
-        payouts: alertPayouts
+        payouts: alertPayouts,
+        members: safeMembers
       });
     }
 
@@ -667,7 +668,8 @@ export default function DashboardPage() {
       juntas: storeAlertJuntas,
       schedules: candidateSchedules,
       payments: relevantPayments,
-      payouts: safePayouts
+      payouts: safePayouts,
+      members: safeMembers
     });
   }, [notifPayload, userId, safeMembers, safeJuntas, safeSchedules, safePayments, safePayouts]);
 
