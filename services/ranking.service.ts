@@ -21,11 +21,18 @@ export type RankingEntry = {
 };
 
 function getShortDisplayName(profile?: PublicProfile): string {
+  const firstName = (profile?.first_name ?? '').trim();
+  const paternalLastName = (profile?.paternal_last_name ?? '').trim();
+  if (firstName) {
+    return paternalLastName ? `${firstName} ${paternalLastName[0].toUpperCase()}.` : firstName;
+  }
+
   const nombre = (profile?.nombre ?? '').trim();
   if (nombre) {
     const parts = nombre.split(/\s+/).filter(Boolean);
     if (parts.length >= 2) {
-      return `${parts[0]} ${parts[1][0].toUpperCase()}.`;
+      const lastName = parts[parts.length - 1];
+      return `${parts[0]} ${lastName[0].toUpperCase()}.`;
     }
     return parts[0] ?? 'Miembro';
   }
@@ -38,6 +45,13 @@ function getInitials(name: string): string {
   if (parts.length === 0) return 'JD';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function getCreatedAtTime(profile?: PublicProfile): number {
+  const createdAt = profile?.created_at;
+  if (!createdAt) return Number.POSITIVE_INFINITY;
+  const time = new Date(createdAt).getTime();
+  return Number.isFinite(time) ? time : Number.POSITIVE_INFINITY;
 }
 
 export function computeRanking(params: {
@@ -105,7 +119,18 @@ export function computeRanking(params: {
     };
   });
 
-  return entries.sort(
-    (a, b) => b.score - a.score || a.displayName.localeCompare(b.displayName, 'es')
-  );
+  return entries.sort((a, b) => {
+    const scoreOrder = b.score - a.score;
+    if (scoreOrder !== 0) return scoreOrder;
+
+    const completedCyclesOrder = b.juntasCompletadas - a.juntasCompletadas;
+    if (completedCyclesOrder !== 0) return completedCyclesOrder;
+
+    const createdAtOrder =
+      getCreatedAtTime(params.profilesById[a.profileId]) -
+      getCreatedAtTime(params.profilesById[b.profileId]);
+    if (createdAtOrder !== 0) return createdAtOrder;
+
+    return a.displayName.localeCompare(b.displayName, 'es');
+  });
 }

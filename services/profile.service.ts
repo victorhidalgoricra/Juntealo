@@ -107,7 +107,31 @@ export async function fetchPublicProfilesForRanking() {
     .schema('public')
     .rpc('get_public_profiles_for_ranking');
   if (error) return { ok: false as const, message: error.message };
-  return { ok: true as const, data: (data ?? []) as PublicProfile[] };
+
+  const profiles = (data ?? []) as PublicProfile[];
+  const missingCreatedAtIds = profiles
+    .filter((profile) => !profile.created_at)
+    .map((profile) => profile.id);
+
+  if (missingCreatedAtIds.length === 0) return { ok: true as const, data: profiles };
+
+  const { data: createdAtRows } = await supabase
+    .schema('public')
+    .from('profiles')
+    .select('id, created_at')
+    .in('id', missingCreatedAtIds);
+
+  const createdAtById = new Map(
+    ((createdAtRows ?? []) as Array<{ id: string; created_at?: string }>).map((row) => [row.id, row.created_at])
+  );
+
+  return {
+    ok: true as const,
+    data: profiles.map((profile) => ({
+      ...profile,
+      created_at: profile.created_at ?? createdAtById.get(profile.id),
+    })),
+  };
 }
 
 export async function fetchProfileById(profileId: string) {

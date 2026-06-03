@@ -289,7 +289,7 @@ export default function RankingPage() {
           <h1 className="text-2xl font-semibold text-fg">Ranking</h1>
         </div>
         <p className="text-sm text-muted">
-          Reputación financiera de todos los miembros de Juntaz.
+          Reputación financiera de todos los miembros de Juntealo.
         </p>
       </div>
 
