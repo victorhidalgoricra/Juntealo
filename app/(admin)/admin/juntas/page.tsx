@@ -15,6 +15,7 @@ export default function AdminJuntasPage() {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<AdminJuntaListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [recentlyDeletedIds, setRecentlyDeletedIds] = useState<Set<string>>(() => new Set());
 
   const [query, setQuery] = useState('');
   const [estado, setEstado] = useState<'todos' | 'borrador' | 'activa' | 'cerrada' | 'deshabilitada'>('todos');
@@ -27,7 +28,9 @@ export default function AdminJuntasPage() {
   const [submittingDelete, setSubmittingDelete] = useState(false);
 
   const isRowBlocked = useCallback((row: AdminJuntaListItem) => (
-    Boolean(row.bloqueada) || (row.estado as string) === 'bloqueada'
+    Boolean(row.bloqueada) ||
+    Boolean(row.deleted_at) ||
+    ['eliminada', 'deleted', 'soft_deleted', 'bloqueada'].includes(String(row.estado).toLowerCase())
   ), []);
 
   const getEstadoVisual = useCallback((row: AdminJuntaListItem) => (
@@ -71,7 +74,7 @@ export default function AdminJuntasPage() {
     const createdFromDate = createdFrom ? new Date(`${createdFrom}T00:00:00`) : null;
 
     return rows.filter((row) => {
-      if (!showBlocked && isRowBlocked(row)) return false;
+      if (!showBlocked && isRowBlocked(row) && !recentlyDeletedIds.has(row.id)) return false;
       if (estado !== 'todos') {
         if (estado === 'deshabilitada' && !isRowBlocked(row)) return false;
         if (estado !== 'deshabilitada' && row.estado !== estado) return false;
@@ -94,7 +97,7 @@ export default function AdminJuntasPage() {
 
       return searchable.includes(normalizedQuery);
     });
-  }, [createdFrom, estado, isRowBlocked, query, rows, showBlocked, tipo, visibilidad]);
+  }, [createdFrom, estado, isRowBlocked, query, recentlyDeletedIds, rows, showBlocked, tipo, visibilidad]);
 
   if (!isBackofficeAdmin(user)) {
     return <Card><p className="text-sm text-slate-600">No tienes permisos para acceder a gestión de juntas.</p></Card>;
@@ -156,40 +159,54 @@ export default function AdminJuntasPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row) => (
-                <tr key={row.id} className={`border-t align-top ${isRowBlocked(row) ? 'bg-slate-50 text-slate-500 opacity-85' : ''}`}>
-                  <td className="px-3 py-2">
-                    <p className={`font-medium ${isRowBlocked(row) ? 'text-slate-500' : 'text-slate-900'}`}>{row.nombre}</p>
-                    <p className="text-xs text-slate-500">slug: {row.slug}</p>
-                  </td>
-                  <td className="px-3 py-2">
-                    <Badge>{getEstadoVisual(row)}</Badge>
-                  </td>
-                  <td className="px-3 py-2">
-                    <p>{row.admin_nombre ?? 'Sin nombre'}</p>
-                    <p className="text-xs text-slate-500">{row.admin_email ?? 'Sin correo'}</p>
-                  </td>
-                  <td className="px-3 py-2">{row.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</td>
-                  <td className="px-3 py-2 capitalize">{row.visibilidad}</td>
-                  <td className="px-3 py-2">{row.integrantes_actuales}/{row.participantes_max}</td>
-                  <td className="px-3 py-2 capitalize">{row.frecuencia_pago}</td>
-                  <td className="px-3 py-2">{new Date(row.created_at).toLocaleDateString('es-PE')}</td>
-                  <td className="px-3 py-2">{formatCalendarDate(row.fecha_inicio)}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-2">
-                      <Link href={`/admin/juntas/${row.id}`}><Button variant="outline">Ver detalle</Button></Link>
-                      {!isRowBlocked(row) && (
-                        <Button
-                          variant="destructive"
-                          onClick={() => setCandidate(row)}
-                        >
-                          Eliminar
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredRows.map((row) => {
+                const isDeleted = isRowBlocked(row);
+
+                return (
+                  <tr key={row.id} className={`border-t align-top transition-colors ${isDeleted ? 'bg-slate-50 text-slate-500 opacity-75' : ''}`}>
+                    <td className="px-3 py-2">
+                      <p className={`font-medium ${isDeleted ? 'text-slate-500' : 'text-slate-900'}`}>{row.nombre}</p>
+                      <p className="text-xs text-slate-500">slug: {row.slug}</p>
+                    </td>
+                    <td className="px-3 py-2">
+                      <Badge className={isDeleted ? 'border border-slate-200 bg-slate-100 text-slate-500' : undefined}>
+                        {getEstadoVisual(row)}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2">
+                      <p>{row.admin_nombre ?? 'Sin nombre'}</p>
+                      <p className="text-xs text-slate-500">{row.admin_email ?? 'Sin correo'}</p>
+                    </td>
+                    <td className="px-3 py-2">{row.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</td>
+                    <td className="px-3 py-2 capitalize">{row.visibilidad}</td>
+                    <td className="px-3 py-2">{row.integrantes_actuales}/{row.participantes_max}</td>
+                    <td className="px-3 py-2 capitalize">{row.frecuencia_pago}</td>
+                    <td className="px-3 py-2">{new Date(row.created_at).toLocaleDateString('es-PE')}</td>
+                    <td className="px-3 py-2">{formatCalendarDate(row.fecha_inicio)}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-2">
+                        <Link href={`/admin/juntas/${row.id}`}><Button variant="outline">Ver detalle</Button></Link>
+                        {isDeleted ? (
+                          <Button
+                            variant="outline"
+                            disabled
+                            className="border-slate-200 bg-slate-100 text-slate-500"
+                          >
+                            Ya eliminada
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="destructive"
+                            onClick={() => setCandidate(row)}
+                          >
+                            Eliminar
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -229,11 +246,16 @@ export default function AdminJuntasPage() {
                       return;
                     }
                     setRows((prev) => (
-                      showBlocked
-                        ? prev.map((row) => row.id === candidate.id ? { ...row, bloqueada: true, estado_visual: 'eliminada' } : row)
-                        : prev.filter((row) => row.id !== candidate.id)
+                      prev.map((row) => row.id === candidate.id ? {
+                        ...row,
+                        bloqueada: true,
+                        deleted_at: 'deleted_at' in result.data ? result.data.deleted_at : new Date().toISOString(),
+                        estado: 'eliminada',
+                        estado_visual: 'eliminada'
+                      } : row)
                     ));
-                    await loadRows(showBlocked);
+                    setRecentlyDeletedIds((prev) => new Set(prev).add(candidate.id));
+                    if (showBlocked) await loadRows(true);
                     setCandidate(null);
                   } finally {
                     setSubmittingDelete(false);
