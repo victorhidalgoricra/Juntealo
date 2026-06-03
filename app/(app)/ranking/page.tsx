@@ -303,7 +303,7 @@ export default function RankingPage() {
 
       {!isLoading && ranking.length > 0 && (
         <p className="text-center text-xs text-muted">
-          Ordenado por score de reputación · {ranking.length} miembro{ranking.length !== 1 ? 's' : ''}
+          Ordenado por score, ciclos y antigüedad · {ranking.length} miembro{ranking.length !== 1 ? 's' : ''}
         </p>
       )}
     </div>
