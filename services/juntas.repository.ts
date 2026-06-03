@@ -642,7 +642,7 @@ export type AdminJuntaListItem = {
   id: string;
   nombre: string;
   slug: string;
-  estado: Junta['estado'];
+  estado: Junta['estado'] | 'deleted' | 'soft_deleted' | 'bloqueada';
   estado_visual?: string;
   admin_id: string;
   admin_nombre: string | null;
@@ -655,7 +655,20 @@ export type AdminJuntaListItem = {
   fecha_inicio: string;
   created_at: string;
   bloqueada: boolean;
+  deleted_at?: string | null;
 };
+
+function isAdminJuntaDeleted(row: Pick<Partial<AdminJuntaListItem>, 'bloqueada' | 'deleted_at' | 'estado'>) {
+  const estado = String(row.estado ?? '').toLowerCase();
+  return (
+    Boolean(row.bloqueada) ||
+    Boolean(row.deleted_at) ||
+    estado === 'eliminada' ||
+    estado === 'deleted' ||
+    estado === 'soft_deleted' ||
+    estado === 'bloqueada'
+  );
+}
 
 export async function fetchAdminJuntas(params?: { includeBlocked?: boolean }) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: [] as AdminJuntaListItem[] };
@@ -678,7 +691,7 @@ export async function fetchAdminJuntas(params?: { includeBlocked?: boolean }) {
   if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
 
   const normalized = ((data ?? []) as Partial<AdminJuntaListItem>[]).map((row) => {
-    const bloqueada = Boolean(row.bloqueada) || (row.estado as string) === 'bloqueada';
+    const bloqueada = isAdminJuntaDeleted(row);
     return {
       ...row,
       bloqueada,
