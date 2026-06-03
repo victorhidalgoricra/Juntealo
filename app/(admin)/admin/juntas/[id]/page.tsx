@@ -8,7 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { isBackofficeAdmin } from '@/services/auth-role.service';
-import { adminSoftDeleteJunta, fetchJuntaById, fetchMembersByJuntaIds } from '@/services/juntas.repository';
+import {
+  adminSoftDeleteJunta,
+  fetchJuntaById,
+  fetchMembersByJuntaIds,
+  isAdminJuntaDeletedOrSoftDeleted,
+  isAdminJuntaNotActionable
+} from '@/services/juntas.repository';
 import { Junta } from '@/types/domain';
 import { formatCalendarDate } from '@/lib/calendar-date';
 
@@ -52,7 +58,14 @@ export default function AdminJuntaDetailPage({ params }: { params: { id: string 
     };
   }, [junta, members, payments, schedules]);
 
-  const estadoVisual = junta?.bloqueada ? 'Deshabilitada' : junta?.estado;
+  const isJuntaNotActionable = junta ? isAdminJuntaNotActionable(junta) : false;
+  const estadoVisual = junta
+    ? isAdminJuntaDeletedOrSoftDeleted(junta)
+      ? 'Eliminada'
+      : isJuntaNotActionable
+        ? 'Bloqueada'
+        : junta.estado
+    : undefined;
 
   if (!isBackofficeAdmin(user)) {
     return <Card><p className="text-sm text-slate-600">No tienes permisos para ver esta vista.</p></Card>;
@@ -72,10 +85,17 @@ export default function AdminJuntaDetailPage({ params }: { params: { id: string 
         <Link href="/admin/juntas"><Button variant="outline">Volver al listado</Button></Link>
       </div>
 
-      <Card className="space-y-3 p-4">
+      <Card className={`space-y-3 p-4 ${isJuntaNotActionable ? 'text-slate-500 opacity-75' : ''}`}>
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-xl font-semibold">{junta.nombre}</h2>
-          <Badge>{estadoVisual}</Badge>
+          <Badge className={isJuntaNotActionable ? 'border border-slate-200 bg-slate-100 text-slate-500' : undefined}>
+            {estadoVisual}
+          </Badge>
+          {isJuntaNotActionable && (
+            <Badge className="border border-slate-200 bg-slate-100 text-slate-500">
+              {isAdminJuntaDeletedOrSoftDeleted(junta) ? 'Registro eliminado' : 'Sin acciones'}
+            </Badge>
+          )}
         </div>
 
         <div className="grid gap-3 md:grid-cols-3 text-sm">
@@ -93,7 +113,7 @@ export default function AdminJuntaDetailPage({ params }: { params: { id: string 
           <Card><p className="text-xs text-slate-500">Pagos registrados</p><p className="text-2xl font-semibold">{stats.paymentsCount}</p></Card>
         </div>
 
-        {!junta.bloqueada && (
+        {!isJuntaNotActionable && (
           <div className="pt-2">
             <Button
               variant="destructive"
@@ -112,7 +132,13 @@ export default function AdminJuntaDetailPage({ params }: { params: { id: string 
                   return;
                 }
 
-                setJunta((previous) => (previous ? { ...previous, bloqueada: true, cerrar_inscripciones: true } : previous));
+                setJunta((previous) => (previous ? {
+                  ...previous,
+                  bloqueada: true,
+                  cerrar_inscripciones: true,
+                  deleted_at: 'deleted_at' in result.data ? result.data.deleted_at : new Date().toISOString(),
+                  estado: 'eliminada'
+                } : previous));
                 setData({ juntas: [] });
                 setIsDeleting(false);
               }}

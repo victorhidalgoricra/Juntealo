@@ -6,7 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { isBackofficeAdmin } from '@/services/auth-role.service';
-import { AdminJuntaListItem, adminSoftDeleteJunta, fetchAdminJuntas } from '@/services/juntas.repository';
+import {
+  AdminJuntaListItem,
+  adminSoftDeleteJunta,
+  fetchAdminJuntas,
+  isAdminJuntaDeletedOrSoftDeleted,
+  isAdminJuntaNotActionable
+} from '@/services/juntas.repository';
 import { useAuthStore } from '@/store/auth-store';
 import { formatCalendarDate } from '@/lib/calendar-date';
 
@@ -27,14 +33,10 @@ export default function AdminJuntasPage() {
   const [candidate, setCandidate] = useState<AdminJuntaListItem | null>(null);
   const [submittingDelete, setSubmittingDelete] = useState(false);
 
-  const isRowBlocked = useCallback((row: AdminJuntaListItem) => (
-    Boolean(row.bloqueada) ||
-    Boolean(row.deleted_at) ||
-    ['eliminada', 'deleted', 'soft_deleted', 'bloqueada'].includes(String(row.estado).toLowerCase())
-  ), []);
+  const isRowBlocked = useCallback((row: AdminJuntaListItem) => isAdminJuntaNotActionable(row), []);
 
   const getEstadoVisual = useCallback((row: AdminJuntaListItem) => (
-    isRowBlocked(row) ? 'Eliminada' : (row.estado_visual ?? row.estado)
+    isRowBlocked(row) ? (row.estado_visual ?? 'eliminada') : (row.estado_visual ?? row.estado)
   ), [isRowBlocked]);
 
   const loadRows = useCallback(async (includeBlocked: boolean) => {
@@ -160,16 +162,17 @@ export default function AdminJuntasPage() {
             </thead>
             <tbody>
               {filteredRows.map((row) => {
-                const isDeleted = isRowBlocked(row);
+                const isNotActionable = isRowBlocked(row);
+                const auditActionLabel = isAdminJuntaDeletedOrSoftDeleted(row) ? 'Registro eliminado' : 'Sin acciones';
 
                 return (
-                  <tr key={row.id} className={`border-t align-top transition-colors ${isDeleted ? 'bg-slate-50 text-slate-500 opacity-75' : ''}`}>
+                  <tr key={row.id} className={`border-t align-top transition-colors ${isNotActionable ? 'bg-slate-50 text-slate-500 opacity-75' : ''}`}>
                     <td className="px-3 py-2">
-                      <p className={`font-medium ${isDeleted ? 'text-slate-500' : 'text-slate-900'}`}>{row.nombre}</p>
+                      <p className={`font-medium ${isNotActionable ? 'text-slate-500' : 'text-slate-900'}`}>{row.nombre}</p>
                       <p className="text-xs text-slate-500">slug: {row.slug}</p>
                     </td>
                     <td className="px-3 py-2">
-                      <Badge className={isDeleted ? 'border border-slate-200 bg-slate-100 text-slate-500' : undefined}>
+                      <Badge className={isNotActionable ? 'border border-slate-200 bg-slate-100 text-slate-500' : undefined}>
                         {getEstadoVisual(row)}
                       </Badge>
                     </td>
@@ -185,22 +188,20 @@ export default function AdminJuntasPage() {
                     <td className="px-3 py-2">{formatCalendarDate(row.fecha_inicio)}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-2">
-                        <Link href={`/admin/juntas/${row.id}`}><Button variant="outline">Ver detalle</Button></Link>
-                        {isDeleted ? (
-                          <Button
-                            variant="outline"
-                            disabled
-                            className="border-slate-200 bg-slate-100 text-slate-500"
-                          >
-                            Ya eliminada
-                          </Button>
+                        {isNotActionable ? (
+                          <Badge className="border border-slate-200 bg-slate-100 text-slate-500">
+                            {auditActionLabel}
+                          </Badge>
                         ) : (
-                          <Button
-                            variant="destructive"
-                            onClick={() => setCandidate(row)}
-                          >
-                            Eliminar
-                          </Button>
+                          <>
+                            <Link href={`/admin/juntas/${row.id}`}><Button variant="outline">Ver detalle</Button></Link>
+                            <Button
+                              variant="destructive"
+                              onClick={() => setCandidate(row)}
+                            >
+                              Eliminar
+                            </Button>
+                          </>
                         )}
                       </div>
                     </td>
