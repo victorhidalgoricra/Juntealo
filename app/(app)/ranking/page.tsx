@@ -289,7 +289,7 @@ export default function RankingPage() {
           <h1 className="text-2xl font-semibold text-fg">Ranking</h1>
         </div>
         <p className="text-sm text-muted">
-          Reputación financiera de todos los miembros de Juntaz.
+          Reputación financiera de todos los miembros de Juntealo.
         </p>
       </div>
 
@@ -303,7 +303,7 @@ export default function RankingPage() {
 
       {!isLoading && ranking.length > 0 && (
         <p className="text-center text-xs text-muted">
-          Ordenado por score de reputación · {ranking.length} miembro{ranking.length !== 1 ? 's' : ''}
+          Ordenado por score, ciclos y antigüedad · {ranking.length} miembro{ranking.length !== 1 ? 's' : ''}
         </p>
       )}
     </div>
