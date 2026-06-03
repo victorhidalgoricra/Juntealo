@@ -110,10 +110,18 @@ export async function fetchPublicProfilesForRanking() {
 
   const profiles = (data ?? []) as PublicProfile[];
   const missingCreatedAtIds = profiles
-    .filter((profile) => !profile.created_at)
+    .filter((profile) => !profile.created_at && !profile.profile_created_at)
     .map((profile) => profile.id);
 
-  if (missingCreatedAtIds.length === 0) return { ok: true as const, data: profiles };
+  if (missingCreatedAtIds.length === 0) {
+    return {
+      ok: true as const,
+      data: profiles.map((profile) => ({
+        ...profile,
+        created_at: profile.created_at ?? profile.profile_created_at,
+      })),
+    };
+  }
 
   const { data: createdAtRows } = await supabase
     .schema('public')
@@ -129,7 +137,7 @@ export async function fetchPublicProfilesForRanking() {
     ok: true as const,
     data: profiles.map((profile) => ({
       ...profile,
-      created_at: profile.created_at ?? createdAtById.get(profile.id),
+      created_at: profile.created_at ?? profile.profile_created_at ?? createdAtById.get(profile.id),
     })),
   };
 }

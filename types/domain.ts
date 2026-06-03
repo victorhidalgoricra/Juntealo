@@ -41,6 +41,7 @@ export interface PublicProfile {
   paternal_last_name?: string;
   foto_url?: string;
   created_at?: string;
+  profile_created_at?: string;
 }
 
 export interface Junta {

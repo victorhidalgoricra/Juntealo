@@ -48,7 +48,7 @@ function getInitials(name: string): string {
 }
 
 function getCreatedAtTime(profile?: PublicProfile): number {
-  const createdAt = profile?.created_at;
+  const createdAt = profile?.created_at ?? profile?.profile_created_at;
   if (!createdAt) return Number.POSITIVE_INFINITY;
   const time = new Date(createdAt).getTime();
   return Number.isFinite(time) ? time : Number.POSITIVE_INFINITY;

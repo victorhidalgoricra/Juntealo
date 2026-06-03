@@ -65,6 +65,22 @@ describe('computeRanking', () => {
     expect(ranking.map((entry) => entry.profileId)).toEqual(['old', 'middle', 'new']);
   });
 
+  it('uses profile_created_at as the ranking age tie-breaker when provided by the RPC', () => {
+    const ranking = computeRanking({
+      currentUserId: 'new',
+      juntas: [],
+      members: [],
+      schedules: [],
+      payments: [],
+      profilesById: {
+        new: { id: 'new', nombre: 'Grace García', profile_created_at: '2026-03-01T00:00:00.000Z' },
+        old: { id: 'old', nombre: 'Victor Hidalgo', profile_created_at: '2026-01-01T00:00:00.000Z' },
+      },
+    });
+
+    expect(ranking.map((entry) => entry.profileId)).toEqual(['old', 'new']);
+  });
+
   it('orders tied scores by completed cycles descending', () => {
     const manyCycles = closedJuntasFor('many', 7);
     const fewerCycles = closedJuntasFor('fewer', 6);
