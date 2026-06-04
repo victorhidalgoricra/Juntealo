@@ -229,13 +229,13 @@ function getNextLevelProgress(
 function DashboardHeader({ displayName }: { displayName: string }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
           {getInitials(displayName)}
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm text-muted">Buenos días</p>
-          <h1 className="text-2xl font-semibold text-fg">{displayName}</h1>
+          <h1 className="break-words text-2xl font-semibold text-fg">{displayName}</h1>
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -263,12 +263,12 @@ function PendingPaymentBanner({ data }: { data: PaymentAlertState }) {
   return (
     <Link href={href}>
       <Card className={`border p-4 ${toneClass}`}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/70">⏺</div>
-            <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/70">⏺</div>
+            <div className="min-w-0">
               <p className={`text-sm font-semibold ${titleToneClass}`}>{data.title}</p>
-              <p className={`text-sm ${titleToneClass}`}>{data.subtitle}</p>
+              <p className={`break-words text-sm ${titleToneClass}`}>{data.subtitle}</p>
             </div>
           </div>
           <p className={`text-sm font-semibold ${ctaToneClass}`}>{ctaLabel}</p>
@@ -290,7 +290,7 @@ function JuntaScoreCard({ score }: { score: UserJuntaScoreResult }) {
           <Badge variant="dark">{getScoreBadge(score.level)}</Badge>
           <h2 className="text-2xl font-bold">Tu score de junta</h2>
           <p className="text-sm text-[var(--dark-muted)]">Pagos a tiempo, ciclos completados y referencias acumulan tu reputación financiera en la plataforma.</p>
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
               <div className="h-full rounded-full bg-emerald-400 transition-[width] duration-700" style={{ width: `${score.progressToNextLevel}%` }} />
             </div>
@@ -332,7 +332,7 @@ function UpcomingPayoutCard({ data }: { data: UpcomingPayoutData }) {
     <Link href={`/juntas/${data.juntaId}`}>
       <Card tint="green" hover className="p-4">
         <p className="text-sm font-semibold text-[#065f46]">Tu próximo cobro</p>
-        <p className="font-mono text-4xl font-bold text-[#065f46]">{money(data.amount)}</p>
+        <p className="break-words font-mono text-4xl font-bold text-[#065f46]">{money(data.amount)}</p>
         <p className="text-sm text-[#065f46]/80">
           Turno #{data.ronda} · {data.juntaNombre} · {data.fecha ? format(data.fecha, 'dd MMM yyyy', { locale: es }) : 'fecha por confirmar'}
         </p>
@@ -345,7 +345,7 @@ function ContributionSummaryCards({ summary }: { summary: ContributionSummaryDat
   return (
     <Card className="border-0 bg-accent p-5 text-white">
       <p className="text-sm text-white/70">Total aportado</p>
-      <p className="font-mono text-4xl font-bold">{money(summary.totalAportado)}</p>
+      <p className="break-words font-mono text-4xl font-bold">{money(summary.totalAportado)}</p>
       <p className="text-sm text-white/70">{summary.periodLabel}</p>
     </Card>
   );
@@ -353,9 +353,9 @@ function ContributionSummaryCards({ summary }: { summary: ContributionSummaryDat
 
 function JuntaSkeletonItem() {
   return (
-    <Card className="flex items-center justify-between gap-3 p-4">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 animate-pulse rounded-xl bg-slate-200" />
+    <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="h-10 w-10 shrink-0 animate-pulse rounded-xl bg-slate-200" />
         <div className="space-y-2">
           <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
           <div className="h-3 w-48 animate-pulse rounded bg-slate-200" />
@@ -372,15 +372,15 @@ function JuntaSkeletonItem() {
 function JuntaListItem({ item }: { item: JuntaCardData }) {
   return (
     <Link href={`/juntas/${item.id}`}>
-      <Card hover className="flex items-center justify-between gap-3 p-4">
-        <div className="flex items-center gap-3">
+      <Card hover className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           <JuntaAvatar nombre={item.nombre} />
-          <div>
-            <p className="font-semibold text-fg">{item.nombre}</p>
-            <p className="text-sm text-muted">{item.miembros} integrantes · {money(item.cuota)}/{item.frecuencia} · {item.tipo === 'incentivo' ? 'con incentivos' : 'normal'}</p>
+          <div className="min-w-0">
+            <p className="break-words font-semibold text-fg">{item.nombre}</p>
+            <p className="break-words text-sm text-muted">{item.miembros} integrantes · {money(item.cuota)}/{item.frecuencia} · {item.tipo === 'incentivo' ? 'con incentivos' : 'normal'}</p>
           </div>
         </div>
-        <div className="text-right">
+        <div className="text-left sm:text-right">
           <p className="font-semibold text-accent">{item.turno ? `Turno #${item.turno}` : 'Turno pendiente'}</p>
           <p className="text-xs text-muted">{item.nextDate ? format(item.nextDate, 'dd MMM', { locale: es }) : 'Sin fecha'}</p>
           <Badge variant={item.status === 'pendiente' ? 'pendiente' : 'pagada'}>
@@ -398,12 +398,12 @@ function ActiveJuntasSection({ active, history, isLoading }: { active: JuntaCard
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-semibold text-fg">Mis juntas activas</h2>
         <Link className="text-sm font-medium text-accent" href="/juntas">Ver todas →</Link>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => setTab('activas')} className={`rounded-[var(--r-sm)] border px-4 py-1.5 text-sm transition-colors ${tab === 'activas' ? 'border-accent text-accent' : 'border-border text-muted'}`}>Activas</button>
         <button type="button" onClick={() => setTab('historial')} className={`rounded-[var(--r-sm)] border px-4 py-1.5 text-sm transition-colors ${tab === 'historial' ? 'border-accent text-accent' : 'border-border text-muted'}`}>Historial</button>
       </div>
@@ -455,8 +455,8 @@ function NextLevelSection({
       </Card>
 
       <Card className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-fg">{data.mission.title}</p>
             <p className="mt-1 text-sm text-fg/80">{data.mission.description}</p>
             <p className="mt-1 text-xs text-green">Recompensa: +{data.mission.rewardPoints} pts al score</p>
@@ -475,7 +475,7 @@ function NextLevelSection({
             </Button>
           )}
         </div>
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
             <div className="h-full rounded-full bg-muted transition-[width] duration-700" style={{ width: `${missionPct}%` }} />
           </div>
@@ -791,7 +791,7 @@ export default function DashboardPage() {
 
       <NextLevelSection data={nextLevel} onClaimMission={handleClaimMission} isClaiming={isClaiming} />
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Link href="/juntas/new"><Button>Crear nueva junta</Button></Link>
         <Link href="/juntas"><Button variant="outline">Explorar juntas</Button></Link>
       </div>

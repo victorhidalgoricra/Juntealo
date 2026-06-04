@@ -54,9 +54,9 @@ export default function AdminPaymentDetailPage({ params }: { params: { paymentId
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <Card className="space-y-2">
-        <h1 className="text-2xl font-semibold">Revisión de voucher</h1>
-        <p className="text-sm text-slate-600">Junta: {junta?.nombre ?? 'Junta'}</p>
-        <p className="text-sm text-slate-600">Participante: {payment.profile_id}</p>
+        <h1 className="break-words text-2xl font-semibold">Revisión de voucher</h1>
+        <p className="break-words text-sm text-slate-600">Junta: {junta?.nombre ?? 'Junta'}</p>
+        <p className="break-all text-sm text-slate-600">Participante: {payment.profile_id}</p>
         <p className="text-sm text-slate-600">Semana/ronda: {schedule?.cuota_numero ?? '-'}</p>
         <p className="text-sm text-slate-600">Monto esperado: S/{(payment.expected_amount ?? schedule?.monto ?? payment.monto).toFixed(2)}</p>
         <p className="text-sm text-slate-600">Monto enviado: S/{(payment.submitted_amount ?? payment.monto).toFixed(2)}</p>
@@ -70,7 +70,7 @@ export default function AdminPaymentDetailPage({ params }: { params: { paymentId
         {receiptUrl ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {isImageReceipt && <img src={receiptUrl} alt="Voucher" className="max-h-80 rounded border object-contain" />}
+            {isImageReceipt && <img src={receiptUrl} alt="Voucher" className="max-h-80 w-full rounded border object-contain" />}
             <a className="text-sm break-all text-blue-700 underline" href={receiptUrl} target="_blank" rel="noreferrer">Abrir comprobante</a>
           </>
         ) : (
@@ -82,7 +82,7 @@ export default function AdminPaymentDetailPage({ params }: { params: { paymentId
       <Card className="space-y-2">
         <h2 className="font-semibold">Historial</h2>
         {timeline.map((item) => (
-          <p key={item.label} className="text-sm text-slate-600"><span className="font-medium">{item.label}:</span> {item.value}</p>
+          <p key={item.label} className="break-words text-sm text-slate-600"><span className="font-medium">{item.label}:</span> {item.value}</p>
         ))}
       </Card>
 

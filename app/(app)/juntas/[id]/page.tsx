@@ -43,15 +43,15 @@ function statusClass(status: string) {
 
 function JuntaPaymentStatusRow({ row, showPayAction, onPay }: { row: WeeklyMemberRow; showPayAction?: boolean; onPay?: () => void }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3">
-      <div className="flex items-center gap-3">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold ${getAvatarColor(row.displayName)}`}>{getInitial(row.displayName)}</div>
-        <div>
-          <p className="text-sm font-medium">{row.displayName}</p>
+    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${getAvatarColor(row.displayName)}`}>{getInitial(row.displayName)}</div>
+        <div className="min-w-0">
+          <p className="break-words text-sm font-medium">{row.displayName}</p>
           <p className="text-xs text-slate-500">Turno #{row.turno} · S/{row.amount.toFixed(0)}</p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap gap-2 sm:items-center sm:justify-end">
         <JuntaScoreBadge score={row.score} />
         <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass(row.status)}`}>{row.status}</span>
         {showPayAction && row.isCurrentUser && (row.status === 'Pendiente' || row.status === 'Rechazado' || row.status === 'Vencido') && (
@@ -575,9 +575,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   return (
     <div className="space-y-4 pb-6">
       <Card className="space-y-4 p-4">
-          <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold">{junta.nombre}</h1>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="break-words text-2xl font-semibold">{junta.nombre}</h1>
             <p className="text-sm text-slate-500">{headerSubtitle}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <Badge>{juntaFinalizada ? 'Finalizada' : juntaActiva ? 'Activa' : 'En formación'}</Badge>
@@ -586,7 +586,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               <Badge>{memberCount}/{junta.participantes_max} integrantes</Badge>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-2 sm:items-center sm:justify-end">
             <Button
               variant="outline"
               onClick={handleCopyLink}
@@ -605,9 +605,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           </div>
         </div>
 
-        <div className="flex w-full rounded-xl bg-slate-100 p-1 text-sm">
-          <button type="button" className={`flex-1 rounded-lg px-3 py-2 ${mainView === 'general' ? 'bg-white font-semibold text-slate-900 shadow' : 'text-slate-600'}`} onClick={() => setMainView('general')}>Vista general</button>
-          <button type="button" className={`flex-1 rounded-lg px-3 py-2 ${mainView === 'personal' ? 'bg-white font-semibold text-slate-900 shadow' : 'text-slate-600'}`} onClick={() => setMainView('personal')}>Mi vista ({currentUserName})</button>
+        <div className="grid w-full grid-cols-1 gap-1 rounded-xl bg-slate-100 p-1 text-sm sm:grid-cols-2">
+          <button type="button" className={`min-w-0 rounded-lg px-3 py-2 ${mainView === 'general' ? 'bg-white font-semibold text-slate-900 shadow' : 'text-slate-600'}`} onClick={() => setMainView('general')}>Vista general</button>
+          <button type="button" className={`min-w-0 rounded-lg px-3 py-2 ${mainView === 'personal' ? 'bg-white font-semibold text-slate-900 shadow' : 'text-slate-600'}`} onClick={() => setMainView('personal')}>Mi vista ({currentUserName})</button>
         </div>
       </Card>
 
@@ -621,7 +621,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       {mainView === 'general' && (
         <div className="space-y-4">
           {phaseTwoLoading && <Card className="p-3 text-sm text-slate-500">Cargando pagos, cronograma e integrantes…</Card>}
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <Card className="p-3"><p className="text-xs text-slate-500">Bolsa semana</p><p className="text-2xl font-semibold">S/{((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}</p></Card>
             <Card className="p-3"><p className="text-xs text-slate-500">Pagos esta semana</p><p className="text-2xl font-semibold">{displayPaid}/{summary.rows.length}</p></Card>
             <Card className="p-3"><p className="text-xs text-slate-500">Turno actual</p><p className="text-2xl font-semibold">#{currentWeek}</p></Card>
@@ -630,7 +630,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           </div>
 
           <Card className="space-y-2 p-3">
-            <div className="flex items-center justify-between text-sm text-slate-600"><span>Progreso del ciclo</span><span>Semana {currentWeek}/{simulation.rows.length}</span></div>
+            <div className="flex flex-col gap-1 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"><span>Progreso del ciclo</span><span>Semana {currentWeek}/{simulation.rows.length}</span></div>
             <div className="h-2 rounded-full bg-slate-200"><div className="h-2 rounded-full bg-blue-600" style={{ width: `${(currentWeek / Math.max(simulation.rows.length, 1)) * 100}%` }} /></div>
           </Card>
 
@@ -655,15 +655,15 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
               <div className="rounded-xl border p-3">
                 <p className="text-xs uppercase tracking-wide text-slate-500">Receptor actual</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-full text-base font-semibold ${getAvatarColor(summary.receiver?.displayName ?? 'Receptor')}`}>{getInitial(summary.receiver?.displayName ?? 'R')}</div>
-                    <div>
-                      <p className="font-semibold">{summary.receiver?.displayName ?? 'Pendiente'}</p>
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold ${getAvatarColor(summary.receiver?.displayName ?? 'Receptor')}`}>{getInitial(summary.receiver?.displayName ?? 'R')}</div>
+                    <div className="min-w-0">
+                      <p className="break-words font-semibold">{summary.receiver?.displayName ?? 'Pendiente'}</p>
                       <p className="text-sm text-slate-500">Turno #{currentWeek} · recibe esta semana</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap gap-2 sm:items-center sm:justify-end">
                     <JuntaScoreBadge score={summary.rows.find((row) => row.isReceiver)?.score ?? 70} />
                     <Badge>{canConfirmReceipt ? 'Listo para confirmar' : 'Esperando pagos'}</Badge>
                     {canConfirmReceipt && (
@@ -682,7 +682,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                     <div key={row.id} className="space-y-1">
                       <JuntaPaymentStatusRow row={row} />
                       {isCurrentReceiver && row.status === 'Validando' && row.paymentId && (
-                        <div className="flex gap-2 pl-2">
+                        <div className="flex flex-wrap gap-2 pl-0 sm:pl-2">
                           <Button size="sm" variant="outline" onClick={() => handleAcceptPayment(row.paymentId!, row.status)}>Aceptar</Button>
                           <Button size="sm" variant="outline" onClick={() => handleRejectPayment(row.paymentId!, row.status)}>Rechazar</Button>
                         </div>
@@ -697,7 +697,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                     <div key={row.id} className="space-y-2">
                       <JuntaPaymentStatusRow row={row} />
                       {!juntaFinalizada && (
-                        <div className="flex gap-2 pl-2">
+                        <div className="flex flex-wrap gap-2 pl-0 sm:pl-2">
                           <Button variant="ghost" onClick={() => alert('Las notificaciones automáticas estarán disponibles próximamente. Por ahora usa WhatsApp para contactar al integrante.')}>Reenviar recordatorio</Button>
                           <Button variant="ghost" onClick={() => openWhatsAppReminder(row)}>WhatsApp</Button>
                         </div>
@@ -711,7 +711,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
           {generalTab === 'cronograma' && (
             <Card className="overflow-x-auto p-0">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[560px] text-sm">
                 <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2 text-left">Turno</th><th className="px-3 py-2 text-left">Participante</th><th className="px-3 py-2 text-left">Fecha</th><th className="px-3 py-2 text-left">Recibe</th><th className="px-3 py-2 text-left">Estado</th></tr></thead>
                 <tbody>
                   {scheduleRows.map((row) => (
@@ -731,7 +731,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
           {generalTab === 'pagos' && (
             <Card className="space-y-3 p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-lg font-semibold">Semana {currentWeek} — {summary.receiver?.displayName ?? 'Receptor'} recibe</h3>
                 <Badge>{juntaFinalizada ? 'Completada' : 'En curso'}</Badge>
               </div>
@@ -766,8 +766,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                         ? `Tú${member.nombre ? ` (${member.nombre.split(' ')[0]})` : ''}`
                         : member.nombre ?? (member.profile_id === junta.admin_id ? 'Creador' : `Integrante ${index + 1}`);
                       return (
-                        <div key={member.id} className="flex items-center justify-between rounded-md border p-2">
-                          <p className="text-sm">{displayName}</p>
+                        <div key={member.id} className="flex flex-col gap-2 rounded-md border p-2 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="break-words text-sm">{displayName}</p>
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-slate-500">Turno</span>
                             <select
@@ -883,7 +883,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             <p className="text-5xl font-bold">#{personal.myTurnRow?.turno ?? '-'}</p>
             <p className="text-sm text-slate-200">{junta.nombre} · Recibes S/{(personal.myTurnRow?.montoRecibido ?? simulation.bolsaBase).toFixed(2)}</p>
             <p className="text-sm text-slate-300">Fecha estimada: {personal.myTurnRow?.fechaRonda ?? 'Pendiente'} · {personal.myTurnRow ? `en ${Math.max(personal.myTurnRow.turno - currentWeek, 0)} semanas` : 'sin turno asignado'}</p>
-            <div className="flex items-center gap-2"><JuntaScoreBadge score={personal.myRow?.score ?? 70} /><span className="text-xs text-slate-300">Confianza visible para el grupo</span></div>
+            <div className="flex flex-wrap items-center gap-2"><JuntaScoreBadge score={personal.myRow?.score ?? 70} /><span className="text-xs text-slate-300">Confianza visible para el grupo</span></div>
           </Card>
 
           {juntaRacha && (
@@ -947,7 +947,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           </Card>
 
           <Card className="overflow-x-auto p-0">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[560px] text-sm">
               <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2 text-left">Semana</th><th className="px-3 py-2 text-left">Fecha</th><th className="px-3 py-2 text-left">Recibe</th><th className="px-3 py-2 text-left">Tu aporte</th><th className="px-3 py-2 text-left">Estado</th></tr></thead>
               <tbody>
                 {scheduleRows.map((row) => {

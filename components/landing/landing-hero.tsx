@@ -31,11 +31,11 @@ export function LandingHero() {
   return (
     <RevealOnScroll className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 md:grid-cols-2 md:items-center md:px-6 md:py-16">
       <div className="space-y-6">
-        <p className="inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
+        <p className="inline-flex max-w-full items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
           ● Más de 120 juntas activas esta semana
         </p>
 
-        <h1 className="text-4xl font-bold leading-tight tracking-[-1.5px] text-[var(--text)] md:text-5xl">
+        <h1 className="break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl">
           Tu junta, <span className="text-[var(--accent)]">digital</span> y sin drama.
         </h1>
 
@@ -52,7 +52,7 @@ export function LandingHero() {
           </Link>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex">
             {demoMembers.map((member, index) => (
               <span
@@ -68,15 +68,15 @@ export function LandingHero() {
         </div>
       </div>
 
-      <div className="relative rounded-[var(--r-xl)] bg-[var(--dark-1)] p-7 text-white shadow-xl">
+      <div className="relative rounded-[var(--r-xl)] bg-[var(--dark-1)] p-5 text-white shadow-xl sm:p-7">
         <span className="absolute right-6 top-6 inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
           ● Activa
         </span>
         <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--dark-muted)]">Junta de ejemplo</p>
-        <h2 className="mt-2 text-2xl font-semibold">Taxistas Norte</h2>
+        <h2 className="mt-2 break-words text-2xl font-semibold">Taxistas Norte</h2>
         <p className="mt-1 text-sm text-[var(--dark-muted)]">Ahorro semanal con turnos automáticos</p>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[
             ['Bolsa esta semana', 'S/ 4,000'],
             ['Tu turno', 'Semana 8'],
@@ -90,7 +90,7 @@ export function LandingHero() {
           ))}
         </div>
 
-        <div className="mt-5 flex items-center gap-2">
+        <div className="mt-5 flex flex-wrap items-center gap-2">
           {['JV', 'RM', 'SL', 'PC', 'AG'].map((member) => (
             <span key={member} className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--dark-4)] text-[11px] font-semibold">
               {member}

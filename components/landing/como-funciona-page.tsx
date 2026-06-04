@@ -115,7 +115,7 @@ export function ComoFuncionaPage() {
           <span className="inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
             ¿Cómo funciona?
           </span>
-          <h1 className="mt-5 text-4xl font-bold leading-tight tracking-[-1.5px] text-[var(--text)] md:text-5xl">
+          <h1 className="mt-5 break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl">
             La junta que siempre hiciste,
             <br className="hidden md:block" /> ahora sin el drama
           </h1>

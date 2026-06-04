@@ -128,9 +128,9 @@ export default function AdminJuntasPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Gestión de juntas</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-semibold">Gestión de juntas</h1>
           <p className="text-sm text-slate-600">Listado administrativo con trazabilidad y eliminación segura (soft delete).</p>
         </div>
         <Link href="/admin"><Button variant="outline">Volver al backoffice</Button></Link>
@@ -138,8 +138,8 @@ export default function AdminJuntasPage() {
 
       <Card className="space-y-3 p-4">
         <div className="grid gap-2 md:grid-cols-5">
-          <input className="rounded-md border px-3 py-2 text-sm" placeholder="Buscar por nombre, creador, slug o correo" value={query} onChange={(event) => setQuery(event.target.value)} />
-          <select className="rounded-md border px-3 py-2 text-sm" value={estado} onChange={(event) => setEstado(event.target.value as typeof estado)}>
+          <input className="w-full rounded-md border px-3 py-2 text-sm" placeholder="Buscar por nombre, creador, slug o correo" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <select className="w-full rounded-md border px-3 py-2 text-sm" value={estado} onChange={(event) => setEstado(event.target.value as typeof estado)}>
             <option value="todos">Estado: todos</option>
             <option value="borrador">Borrador</option>
             <option value="activa">Activa</option>
@@ -147,17 +147,17 @@ export default function AdminJuntasPage() {
             <option value="deshabilitada">Deshabilitada</option>
             <option value="eliminadas_bloqueadas">Eliminadas/Bloqueadas</option>
           </select>
-          <select className="rounded-md border px-3 py-2 text-sm" value={visibilidad} onChange={(event) => setVisibilidad(event.target.value as typeof visibilidad)}>
+          <select className="w-full rounded-md border px-3 py-2 text-sm" value={visibilidad} onChange={(event) => setVisibilidad(event.target.value as typeof visibilidad)}>
             <option value="todas">Visibilidad: todas</option>
             <option value="publica">Pública</option>
             <option value="privada">Privada</option>
           </select>
-          <select className="rounded-md border px-3 py-2 text-sm" value={tipo} onChange={(event) => setTipo(event.target.value as typeof tipo)}>
+          <select className="w-full rounded-md border px-3 py-2 text-sm" value={tipo} onChange={(event) => setTipo(event.target.value as typeof tipo)}>
             <option value="todos">Tipo: todos</option>
             <option value="normal">Normal</option>
             <option value="incentivo">Con incentivos</option>
           </select>
-          <input className="rounded-md border px-3 py-2 text-sm" type="date" value={createdFrom} onChange={(event) => setCreatedFrom(event.target.value)} />
+          <input className="w-full rounded-md border px-3 py-2 text-sm" type="date" value={createdFrom} onChange={(event) => setCreatedFrom(event.target.value)} />
         </div>
       </Card>
 
@@ -239,7 +239,7 @@ export default function AdminJuntasPage() {
 
       {candidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <Card className="max-w-xl space-y-4 p-5">
+          <Card className="max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto space-y-4 p-5">
             <h2 className="text-xl font-semibold">Eliminar junta</h2>
             <p className="text-sm text-slate-700">Junta: <span className="font-medium">{candidate.nombre}</span></p>
             {candidate.estado === 'activa' ? (
@@ -250,7 +250,7 @@ export default function AdminJuntasPage() {
             ) : (
               <p className="text-sm text-slate-700">Esta acción administrativa marcará la junta como cancelada/bloqueada para excluirla del flujo normal.</p>
             )}
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button variant="outline" disabled={submittingDelete} onClick={() => setCandidate(null)}>Cancelar</Button>
               <Button
                 variant="destructive"

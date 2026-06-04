@@ -393,8 +393,8 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Card className="space-y-2">
-        <h1 className="text-2xl font-semibold">Registrar pago</h1>
-        <p className="text-sm text-slate-600">{junta.nombre}</p>
+        <h1 className="break-words text-2xl font-semibold">Registrar pago</h1>
+        <p className="break-words text-sm text-slate-600">{junta.nombre}</p>
         <p className="text-sm text-slate-600">{scheduleLabel}</p>
         <p className="text-sm text-slate-600">Monto esperado: <span className="font-semibold">S/ {currentSchedule.monto.toFixed(2)}</span></p>
         <p className="text-sm text-slate-600">Fecha límite: <span className="font-semibold">{formatCalendarDate(currentSchedule.fecha_vencimiento)}</span></p>
@@ -406,17 +406,17 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
       {currentReceiverMember && (
         <Card className="space-y-2 border-blue-200 bg-blue-50">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Destinatario del pozo</p>
-          <p className="font-semibold text-slate-800">Paga a: {receiverDisplayName}</p>
+          <p className="break-words font-semibold text-slate-800">Paga a: {receiverDisplayName}</p>
           <p className="text-sm text-slate-600">Turno: <span className="font-medium">#{currentSchedule.cuota_numero}</span></p>
           <p className="text-sm text-slate-600">Monto: <span className="font-medium">S/ {currentSchedule.monto.toFixed(2)}</span></p>
           {receiverPaymentDetails.isConfigured ? (
             <div className="space-y-1 border-t border-blue-200 pt-2">
               <p className="text-sm font-medium text-slate-700">Método sugerido: {receiverPaymentDetails.methodLabel}</p>
               {receiverPaymentDetails.destinationLabel && receiverPaymentDetails.destinationValue && (
-                <p className="text-sm text-slate-600">{receiverPaymentDetails.destinationLabel}: <span className="font-medium">{receiverPaymentDetails.destinationValue}</span></p>
+                <p className="break-all text-sm text-slate-600">{receiverPaymentDetails.destinationLabel}: <span className="font-medium">{receiverPaymentDetails.destinationValue}</span></p>
               )}
               {receiverPaymentDetails.secondaryLabel && receiverPaymentDetails.secondaryValue && (
-                <p className="text-sm text-slate-600">{receiverPaymentDetails.secondaryLabel}: <span className="font-medium">{receiverPaymentDetails.secondaryValue}</span></p>
+                <p className="break-all text-sm text-slate-600">{receiverPaymentDetails.secondaryLabel}: <span className="font-medium">{receiverPaymentDetails.secondaryValue}</span></p>
               )}
               {receiverPaymentDetails.notes && (
                 <p className="text-sm text-slate-500">Nota: {receiverPaymentDetails.notes}</p>
@@ -467,9 +467,9 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
               setMessage(null);
             }}
           />
-          {fileName && <p className="text-xs text-slate-500">Archivo seleccionado: {fileName}</p>}
+          {fileName && <p className="break-all text-xs text-slate-500">Archivo seleccionado: {fileName}</p>}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          {previewUrl && <img src={previewUrl} alt="Preview del comprobante" className="max-h-60 rounded-md border object-contain" />}
+          {previewUrl && <img src={previewUrl} alt="Preview del comprobante" className="max-h-60 w-full rounded-md border object-contain" />}
           {!previewUrl && receiptFile?.type === 'application/pdf' && <p className="text-xs text-blue-700">PDF cargado correctamente. Se enviará como comprobante.</p>}
 
           <label className="text-sm font-medium">Observación (opcional)</label>
@@ -478,7 +478,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
 
         {message && <p className="text-sm text-blue-700">{message}</p>}
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={submitting || alreadyPaid || isUnderValidation}>{submitting ? 'Enviando...' : isFromDashboard ? 'Confirmar pago' : 'Enviar a validación'}</Button>
           <Button type="button" variant="outline" onClick={() => router.push(`/juntas/${junta.id}?view=participante`)}>Volver</Button>
         </div>

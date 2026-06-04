@@ -105,9 +105,9 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Backoffice</h1>
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="break-words text-3xl font-bold">Backoffice</h1>
+        <div className="flex flex-wrap gap-2">
           <Link href="/admin/juntas"><Button variant="outline">Gestionar juntas</Button></Link>
           <Link href="/admin/pagos"><Button variant="outline">Validar pagos</Button></Link>
           <Link href="/dashboard"><Button variant="outline">Ir al producto</Button></Link>
@@ -140,8 +140,8 @@ export default function AdminPage() {
           <h2 className="font-semibold">Pagos para validación</h2>
           {reviewablePayments.length === 0 ? <p className="text-sm text-slate-500">No hay pagos pendientes por validar.</p> : reviewablePayments.map((row) => (
             <div key={row.payment.id} className="grid gap-2 rounded border p-3 text-sm md:grid-cols-[1.4fr_0.8fr_1fr_1fr_1fr_auto]">
-              <div>
-                <p className="font-semibold">{row.juntaName}</p>
+              <div className="min-w-0">
+                <p className="break-words font-semibold">{row.juntaName}</p>
                 <p className="text-xs text-slate-500">Semana {row.semana} · {new Date(row.submittedAt).toLocaleDateString('es-PE')}</p>
               </div>
               <p>Esperado: S/{row.expectedAmount.toFixed(2)}</p>
@@ -166,9 +166,9 @@ export default function AdminPage() {
           <h2 className="font-semibold">Gestión de usuarios</h2>
           {userRows.length === 0 ? <p className="text-sm text-slate-500">No hay usuarios para mostrar.</p> : userRows.map((userRow) => (
             <div key={userRow.id} className="grid gap-2 rounded border p-3 text-sm md:grid-cols-[1.4fr_1fr_1fr_auto]">
-              <div>
-                <p className="font-medium">{userRow.nombre}</p>
-                <p className="text-xs text-slate-500">{userRow.email}</p>
+              <div className="min-w-0">
+                <p className="break-words font-medium">{userRow.nombre}</p>
+                <p className="break-all text-xs text-slate-500">{userRow.email}</p>
                 <p className="text-xs text-slate-500">{userRow.celular} · DNI {userRow.dni}</p>
               </div>
               <p>{userRow.juntas} juntas</p>
@@ -184,9 +184,9 @@ export default function AdminPage() {
           <h2 className="font-semibold">Validación de datos de usuario</h2>
           {userRows.length === 0 ? <p className="text-sm text-slate-500">No hay usuarios para validar.</p> : userRows.map((userRow) => (
             <div key={`validation-${userRow.id}`} className="grid gap-2 rounded border p-3 text-sm md:grid-cols-[1.4fr_1fr_auto]">
-              <div>
-                <p className="font-medium">{userRow.nombre}</p>
-                <p className="text-xs text-slate-500">{userRow.email} · {userRow.celular}</p>
+              <div className="min-w-0">
+                <p className="break-words font-medium">{userRow.nombre}</p>
+                <p className="break-all text-xs text-slate-500">{userRow.email} · {userRow.celular}</p>
                 <p className="text-xs text-slate-500">DNI: {userRow.dni}</p>
                 <p className="text-xs text-slate-600">Estado: {userRow.estado}</p>
               </div>

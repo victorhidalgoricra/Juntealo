@@ -77,9 +77,9 @@ export default function AdminJuntaDetailPage({ params }: { params: { id: string 
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Detalle administrativo de junta</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-semibold">Detalle administrativo de junta</h1>
           <p className="text-sm text-slate-600">Revisión operativa y acción de eliminación administrativa.</p>
         </div>
         <Link href="/admin/juntas"><Button variant="outline">Volver al listado</Button></Link>
@@ -87,7 +87,7 @@ export default function AdminJuntaDetailPage({ params }: { params: { id: string 
 
       <Card className={`space-y-3 p-4 ${isJuntaNotActionable ? 'text-slate-500 opacity-75' : ''}`}>
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-xl font-semibold">{junta.nombre}</h2>
+          <h2 className="break-words text-xl font-semibold">{junta.nombre}</h2>
           <Badge className={isJuntaNotActionable ? 'border border-slate-200 bg-slate-100 text-slate-500' : undefined}>
             {estadoVisual}
           </Badge>
@@ -99,7 +99,7 @@ export default function AdminJuntaDetailPage({ params }: { params: { id: string 
         </div>
 
         <div className="grid gap-3 md:grid-cols-3 text-sm">
-          <p><span className="font-medium">Admin:</span> {junta.admin_id}</p>
+          <p className="break-all"><span className="font-medium">Admin:</span> {junta.admin_id}</p>
           <p><span className="font-medium">Tipo:</span> {junta.tipo_junta ?? 'normal'}</p>
           <p><span className="font-medium">Visibilidad:</span> {junta.visibilidad}</p>
           <p><span className="font-medium">Frecuencia:</span> {junta.frecuencia_pago}</p>

@@ -23,8 +23,8 @@ export default function AdminPaymentsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Backoffice · Pagos</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="break-words text-2xl font-semibold">Backoffice · Pagos</h1>
         <Link href="/admin"><Button variant="outline">Volver al panel</Button></Link>
       </div>
 
@@ -41,8 +41,8 @@ export default function AdminPaymentsPage() {
 
           return (
             <div key={payment.id} className="grid gap-2 rounded border p-3 text-sm md:grid-cols-[1.3fr_0.8fr_1fr_1fr_0.8fr_0.9fr_0.8fr_auto]">
-              <div>
-                <p className="font-medium">{junta?.nombre ?? 'Junta'}</p>
+              <div className="min-w-0">
+                <p className="break-words font-medium">{junta?.nombre ?? 'Junta'}</p>
                 <p className="text-xs text-slate-500">{member?.rol === 'admin' ? 'Creador' : `Participante turno ${member?.orden_turno ?? '-'}`}</p>
               </div>
               <p>Semana {schedule?.cuota_numero ?? '-'}</p>

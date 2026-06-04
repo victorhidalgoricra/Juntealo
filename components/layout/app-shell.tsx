@@ -50,7 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen md:grid md:grid-cols-[240px_1fr]">
       {/* Sidebar */}
-      <aside className="flex flex-col border-b border-border bg-surface px-3 py-5 md:min-h-screen md:border-b-0 md:border-r">
+      <aside className="flex min-w-0 flex-col border-b border-border bg-surface px-3 py-5 md:min-h-screen md:border-b-0 md:border-r">
         {/* Brand */}
         <div className="mb-6 px-2">
           <JuntealoLogo size="sm" />
@@ -61,7 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
 
         {/* Nav items */}
-        <nav className="flex gap-1 overflow-auto md:flex-col">
+        <nav className="flex gap-1 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
           {links.map((link) => {
             const active =
               pathname === link.href ||
@@ -72,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  'rounded-[var(--r-sm)] px-3 py-[9px] text-sm transition-colors duration-150',
+                  'shrink-0 rounded-[var(--r-sm)] px-3 py-[9px] text-sm transition-colors duration-150 md:shrink',
                   active
                     ? 'bg-[var(--dark-1)] font-semibold text-white'
                     : 'font-medium bg-slate-100 text-slate-600 hover:bg-accent-bg hover:text-accent'
@@ -103,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className="p-4 md:p-7">{children}</main>
+      <main className="min-w-0 p-4 md:p-7">{children}</main>
     </div>
   );
 }
