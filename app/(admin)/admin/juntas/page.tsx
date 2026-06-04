@@ -15,6 +15,19 @@ import {
 import { useAuthStore } from '@/store/auth-store';
 import { formatCalendarDate } from '@/lib/calendar-date';
 
+const ADMIN_JUNTA_HISTORICAL_STATUSES = new Set([
+  'borrador',
+  'eliminada',
+  'deleted',
+  'soft_deleted',
+  'bloqueada'
+]);
+
+function isHistoricalAdminJunta(row: AdminJuntaListItem) {
+  const estado = String(row.estado ?? '').toLowerCase();
+  return ADMIN_JUNTA_HISTORICAL_STATUSES.has(estado) || Boolean(row.deleted_at) || Boolean(row.bloqueada);
+}
+
 export default function AdminJuntasPage() {
   const user = useAuthStore((s) => s.user);
   const [loading, setLoading] = useState(true);
@@ -31,7 +44,9 @@ export default function AdminJuntasPage() {
   const [candidate, setCandidate] = useState<AdminJuntaListItem | null>(null);
   const [submittingDelete, setSubmittingDelete] = useState(false);
 
-  const isRowBlocked = useCallback((row: AdminJuntaListItem) => isAdminJuntaNotActionable(row), []);
+  const isRowBlocked = useCallback((row: AdminJuntaListItem) => (
+    isAdminJuntaNotActionable(row) || (showBlocked && isHistoricalAdminJunta(row))
+  ), [showBlocked]);
 
   const getEstadoVisual = useCallback((row: AdminJuntaListItem) => (
     isRowBlocked(row) ? (row.estado_visual ?? 'eliminada') : (row.estado_visual ?? row.estado)
@@ -188,7 +203,7 @@ export default function AdminJuntasPage() {
                       <div className="flex flex-wrap gap-2">
                         {isNotActionable ? (
                           <Badge className="border border-slate-200 bg-slate-100 text-slate-500">
-                            Registro eliminado
+                            Registro histórico
                           </Badge>
                         ) : (
                           <>
