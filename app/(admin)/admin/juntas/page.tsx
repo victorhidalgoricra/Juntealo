@@ -23,6 +23,8 @@ const ADMIN_JUNTA_HISTORICAL_STATUSES = new Set([
   'bloqueada'
 ]);
 
+type EstadoFilter = 'todos' | 'borrador' | 'activa' | 'cerrada' | 'deshabilitada' | 'eliminadas_bloqueadas';
+
 function isHistoricalAdminJunta(row: AdminJuntaListItem) {
   const estado = String(row.estado ?? '').toLowerCase();
   return ADMIN_JUNTA_HISTORICAL_STATUSES.has(estado) || Boolean(row.deleted_at) || Boolean(row.bloqueada);
@@ -35,11 +37,11 @@ export default function AdminJuntasPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [query, setQuery] = useState('');
-  const [estado, setEstado] = useState<'todos' | 'borrador' | 'activa' | 'cerrada' | 'deshabilitada'>('todos');
+  const [estado, setEstado] = useState<EstadoFilter>('todos');
   const [visibilidad, setVisibilidad] = useState<'todas' | 'publica' | 'privada'>('todas');
   const [tipo, setTipo] = useState<'todos' | 'normal' | 'incentivo'>('todos');
   const [createdFrom, setCreatedFrom] = useState('');
-  const [showBlocked, setShowBlocked] = useState(false);
+  const showBlocked = estado === 'eliminadas_bloqueadas';
 
   const [candidate, setCandidate] = useState<AdminJuntaListItem | null>(null);
   const [submittingDelete, setSubmittingDelete] = useState(false);
@@ -89,11 +91,17 @@ export default function AdminJuntasPage() {
     const createdFromDate = createdFrom ? new Date(`${createdFrom}T00:00:00`) : null;
 
     return rows.filter((row) => {
-      if (!showBlocked && isRowBlocked(row)) return false;
-      if (estado !== 'todos') {
-        if (estado === 'deshabilitada' && !isRowBlocked(row)) return false;
-        if (estado !== 'deshabilitada' && row.estado !== estado) return false;
+      const rowBlocked = isRowBlocked(row);
+
+      if (estado === 'eliminadas_bloqueadas') {
+        if (!rowBlocked) return false;
+      } else {
+        if (rowBlocked) return false;
+        if (estado !== 'todos') {
+          if (row.estado !== estado) return false;
+        }
       }
+
       if (visibilidad !== 'todas' && row.visibilidad !== visibilidad) return false;
       if (tipo !== 'todos' && row.tipo_junta !== tipo) return false;
 
@@ -112,7 +120,7 @@ export default function AdminJuntasPage() {
 
       return searchable.includes(normalizedQuery);
     });
-  }, [createdFrom, estado, isRowBlocked, query, rows, showBlocked, tipo, visibilidad]);
+  }, [createdFrom, estado, isRowBlocked, query, rows, tipo, visibilidad]);
 
   if (!isBackofficeAdmin(user)) {
     return <Card><p className="text-sm text-slate-600">No tienes permisos para acceder a gestión de juntas.</p></Card>;
@@ -137,6 +145,7 @@ export default function AdminJuntasPage() {
             <option value="activa">Activa</option>
             <option value="cerrada">Cerrada</option>
             <option value="deshabilitada">Deshabilitada</option>
+            <option value="eliminadas_bloqueadas">Eliminadas/Bloqueadas</option>
           </select>
           <select className="rounded-md border px-3 py-2 text-sm" value={visibilidad} onChange={(event) => setVisibilidad(event.target.value as typeof visibilidad)}>
             <option value="todas">Visibilidad: todas</option>
@@ -149,10 +158,6 @@ export default function AdminJuntasPage() {
             <option value="incentivo">Con incentivos</option>
           </select>
           <input className="rounded-md border px-3 py-2 text-sm" type="date" value={createdFrom} onChange={(event) => setCreatedFrom(event.target.value)} />
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <input id="show-blocked" type="checkbox" checked={showBlocked} onChange={(event) => setShowBlocked(event.target.checked)} />
-          <label htmlFor="show-blocked">Ver también juntas eliminadas/bloqueadas</label>
         </div>
       </Card>
 
