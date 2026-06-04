@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { LandingNavbar } from './landing-navbar';
 import { RevealOnScroll } from './reveal';
 
 type TipoJunta = 'normal' | 'incentivos';
@@ -106,10 +105,7 @@ export function ComoFuncionaPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <LandingNavbar />
-
-      <main>
+    <main>
         {/* ── 1. HERO ── */}
         <RevealOnScroll className="mx-auto w-full max-w-4xl px-4 py-14 text-center md:px-6 md:py-20">
           <span className="inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
@@ -477,7 +473,6 @@ export function ComoFuncionaPage() {
             </p>
           </div>
         </section>
-      </main>
-    </div>
+    </main>
   );
 }

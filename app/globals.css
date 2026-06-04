@@ -68,7 +68,10 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-html,
+html {
+  overflow-x: clip; /* clip no crea scroll container, no rompe position: sticky */
+}
+
 body {
   max-width: 100%;
   overflow-x: hidden;

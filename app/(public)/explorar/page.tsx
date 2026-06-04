@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { PublicNav } from '@/components/marketing/public-nav';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -111,62 +110,59 @@ export default function ExplorarPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <PublicNav />
-      <main className="mx-auto max-w-5xl space-y-4 px-4 py-10">
-        <h1 className="text-3xl font-bold">Juntas disponibles</h1>
-        <p className="text-slate-600">Explora juntas públicas y únete con un solo paso.</p>
+    <div className="mx-auto max-w-5xl space-y-4 px-4 py-10">
+      <h1 className="text-3xl font-bold">Juntas disponibles</h1>
+      <p className="text-slate-600">Explora juntas públicas y únete con un solo paso.</p>
 
-        {loading && <Card>Cargando juntas públicas...</Card>}
-        {error && (
-          <Card className="space-y-2">
-            <p className="text-red-600">{error}</p>
-            <Button type="button" variant="outline" onClick={() => window.location.reload()}>Reintentar</Button>
-          </Card>
-        )}
+      {loading && <Card>Cargando juntas públicas...</Card>}
+      {error && (
+        <Card className="space-y-2">
+          <p className="text-red-600">{error}</p>
+          <Button type="button" variant="outline" onClick={() => window.location.reload()}>Reintentar</Button>
+        </Card>
+      )}
 
-        {!loading && !error && (juntas.length === 0 ? (
-          <Card>{emptyMessage}</Card>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            {juntas.map((j) => {
-              const isOwner = Boolean(user?.id) && j.admin_id === user?.id;
-              const integrantesBase = Number(j.integrantes_actuales ?? 0);
-              const integrantes = isOwner ? Math.max(1, integrantesBase) : integrantesBase;
-              const cupoCompleto = integrantes >= j.participantes_max;
-              const isMember = isOwner || memberIds.has(j.id);
-              const juntaIniciada = resolveIsStarted(j);
-              const joinDisabled = (!isMember && (juntaIniciada || cupoCompleto)) || (Boolean(user?.id) && membershipLoading);
-              const actionLabel = isMember
-                ? 'Ver detalle'
-                : (membershipLoading ? 'Validando...' : (juntaIniciada ? 'En curso' : (cupoCompleto ? 'Cupo completo' : 'Unirme')));
+      {!loading && !error && (juntas.length === 0 ? (
+        <Card>{emptyMessage}</Card>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {juntas.map((j) => {
+            const isOwner = Boolean(user?.id) && j.admin_id === user?.id;
+            const integrantesBase = Number(j.integrantes_actuales ?? 0);
+            const integrantes = isOwner ? Math.max(1, integrantesBase) : integrantesBase;
+            const cupoCompleto = integrantes >= j.participantes_max;
+            const isMember = isOwner || memberIds.has(j.id);
+            const juntaIniciada = resolveIsStarted(j);
+            const joinDisabled = (!isMember && (juntaIniciada || cupoCompleto)) || (Boolean(user?.id) && membershipLoading);
+            const actionLabel = isMember
+              ? 'Ver detalle'
+              : (membershipLoading ? 'Validando...' : (juntaIniciada ? 'En curso' : (cupoCompleto ? 'Cupo completo' : 'Unirme')));
 
-              return (
-                <Card key={j.id} className="space-y-3">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <JuntaAvatar nombre={j.nombre} size="md" />
-                      <h2 className="break-words font-semibold text-fg">{j.nombre}</h2>
-                    </div>
-                    <Badge className="shrink-0">Pública</Badge>
+            return (
+              <Card key={j.id} className="space-y-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <JuntaAvatar nombre={j.nombre} size="md" />
+                    <h2 className="break-words font-semibold text-fg">{j.nombre}</h2>
                   </div>
-                  <p className="text-sm text-slate-600 line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
-                  <p className="break-words text-xs text-slate-500">Frecuencia: {j.frecuencia_pago} · Cuota: S/ {j.cuota_base ?? j.monto_cuota}</p>
-                  <p className="break-words text-xs text-slate-500">Inicio: {j.fecha_inicio} · Integrantes: {integrantes}/{j.participantes_max}</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      disabled={joinDisabled}
-                      onClick={() => handleJoinClick(j, { disabled: joinDisabled, isMember })}
-                    >
-                      {actionLabel}
-                    </Button>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        ))}
-      </main>
+                  <Badge className="shrink-0">Pública</Badge>
+                </div>
+                <p className="text-sm text-slate-600 line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
+                <p className="break-words text-xs text-slate-500">Frecuencia: {j.frecuencia_pago} · Cuota: S/ {j.cuota_base ?? j.monto_cuota}</p>
+                <p className="break-words text-xs text-slate-500">Inicio: {j.fecha_inicio} · Integrantes: {integrantes}/{j.participantes_max}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    disabled={joinDisabled}
+                    onClick={() => handleJoinClick(j, { disabled: joinDisabled, isMember })}
+                  >
+                    {actionLabel}
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }

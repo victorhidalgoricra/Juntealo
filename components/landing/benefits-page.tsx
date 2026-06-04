@@ -14,7 +14,6 @@ import {
   Trophy,
   BadgeCheck,
 } from 'lucide-react';
-import { LandingNavbar } from './landing-navbar';
 import { RevealOnScroll } from './reveal';
 
 // ─── Static demo data (no real user data) ────────────────────────────────────
@@ -299,10 +298,7 @@ function LevelCard({ level, index }: { level: (typeof LEVELS)[number]; index: nu
 
 export function BenefitsPage() {
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <LandingNavbar />
-
-      <main>
+    <main>
         {/* ── Hero ── */}
         <RevealOnScroll className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 md:grid-cols-2 md:items-center md:px-6 md:py-20">
           <div className="space-y-6">
@@ -597,7 +593,6 @@ export function BenefitsPage() {
             </div>
           </div>
         </RevealOnScroll>
-      </main>
-    </div>
+    </main>
   );
 }
