@@ -658,16 +658,29 @@ export type AdminJuntaListItem = {
   deleted_at?: string | null;
 };
 
-function isAdminJuntaDeleted(row: Pick<Partial<AdminJuntaListItem>, 'bloqueada' | 'deleted_at' | 'estado'>) {
+export function isAdminJuntaDeletedOrSoftDeleted(row: { deleted_at?: string | null; estado?: string | null }) {
   const estado = String(row.estado ?? '').toLowerCase();
   return (
-    Boolean(row.bloqueada) ||
     Boolean(row.deleted_at) ||
     estado === 'eliminada' ||
     estado === 'deleted' ||
-    estado === 'soft_deleted' ||
+    estado === 'soft_deleted'
+  );
+}
+
+export function isAdminJuntaNotActionable(row: { bloqueada?: boolean | null; deleted_at?: string | null; estado?: string | null }) {
+  const estado = String(row.estado ?? '').toLowerCase();
+  return (
+    isAdminJuntaDeletedOrSoftDeleted(row) ||
+    Boolean(row.bloqueada) ||
     estado === 'bloqueada'
   );
+}
+
+function getAdminJuntaEstadoVisual(row: { bloqueada?: boolean | null; deleted_at?: string | null; estado?: string | null }) {
+  if (isAdminJuntaDeletedOrSoftDeleted(row)) return 'eliminada';
+  if (Boolean(row.bloqueada) || String(row.estado ?? '').toLowerCase() === 'bloqueada') return 'bloqueada';
+  return String(row.estado ?? '');
 }
 
 export async function fetchAdminJuntas(params?: { includeBlocked?: boolean }) {
@@ -691,11 +704,11 @@ export async function fetchAdminJuntas(params?: { includeBlocked?: boolean }) {
   if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
 
   const normalized = ((data ?? []) as Partial<AdminJuntaListItem>[]).map((row) => {
-    const bloqueada = isAdminJuntaDeleted(row);
+    const bloqueada = isAdminJuntaNotActionable(row);
     return {
       ...row,
       bloqueada,
-      estado_visual: bloqueada ? 'eliminada' : String(row.estado ?? '')
+      estado_visual: getAdminJuntaEstadoVisual(row)
     } as AdminJuntaListItem;
   });
 
