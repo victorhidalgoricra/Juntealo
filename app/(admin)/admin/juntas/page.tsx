@@ -10,7 +10,6 @@ import {
   AdminJuntaListItem,
   adminSoftDeleteJunta,
   fetchAdminJuntas,
-  isAdminJuntaDeletedOrSoftDeleted,
   isAdminJuntaNotActionable
 } from '@/services/juntas.repository';
 import { useAuthStore } from '@/store/auth-store';
@@ -21,7 +20,6 @@ export default function AdminJuntasPage() {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<AdminJuntaListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [recentlyDeletedIds, setRecentlyDeletedIds] = useState<Set<string>>(() => new Set());
 
   const [query, setQuery] = useState('');
   const [estado, setEstado] = useState<'todos' | 'borrador' | 'activa' | 'cerrada' | 'deshabilitada'>('todos');
@@ -76,7 +74,7 @@ export default function AdminJuntasPage() {
     const createdFromDate = createdFrom ? new Date(`${createdFrom}T00:00:00`) : null;
 
     return rows.filter((row) => {
-      if (!showBlocked && isRowBlocked(row) && !recentlyDeletedIds.has(row.id)) return false;
+      if (!showBlocked && isRowBlocked(row)) return false;
       if (estado !== 'todos') {
         if (estado === 'deshabilitada' && !isRowBlocked(row)) return false;
         if (estado !== 'deshabilitada' && row.estado !== estado) return false;
@@ -99,7 +97,7 @@ export default function AdminJuntasPage() {
 
       return searchable.includes(normalizedQuery);
     });
-  }, [createdFrom, estado, isRowBlocked, query, recentlyDeletedIds, rows, showBlocked, tipo, visibilidad]);
+  }, [createdFrom, estado, isRowBlocked, query, rows, showBlocked, tipo, visibilidad]);
 
   if (!isBackofficeAdmin(user)) {
     return <Card><p className="text-sm text-slate-600">No tienes permisos para acceder a gestión de juntas.</p></Card>;
@@ -163,17 +161,17 @@ export default function AdminJuntasPage() {
             <tbody>
               {filteredRows.map((row) => {
                 const isNotActionable = isRowBlocked(row);
-                const auditActionLabel = isAdminJuntaDeletedOrSoftDeleted(row) ? 'Registro eliminado' : 'Sin acciones';
+                const estadoLabel = isNotActionable ? 'Eliminada' : getEstadoVisual(row);
 
                 return (
-                  <tr key={row.id} className={`border-t align-top transition-colors ${isNotActionable ? 'bg-slate-50 text-slate-500 opacity-75' : ''}`}>
+                  <tr key={row.id} className={`border-t align-top transition-colors ${isNotActionable ? 'bg-slate-50 text-slate-400 opacity-70' : ''}`}>
                     <td className="px-3 py-2">
                       <p className={`font-medium ${isNotActionable ? 'text-slate-500' : 'text-slate-900'}`}>{row.nombre}</p>
                       <p className="text-xs text-slate-500">slug: {row.slug}</p>
                     </td>
                     <td className="px-3 py-2">
                       <Badge className={isNotActionable ? 'border border-slate-200 bg-slate-100 text-slate-500' : undefined}>
-                        {getEstadoVisual(row)}
+                        {estadoLabel}
                       </Badge>
                     </td>
                     <td className="px-3 py-2">
@@ -190,7 +188,7 @@ export default function AdminJuntasPage() {
                       <div className="flex flex-wrap gap-2">
                         {isNotActionable ? (
                           <Badge className="border border-slate-200 bg-slate-100 text-slate-500">
-                            {auditActionLabel}
+                            Registro eliminado
                           </Badge>
                         ) : (
                           <>
@@ -255,7 +253,6 @@ export default function AdminJuntasPage() {
                         estado_visual: 'eliminada'
                       } : row)
                     ));
-                    setRecentlyDeletedIds((prev) => new Set(prev).add(candidate.id));
                     if (showBlocked) await loadRows(true);
                     setCandidate(null);
                   } finally {
