@@ -143,17 +143,17 @@ export default function ExplorarPage() {
 
               return (
                 <Card key={j.id} className="space-y-3">
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 items-center gap-3">
                       <JuntaAvatar nombre={j.nombre} size="md" />
-                      <h2 className="truncate font-semibold text-fg">{j.nombre}</h2>
+                      <h2 className="break-words font-semibold text-fg">{j.nombre}</h2>
                     </div>
                     <Badge className="shrink-0">Pública</Badge>
                   </div>
                   <p className="text-sm text-slate-600 line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
-                  <p className="text-xs text-slate-500">Frecuencia: {j.frecuencia_pago} · Cuota: S/ {j.cuota_base ?? j.monto_cuota}</p>
-                  <p className="text-xs text-slate-500">Inicio: {j.fecha_inicio} · Integrantes: {integrantes}/{j.participantes_max}</p>
-                  <div className="flex gap-2">
+                  <p className="break-words text-xs text-slate-500">Frecuencia: {j.frecuencia_pago} · Cuota: S/ {j.cuota_base ?? j.monto_cuota}</p>
+                  <p className="break-words text-xs text-slate-500">Inicio: {j.fecha_inicio} · Integrantes: {integrantes}/{j.participantes_max}</p>
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       disabled={joinDisabled}
                       onClick={() => handleJoinClick(j, { disabled: joinDisabled, isMember })}

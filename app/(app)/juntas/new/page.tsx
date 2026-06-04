@@ -317,9 +317,9 @@ export default function NewJuntaPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 lg:grid lg:grid-cols-[1fr_320px] lg:items-start lg:gap-6 lg:space-y-0">
-      <Card className="space-y-5 p-6">
+      <Card className="space-y-5 p-4 sm:p-6">
         <div>
-          <h1 className="text-2xl font-semibold">Crear junta</h1>
+          <h1 className="break-words text-2xl font-semibold">Crear junta</h1>
           <p className="text-sm text-slate-600">Configura tu junta paso a paso y valida todo antes de publicarla.</p>
         </div>
 
@@ -462,7 +462,7 @@ export default function NewJuntaPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium">Visibilidad</label>
-                  <div className="mt-2 flex gap-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {(['publica', 'privada'] as const).map((option) => (
                       <button
                         key={option}
@@ -614,8 +614,8 @@ export default function NewJuntaPage() {
                       )}
                     </div>
 
-                    <div className="overflow-hidden rounded-md border border-slate-200">
-                      <table className="w-full text-xs">
+                    <div className="overflow-x-auto rounded-md border border-slate-200">
+                      <table className="w-full min-w-[360px] text-xs">
                         <thead className="bg-slate-50 text-slate-700">
                           <tr>
                             <th className="px-2 py-2 text-left font-medium">Turno</th>
@@ -669,7 +669,7 @@ export default function NewJuntaPage() {
 
             {errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
 
-            <div className="flex flex-wrap justify-between gap-2 pt-2">
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:flex-wrap sm:justify-between">
               <Button type="button" variant="outline" disabled={step === 1 || loading} onClick={handleBack}>Atrás</Button>
               {step < 4 ? (
                 <Button type="button" onClick={handleContinue}>Continuar</Button>

@@ -52,7 +52,7 @@ export default function MembersPage({ params }: { params: { id: string } }) {
     <div className="space-y-4">
       <Card>
         <h2 className="mb-2 text-lg font-semibold">Invitar integrante</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <Input value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Correo o celular" />
           <Button
             onClick={() => {
@@ -83,12 +83,12 @@ export default function MembersPage({ params }: { params: { id: string } }) {
         )}
         <div className="space-y-2">
           {list.map((m) => (
-            <div key={m.id} className="flex items-center justify-between rounded border p-2">
-              <p className="text-sm">
+            <div key={m.id} className="flex flex-col gap-2 rounded border p-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="break-words text-sm">
                 {getParticipantDisplayName(profilesById[m.profile_id] ?? { email: m.profile_id, celular: m.profile_id })} · turno #{m.orden_turno}
                 {m.profile_id === user.id && <span className="ml-2 font-semibold text-blue-700">(Mi turno)</span>}
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap gap-2 sm:items-center sm:justify-end">
                 <Button
                   variant="ghost"
                   disabled={!canEditTurnOrder}

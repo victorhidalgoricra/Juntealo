@@ -20,6 +20,7 @@ export function Card({ className, tint, dark, hover, ...props }: CardProps) {
   return (
     <div
       className={cn(
+        'min-w-0 max-w-full',
         dark
           ? 'bg-[var(--dark-2)] rounded-[var(--r-xl)] p-6 shadow-[var(--shadow-xl)]'
           : cn(

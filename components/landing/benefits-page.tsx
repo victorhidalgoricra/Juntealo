@@ -192,9 +192,9 @@ const WHAT_YOU_BUILD = [
 
 function ScoreDemoCard() {
   return (
-    <div className="relative overflow-hidden rounded-[var(--r-xl)] bg-[var(--dark-1)] p-7 text-white shadow-xl">
-      <div className="flex items-start justify-between">
-        <div>
+    <div className="relative overflow-hidden rounded-[var(--r-xl)] bg-[var(--dark-1)] p-5 text-white shadow-xl sm:p-7">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--dark-muted)]">Tu perfil demo</p>
           <p className="mt-1 text-sm font-medium text-[var(--dark-text)]">María L.</p>
         </div>
@@ -210,7 +210,7 @@ function ScoreDemoCard() {
       <p className="mt-1 text-xs text-[var(--dark-muted)]">Score de confianza Juntealo</p>
 
       <div className="mt-5">
-        <div className="flex justify-between text-[11px] text-[var(--dark-muted)]">
+        <div className="flex flex-col gap-1 text-[11px] text-[var(--dark-muted)] sm:flex-row sm:justify-between">
           <span>Nivel Oro</span>
           <span>Élite en 14 pts</span>
         </div>
@@ -219,7 +219,7 @@ function ScoreDemoCard() {
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-2">
+      <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
         {[
           ['Pagos puntuales', '18'],
           ['Ciclos completados', '2'],
@@ -244,10 +244,10 @@ function LevelCard({ level, index }: { level: (typeof LEVELS)[number]; index: nu
   const isElite = level.name === 'Élite';
   return (
     <article className={`rounded-[var(--r)] border p-5 ${level.color} ${isElite ? 'ring-2 ring-[var(--accent)]/30' : ''}`}>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <span className={`h-2.5 w-2.5 rounded-full ${level.dot}`} />
-          <span className="text-[15px] font-semibold text-[var(--text)]">{level.name}</span>
+          <span className="break-words text-[15px] font-semibold text-[var(--text)]">{level.name}</span>
         </div>
         {isElite && (
           <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold text-white">
@@ -310,7 +310,7 @@ export function BenefitsPage() {
               ● Tu buena conducta en Juntealo no se pierde
             </p>
 
-            <h1 className="text-4xl font-bold leading-tight tracking-[-1.5px] text-[var(--text)] md:text-5xl">
+            <h1 className="break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl">
               Haz que pagar puntual{' '}
               <span className="text-[var(--accent)]">valga más</span>{' '}
               que un mensaje en WhatsApp
@@ -405,7 +405,7 @@ export function BenefitsPage() {
               </p>
             </div>
 
-            <div className="mt-8 overflow-hidden rounded-[var(--r)] border border-[var(--border)]">
+            <div className="mt-8 overflow-x-auto rounded-[var(--r)] border border-[var(--border)]">
               <table className="w-full text-sm">
                 <thead className="bg-[var(--bg)]">
                   <tr className="border-b border-[var(--border)]">
@@ -426,8 +426,8 @@ export function BenefitsPage() {
                           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent-bg)] text-[11px] font-semibold text-[var(--accent)]">
                             {row.initials}
                           </span>
-                          <div>
-                            <p className="text-[13px] font-medium text-[var(--text)]">{row.name}</p>
+                          <div className="min-w-0">
+                            <p className="break-words text-[13px] font-medium text-[var(--text)]">{row.name}</p>
                             {row.badge && (
                               <span className="inline-flex items-center gap-1 text-[11px] text-[var(--accent)]">
                                 <BadgeCheck className="h-3 w-3" /> Confiable
@@ -480,8 +480,8 @@ export function BenefitsPage() {
                     <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-sm)] ${mission.bgClass} ${mission.colorClass}`}>
                       <Icon className="h-[18px] w-[18px]" />
                     </span>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <h3 className="text-[14px] font-semibold text-[var(--text)]">{mission.title}</h3>
                         <span className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${mission.bgClass} ${mission.colorClass}`}>
                           +{mission.points} pts

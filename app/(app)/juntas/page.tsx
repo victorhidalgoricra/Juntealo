@@ -448,9 +448,9 @@ export default function JuntasDisponiblesPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="space-y-4 border-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 p-6 text-white shadow-xl">
+      <Card className="space-y-4 border-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 p-4 text-white shadow-xl sm:p-6">
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Juntas disponibles</h1>
+          <h1 className="break-words text-3xl font-semibold tracking-tight">Juntas disponibles</h1>
           <p className="text-sm text-slate-200">Explora juntas públicas o accede a una privada con tu enlace o código.</p>
         </div>
 
@@ -467,7 +467,7 @@ export default function JuntasDisponiblesPage() {
             onChange={(event) => setAccessCode(event.target.value.toUpperCase())}
             className="border-slate-500 bg-white/95 text-slate-900"
           />
-          <Button onClick={handlePrivateAccess}>Ingresar con código</Button>
+          <Button className="w-full md:w-auto" onClick={handlePrivateAccess}>Ingresar con código</Button>
         </div>
         {codeError && <p className="text-xs text-rose-200">{codeError}</p>}
 
@@ -504,7 +504,7 @@ export default function JuntasDisponiblesPage() {
         </Card>
       ) : (
         <>
-          <div className="flex items-center justify-between text-sm text-slate-500">
+          <div className="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
             <p>
               Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, visibleJuntas.length)} de {visibleJuntas.length} {visibleJuntas.length === 1 ? 'junta' : 'juntas'}
             </p>
@@ -566,17 +566,17 @@ export default function JuntasDisponiblesPage() {
             return (
               <Card key={juntaId} className="flex h-full flex-col justify-between gap-4 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
                 <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 items-center gap-3">
                       <JuntaAvatar nombre={j.nombre} size="lg" />
-                      <h3 className="truncate text-lg font-semibold leading-tight">{j.nombre}</h3>
+                      <h3 className="break-words text-lg font-semibold leading-tight">{j.nombre}</h3>
                     </div>
                     <Badge className="shrink-0">{j.visibilidad === 'publica' ? 'Pública' : 'Privada'}</Badge>
                   </div>
                   {isBlocked && <Badge>Bloqueada</Badge>}
-                  <p className="text-sm text-slate-600">{description}</p>
+                  <p className="break-words text-sm text-slate-600">{description}</p>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
+                  <div className="grid grid-cols-1 gap-2 text-xs text-slate-500 sm:grid-cols-2">
                     <p><span className="font-medium">Frecuencia:</span> {j.frecuencia_pago}</p>
                     <p><span className="font-medium">Cuota base:</span> S/ {j.cuota_base ?? j.monto_cuota}</p>
                     <p><span className="font-medium">Inicio:</span> {j.fecha_inicio}</p>

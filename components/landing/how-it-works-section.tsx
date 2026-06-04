@@ -25,7 +25,7 @@ export function HowItWorksSection() {
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Así funciona</p>
       <h2 className="mt-2 text-3xl font-bold tracking-tight text-[var(--text)]">De la idea al cobro en 4 pasos</h2>
 
-      <div className="relative mt-8 grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6 md:before:absolute md:before:left-10 md:before:right-10 md:before:top-7 md:before:h-px md:before:bg-[var(--border)] md:before:content-['']">
+      <div className="relative mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6 md:before:absolute md:before:left-10 md:before:right-10 md:before:top-7 md:before:h-px md:before:bg-[var(--border)] md:before:content-['']">
         {steps.map((step, index) => (
           <article
             key={step.title}

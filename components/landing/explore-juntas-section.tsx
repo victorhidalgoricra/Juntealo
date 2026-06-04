@@ -25,16 +25,16 @@ export function ExploreJuntasSection() {
 
         <div className="space-y-3">
           {publicJuntas.map((junta) => (
-            <article key={junta.name} className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-[var(--r)] border border-[var(--border)] bg-[var(--bg)] p-4">
-              <div className="flex items-center gap-3">
+            <article key={junta.name} className="grid gap-3 rounded-[var(--r)] border border-[var(--border)] bg-[var(--bg)] p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+              <div className="flex min-w-0 items-center gap-3">
                 <JuntaIcon nombre={junta.name} size="sm" />
-                <div>
-                  <p className="text-base font-semibold capitalize text-[var(--text)]">{junta.name}</p>
-                  <p className="mt-0.5 text-xs text-[var(--muted)]">{junta.people} · cuota {junta.fee} · {junta.type}</p>
+                <div className="min-w-0">
+                  <p className="break-words text-base font-semibold capitalize text-[var(--text)]">{junta.name}</p>
+                  <p className="break-words mt-0.5 text-xs text-[var(--muted)]">{junta.people} · cuota {junta.fee} · {junta.type}</p>
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="text-left sm:text-right">
                 <p className="font-mono text-sm font-medium text-[var(--text)]">{junta.fee}</p>
                 <p className="mt-0.5 text-xs text-[var(--muted)]">{junta.slots}</p>
                 <button

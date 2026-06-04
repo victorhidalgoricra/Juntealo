@@ -20,7 +20,7 @@ const LEVEL_BADGE: Record<JuntaScoreLevel, { bg: string; text: string }> = {
 
 const TOP3_MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
-const COL_HEADER = 'px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted';
+const COL_HEADER = 'px-2 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted sm:px-4';
 
 function LevelBadge({ level, size = 'sm' }: { level: JuntaScoreLevel; size?: 'xs' | 'sm' }) {
   const { bg, text } = LEVEL_BADGE[level];
@@ -68,13 +68,13 @@ function LeaderboardRow({ entry, position }: { entry: RankingEntry; position: nu
       )}
     >
       {/* # */}
-      <td className="w-12 px-4 py-4 text-center">
+      <td className="w-10 px-2 py-4 text-center sm:w-12 sm:px-4">
         <PositionCell position={position} />
       </td>
 
       {/* Miembro */}
-      <td className="px-4 py-4">
-        <div className="flex items-center gap-3">
+      <td className="px-2 py-4 sm:px-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <div
             className={cn(
               'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
@@ -99,7 +99,7 @@ function LeaderboardRow({ entry, position }: { entry: RankingEntry; position: nu
       </td>
 
       {/* Score */}
-      <td className="px-4 py-4 text-right">
+      <td className="px-2 py-4 text-right sm:px-4">
         <span
           className={cn(
             'font-mono text-xl font-bold tabular-nums leading-none',
@@ -127,7 +127,7 @@ function LeaderboardRow({ entry, position }: { entry: RankingEntry; position: nu
       </td>
 
       {/* Nivel */}
-      <td className="px-4 py-4 text-right">
+      <td className="px-2 py-4 text-right sm:px-4">
         <LevelBadge level={entry.level} size="sm" />
       </td>
     </tr>
@@ -138,7 +138,7 @@ function LeaderboardTable({ ranking }: { ranking: RankingEntry[] }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-surface shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px]" role="table" aria-label="Ranking de miembros">
+        <table className="w-full sm:min-w-[560px]" role="table" aria-label="Ranking de miembros">
           <thead>
             <tr className="border-b border-border/40">
               <th className={cn(COL_HEADER, 'w-12 text-center')} scope="col">#</th>
@@ -164,7 +164,7 @@ function LeaderboardSkeleton() {
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-surface shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px]">
+        <table className="w-full sm:min-w-[560px]">
           <thead>
             <tr className="border-b border-border/40">
               <th className={cn(COL_HEADER, 'w-12 text-center')}>#</th>
@@ -178,11 +178,11 @@ function LeaderboardSkeleton() {
           <tbody>
             {Array.from({ length: 7 }, (_, i) => (
               <tr key={i} className="border-b border-border/30 last:border-0">
-                <td className="w-12 px-4 py-4 text-center">
+                <td className="w-10 px-2 py-4 text-center sm:w-12 sm:px-4">
                   <div className="mx-auto h-7 w-7 animate-pulse rounded-full bg-muted/20" />
                 </td>
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-3">
+                <td className="px-2 py-4 sm:px-4">
+                  <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                     <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-muted/20" />
                     <div className="space-y-2">
                       <div className={cn('h-3.5 animate-pulse rounded bg-muted/20', i % 3 === 0 ? 'w-28' : i % 3 === 1 ? 'w-24' : 'w-32')} />
@@ -190,7 +190,7 @@ function LeaderboardSkeleton() {
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-4 text-right">
+                <td className="px-2 py-4 text-right sm:px-4">
                   <div className="ml-auto h-6 w-8 animate-pulse rounded bg-muted/20" />
                 </td>
                 <td className="hidden px-4 py-4 sm:table-cell">
@@ -199,7 +199,7 @@ function LeaderboardSkeleton() {
                 <td className="hidden px-4 py-4 sm:table-cell">
                   <div className="ml-auto h-4 w-4 animate-pulse rounded bg-muted/20" />
                 </td>
-                <td className="px-4 py-4 text-right">
+                <td className="px-2 py-4 text-right sm:px-4">
                   <div className="ml-auto h-5 w-14 animate-pulse rounded-md bg-muted/20" />
                 </td>
               </tr>
@@ -213,7 +213,7 @@ function LeaderboardSkeleton() {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-surface p-12 text-center shadow-sm">
+    <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-surface p-6 text-center shadow-sm sm:p-12">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/10">
         <Trophy className="text-muted" size={22} strokeWidth={1.5} />
       </div>
