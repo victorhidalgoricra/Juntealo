@@ -35,52 +35,35 @@ export function LandingNavbar() {
     <>
       <header
         className={cn(
-          'z-[100] w-full border-b border-[var(--border)] bg-[var(--bg)] transition-colors duration-300 ease-out',
-          'supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] supports-[backdrop-filter]:backdrop-blur-md',
-          'md:bg-[color-mix(in_srgb,var(--surface)_80%,transparent)] md:supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--surface)_72%,transparent)] md:supports-[backdrop-filter]:backdrop-blur-lg',
-          'lg:sticky lg:top-0'
+          'z-[100] w-full border-b border-[var(--border)] transition-colors duration-300 ease-out',
+          'max-md:bg-[var(--bg)]',
+          'max-md:supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] max-md:supports-[backdrop-filter]:backdrop-blur-md',
+          'md:sticky md:top-0 md:bg-[color-mix(in_srgb,var(--surface)_95%,transparent)] md:backdrop-blur md:supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--surface)_85%,transparent)]'
         )}
       >
         <div
-          className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6"
+          className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6 md:h-[60px] md:px-6"
         >
           <JuntealoLogo size="md" />
 
           {/* Desktop nav */}
-          <nav className="hidden items-center gap-1 text-sm font-medium text-[var(--text)] md:flex">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    'relative rounded-[var(--r-sm)] px-3 py-2 transition-colors',
-                    isActive
-                      ? 'text-[var(--accent)] font-semibold'
-                      : 'hover:bg-[var(--accent-bg)] hover:text-[var(--accent)]'
-                  )}
-                >
-                  {link.label}
-                  {isActive && (
-                    <span className="absolute bottom-1 left-3 right-3 h-[2px] rounded-full bg-[var(--accent)]" />
-                  )}
-                </Link>
-              );
-            })}
+          <nav className="hidden items-center gap-6 text-sm font-medium text-[var(--text)] md:flex">
+            {navLinks.map((link) => (
+              <Link key={link.href} href={link.href} className="transition-colors hover:text-[var(--accent)]">{link.label}</Link>
+            ))}
           </nav>
 
           {/* Desktop CTAs */}
           <div className="hidden items-center gap-2 md:flex">
             <Link
               href="/login"
-              className="rounded-[var(--r-sm)] px-4 py-2 text-sm font-medium text-[var(--text)] transition hover:bg-[var(--accent-bg)] hover:text-[var(--accent)]"
+              className="rounded-[var(--r-sm)] px-3 py-2 text-sm font-medium text-[var(--text)] transition hover:bg-[var(--accent-bg)]"
             >
               Iniciar sesión
             </Link>
             <Link
               href="/register"
-              className="inline-flex items-center rounded-[var(--r-sm)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)] active:scale-[0.97]"
+              className="inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
             >
               Registrarme
             </Link>

@@ -35,7 +35,7 @@ export function LandingHero() {
           ● Más de 120 juntas activas esta semana
         </p>
 
-        <h1 className="break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl">
+        <h1 className="break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl md:tracking-[-1.5px]">
           Tu junta, <span className="text-[var(--accent)]">digital</span> y sin drama.
         </h1>
 
@@ -90,7 +90,7 @@ export function LandingHero() {
           ))}
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-2">
+        <div className="mt-5 flex flex-wrap items-center gap-2 md:flex-nowrap">
           {['JV', 'RM', 'SL', 'PC', 'AG'].map((member) => (
             <span key={member} className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--dark-4)] text-[11px] font-semibold">
               {member}
