@@ -43,7 +43,8 @@ export function LandingNavbar() {
     <>
       <header
         className={cn(
-          'sticky top-2 z-[100] px-3 pb-2 pt-2 transition-all duration-300 ease-out sm:top-3 sm:px-4 sm:pt-3'
+          'z-[100] px-3 pb-2 pt-2 transition-all duration-300 ease-out sm:px-4 sm:pt-3',
+          'lg:sticky lg:top-4 lg:px-6 lg:pt-4'
         )}
       >
         <div
