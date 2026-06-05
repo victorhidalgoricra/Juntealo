@@ -43,13 +43,21 @@ export function LandingNavbar() {
     <>
       <header
         className={cn(
-          'sticky top-0 z-[100] bg-[var(--surface)]/95 backdrop-blur-md transition-all duration-200 supports-[backdrop-filter]:bg-[var(--surface)]/85',
-          scrolled
-            ? 'border-b border-[var(--border)] shadow-[0_1px_12px_0_rgb(0_0_0/0.07)]'
-            : 'border-b border-transparent shadow-none'
+          'sticky top-2 z-[100] px-3 pb-2 pt-2 transition-all duration-300 ease-out sm:top-3 sm:px-4 sm:pt-3'
         )}
       >
-        <div className="mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-10">
+        <div
+          style={{
+            backgroundColor: scrolled
+              ? 'color-mix(in srgb, var(--surface) 96%, transparent)'
+              : 'var(--surface)',
+            boxShadow: scrolled ? 'var(--shadow-lg)' : 'var(--shadow)',
+          }}
+          className={cn(
+            'mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between rounded-[var(--r)] border border-[var(--border)] px-4 transition-all duration-300 ease-out sm:h-16 sm:px-6 lg:px-8',
+            'supports-[backdrop-filter]:backdrop-blur-md'
+          )}
+        >
           <JuntealoLogo size="md" />
 
           {/* Desktop nav */}
@@ -123,8 +131,9 @@ export function LandingNavbar() {
 
       {/* Mobile drawer */}
       <div
+        style={{ boxShadow: open ? 'var(--shadow-lg)' : 'none' }}
         className={cn(
-          'fixed left-0 right-0 top-[60px] z-[100] border-b border-[var(--border)] bg-[var(--surface)] shadow-lg transition-all duration-200 ease-out md:hidden',
+          'fixed left-3 right-3 top-[76px] z-[100] rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] transition-all duration-200 ease-out sm:left-4 sm:right-4 sm:top-[84px] md:hidden supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--surface)_96%,transparent)] supports-[backdrop-filter]:backdrop-blur-md',
           open ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0 pointer-events-none'
         )}
       >
