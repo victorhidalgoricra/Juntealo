@@ -43,9 +43,9 @@ export function LandingNavbar() {
     <>
       <header
         className={cn(
-          'sticky top-0 z-[100] bg-[var(--surface)]/95 backdrop-blur-md transition-all duration-200 supports-[backdrop-filter]:bg-[var(--surface)]/85 md:static md:top-auto md:z-auto',
+          'sticky top-0 z-[100] bg-[var(--surface)] transition-all duration-200',
           scrolled
-            ? 'border-b border-[var(--border)] shadow-[0_1px_12px_0_rgb(0_0_0/0.07)] md:border-transparent md:shadow-none'
+            ? 'border-b border-[var(--border)] shadow-[0_1px_12px_0_rgb(0_0_0/0.07)]'
             : 'border-b border-transparent shadow-none'
         )}
       >
