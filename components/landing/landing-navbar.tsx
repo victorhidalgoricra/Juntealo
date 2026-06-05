@@ -43,20 +43,24 @@ export function LandingNavbar() {
     <>
       <header
         className={cn(
-          'z-[100] px-3 pb-2 pt-2 transition-all duration-300 ease-out sm:px-4 sm:pt-3',
-          'lg:sticky lg:top-4 lg:px-6 lg:pt-4'
+          'z-[100] bg-[var(--surface)] transition-all duration-300 ease-out',
+          // Mobile: static con padding para la tarjeta flotante
+          'px-3 pb-2 pt-2 sm:px-4 sm:pt-3',
+          // Desktop: sticky full-width con border-bottom
+          'lg:sticky lg:top-0 lg:border-b lg:border-[var(--border)] lg:px-0 lg:py-0'
         )}
       >
         <div
-          style={{
-            backgroundColor: scrolled
-              ? 'color-mix(in srgb, var(--surface) 96%, transparent)'
-              : 'var(--surface)',
-            boxShadow: scrolled ? 'var(--shadow-lg)' : 'var(--shadow)',
-          }}
           className={cn(
-            'mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between rounded-[var(--r)] border border-[var(--border)] px-4 transition-all duration-300 ease-out sm:h-16 sm:px-6 lg:px-8',
-            'supports-[backdrop-filter]:backdrop-blur-md'
+            'mx-auto flex h-[60px] w-full items-center justify-between transition-all duration-300 ease-out sm:h-16',
+            'supports-[backdrop-filter]:backdrop-blur-md',
+            // Mobile: tarjeta con bordes redondeados y sombra
+            'max-w-7xl rounded-[var(--r)] border border-[var(--border)] px-4 sm:px-6',
+            scrolled
+              ? 'bg-[color-mix(in_srgb,var(--surface)_96%,transparent)] [box-shadow:var(--shadow-lg)]'
+              : 'bg-[var(--surface)] [box-shadow:var(--shadow)]',
+            // Desktop: barra completa sin tarjeta
+            'lg:max-w-none lg:rounded-none lg:border-0 lg:bg-transparent lg:px-8 lg:[box-shadow:none]'
           )}
         >
           <JuntealoLogo size="md" />
