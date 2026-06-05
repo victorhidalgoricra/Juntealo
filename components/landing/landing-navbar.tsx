@@ -16,7 +16,6 @@ const navLinks = [
 
 export function LandingNavbar() {
   const [open, setOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -32,35 +31,19 @@ export function LandingNavbar() {
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
   return (
     <>
       <header
         className={cn(
-          'z-[100] bg-[var(--surface)] transition-all duration-300 ease-out',
-          // Mobile: static con padding para la tarjeta flotante
-          'px-3 pb-2 pt-2 sm:px-4 sm:pt-3',
-          // Desktop: sticky full-width con border-bottom
-          'lg:sticky lg:top-0 lg:border-b lg:border-[var(--border)] lg:px-0 lg:py-0'
+          'z-[100] w-full border-b border-[var(--border)] bg-[var(--surface)] transition-colors duration-300 ease-out',
+          'lg:sticky lg:top-0'
         )}
       >
         <div
           className={cn(
-            'mx-auto flex h-[60px] w-full items-center justify-between transition-all duration-300 ease-out sm:h-16',
+            'mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between px-6 transition-colors duration-300 ease-out sm:h-16',
             'supports-[backdrop-filter]:backdrop-blur-md',
-            // Mobile: tarjeta con bordes redondeados y sombra
-            'max-w-7xl rounded-[var(--r)] border border-[var(--border)] px-4 sm:px-6',
-            scrolled
-              ? 'bg-[color-mix(in_srgb,var(--surface)_96%,transparent)] [box-shadow:var(--shadow-lg)]'
-              : 'bg-[var(--surface)] [box-shadow:var(--shadow)]',
-            // Desktop: barra completa sin tarjeta
-            'lg:max-w-none lg:rounded-none lg:border-0 lg:bg-transparent lg:px-8 lg:[box-shadow:none]'
+            'bg-transparent'
           )}
         >
           <JuntealoLogo size="md" />
