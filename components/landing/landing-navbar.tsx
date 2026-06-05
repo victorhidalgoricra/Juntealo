@@ -42,10 +42,14 @@ export function LandingNavbar() {
   return (
     <>
       <header
+        style={{
+          backgroundColor: scrolled ? 'color-mix(in srgb, var(--bg) 94%, transparent)' : 'var(--bg)',
+          boxShadow: scrolled ? 'var(--shadow-sm)' : 'none',
+        }}
         className={cn(
-          'sticky top-0 z-[100] bg-[var(--surface)] transition-all duration-200',
+          'sticky top-0 z-[100] transition-all duration-200 supports-[backdrop-filter]:backdrop-blur-md',
           scrolled
-            ? 'border-b border-[var(--border)] shadow-[0_1px_12px_0_rgb(0_0_0/0.07)]'
+            ? 'border-b border-[var(--border)]'
             : 'border-b border-transparent shadow-none'
         )}
       >
@@ -123,8 +127,9 @@ export function LandingNavbar() {
 
       {/* Mobile drawer */}
       <div
+        style={{ boxShadow: open ? 'var(--shadow-lg)' : 'none' }}
         className={cn(
-          'fixed left-0 right-0 top-[60px] z-[100] border-b border-[var(--border)] bg-[var(--surface)] shadow-lg transition-all duration-200 ease-out md:hidden',
+          'fixed left-0 right-0 top-[60px] z-[100] border-b border-[var(--border)] bg-[var(--bg)] transition-all duration-200 ease-out md:hidden supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--bg)_96%,transparent)] supports-[backdrop-filter]:backdrop-blur-md',
           open ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0 pointer-events-none'
         )}
       >
