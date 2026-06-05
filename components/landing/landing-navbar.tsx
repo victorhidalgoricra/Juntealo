@@ -41,7 +41,7 @@ export function LandingNavbar() {
       >
         <div
           className={cn(
-            'mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between px-6 transition-colors duration-300 ease-out sm:h-16',
+            'mx-auto flex h-14 w-full max-w-[1120px] items-center justify-between px-6 transition-colors duration-300 ease-out',
             'supports-[backdrop-filter]:backdrop-blur-md',
             'bg-transparent'
           )}
@@ -49,7 +49,7 @@ export function LandingNavbar() {
           <JuntealoLogo size="md" />
 
           {/* Desktop nav */}
-          <nav className="hidden items-center gap-0.5 text-sm font-medium text-[var(--text)] md:flex">
+          <nav className="hidden items-center gap-1 text-sm font-medium text-[var(--text)] md:flex">
             {navLinks.map((link) => {
               const isActive = pathname === link.href;
               return (
