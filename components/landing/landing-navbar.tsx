@@ -35,16 +35,13 @@ export function LandingNavbar() {
     <>
       <header
         className={cn(
-          'z-[100] w-full border-b border-[var(--border)] bg-[var(--surface)] transition-colors duration-300 ease-out',
+          'z-[100] w-full border-b border-[var(--border)] bg-[var(--bg)] transition-colors duration-300 ease-out',
+          'supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] supports-[backdrop-filter]:backdrop-blur-md',
           'lg:sticky lg:top-0'
         )}
       >
         <div
-          className={cn(
-            'mx-auto flex h-14 w-full max-w-[1120px] items-center justify-between px-6 transition-colors duration-300 ease-out',
-            'supports-[backdrop-filter]:backdrop-blur-md',
-            'bg-transparent'
-          )}
+          className="mx-auto flex h-14 w-full max-w-[1120px] items-center justify-between px-6"
         >
           <JuntealoLogo size="md" />
 
