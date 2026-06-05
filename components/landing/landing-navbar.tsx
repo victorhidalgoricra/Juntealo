@@ -37,6 +37,7 @@ export function LandingNavbar() {
         className={cn(
           'z-[100] w-full border-b border-[var(--border)] bg-[var(--bg)] transition-colors duration-300 ease-out',
           'supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] supports-[backdrop-filter]:backdrop-blur-md',
+          'md:bg-[color-mix(in_srgb,var(--surface)_80%,transparent)] md:supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--surface)_72%,transparent)] md:supports-[backdrop-filter]:backdrop-blur-lg',
           'lg:sticky lg:top-0'
         )}
       >
