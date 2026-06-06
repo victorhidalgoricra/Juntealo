@@ -38,7 +38,7 @@ export function LandingNavbar() {
           'z-[100] w-full border-b border-[var(--border)] transition-colors duration-300 ease-out',
           'max-md:bg-[var(--bg)]',
           'max-md:supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] max-md:supports-[backdrop-filter]:backdrop-blur-md',
-          'md:sticky md:top-0 md:bg-[color-mix(in_srgb,var(--surface)_95%,transparent)] md:backdrop-blur md:supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--surface)_85%,transparent)]'
+          'md:sticky md:top-0 md:bg-[color-mix(in_srgb,var(--bg)_95%,transparent)] md:backdrop-blur md:supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--bg)_85%,transparent)]'
         )}
       >
         <div
