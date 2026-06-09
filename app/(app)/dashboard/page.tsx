@@ -18,13 +18,14 @@ import {
   getUserJuntaScore
 } from '@/services/junta-score.service';
 import { claimMission, fetchClaimedMissions, recordRachaMilestone, type ClaimedMission } from '@/services/missions.repository';
+import { fetchReferralStats, type ReferralStats } from '@/services/referral.service';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { Junta, JuntaMember, Payment, PaymentSchedule, Payout, Profile } from '@/types/domain';
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { getActiveMemberCountByJunta } from '@/lib/junta-members';
 import { JuntaAvatar } from '@/components/junta-avatar';
-import { CheckCircle2, RefreshCw, Users as UsersIcon, Star } from 'lucide-react';
+import { CheckCircle2, RefreshCw, Users as UsersIcon, Star, Copy, Share2 } from 'lucide-react';
 import { RachaCard } from '@/components/ui/racha-card';
 import { computeGlobalRacha } from '@/lib/racha';
 
@@ -341,6 +342,57 @@ function UpcomingPayoutCard({ data }: { data: UpcomingPayoutData }) {
   );
 }
 
+function InviteAndEarnCard({ referralCode, stats }: { referralCode: string; stats: ReferralStats }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(referralCode).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const whatsappText = encodeURIComponent(
+    `Únete a Juntealo con mi código ${referralCode} y organiza tu junta fácil y seguro 👉 juntealo.com`
+  );
+
+  return (
+    <Card className="p-4">
+      <p className="mb-3 text-sm font-semibold text-fg">Invita y gana</p>
+      <div className="mb-3 flex items-center gap-2 rounded-[var(--r-sm)] border border-border bg-surface px-3 py-2">
+        <span className="flex-1 font-mono text-lg font-bold tracking-widest text-fg">{referralCode}</span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 rounded-[var(--r-sm)] border border-border bg-white px-3 py-1.5 text-xs font-medium text-fg transition-colors hover:border-accent hover:text-accent"
+        >
+          <Copy size={12} />
+          {copied ? '¡Copiado!' : 'Copiar código'}
+        </button>
+      </div>
+      <a
+        href={`https://wa.me/?text=${whatsappText}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mb-4 flex w-full items-center justify-center gap-2 rounded-[var(--r-sm)] border border-emerald-200 bg-emerald-50 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+      >
+        <Share2 size={14} />
+        Compartir por WhatsApp
+      </a>
+      <div className="flex gap-4 text-sm">
+        <div>
+          <span className="font-mono font-bold text-fg">{stats.total}</span>
+          <span className="ml-1 text-muted">personas usaron tu código</span>
+        </div>
+        <div>
+          <span className="font-mono font-bold text-fg">{stats.active}</span>
+          <span className="ml-1 text-muted">activas</span>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function ContributionSummaryCards({ summary }: { summary: ContributionSummaryData }) {
   return (
     <Card className="border-0 bg-accent p-5 text-white">
@@ -518,6 +570,7 @@ export default function DashboardPage() {
 
   const [claimedMissions, setClaimedMissions] = useState<ClaimedMission[]>([]);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [referralStats, setReferralStats] = useState<ReferralStats>({ total: 0, active: 0 });
 
   const myJuntaIds = useMemo(
     () => (user ? getMyJuntaIds(user.id, safeJuntas, safeMembers) : []),
@@ -560,6 +613,11 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!userId) return;
     fetchClaimedMissions(userId).then(setClaimedMissions);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetchReferralStats(userId).then(setReferralStats);
   }, [userId]);
 
   useEffect(() => {
@@ -781,7 +839,11 @@ export default function DashboardPage() {
         />
       )}
 
-      <DashboardKpis paymentsOnTime={paymentRate} completedCycles={completedCycles} referredActive={scoreStats.successfulReferrals} />
+      <DashboardKpis paymentsOnTime={paymentRate} completedCycles={completedCycles} referredActive={referralStats.active} />
+
+      {user.referral_code && (
+        <InviteAndEarnCard referralCode={user.referral_code} stats={referralStats} />
+      )}
 
       {upcomingPayout && <UpcomingPayoutCard data={upcomingPayout} />}
 

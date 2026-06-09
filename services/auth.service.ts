@@ -23,6 +23,7 @@ export async function buildProfileFromAuthUser(user: User, fallbackEmail?: strin
     celular: profile?.celular ?? user.user_metadata?.phone ?? '',
     dni: profile?.dni ?? user.user_metadata?.dni,
     foto_url: profile?.foto_url,
+    referral_code: profile?.referral_code,
     preferred_payout_method: profile?.preferred_payout_method,
     payout_account_name: profile?.payout_account_name,
     payout_phone_number: profile?.payout_phone_number,

@@ -4,7 +4,7 @@ import { Profile, PublicProfile } from '@/types/domain';
 import { normalizeDni, normalizePhone } from '@/lib/profile-normalization';
 
 const profileSelectFields =
-  'id,email,nombre,first_name,second_name,paternal_last_name,celular,dni,foto_url,preferred_payout_method,payout_account_name,payout_phone_number,payout_bank_name,payout_account_number,payout_cci,payout_notes,global_role';
+  'id,email,nombre,first_name,second_name,paternal_last_name,celular,dni,foto_url,referral_code,preferred_payout_method,payout_account_name,payout_phone_number,payout_bank_name,payout_account_number,payout_cci,payout_notes,global_role';
 
 function generateFallbackPhone(seed: string) {
   const base = seed.trim() || crypto.randomUUID();
