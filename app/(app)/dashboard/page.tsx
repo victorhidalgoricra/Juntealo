@@ -25,7 +25,7 @@ import { Junta, JuntaMember, Payment, PaymentSchedule, Payout, Profile } from '@
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { getActiveMemberCountByJunta } from '@/lib/junta-members';
 import { JuntaAvatar } from '@/components/junta-avatar';
-import { CheckCircle2, RefreshCw, Users as UsersIcon, Star, Copy, MessageCircle } from 'lucide-react';
+import { CheckCircle2, RefreshCw, Users as UsersIcon, Star, Copy, MessageCircle, Trophy } from 'lucide-react';
 import { RachaCard } from '@/components/ui/racha-card';
 import { computeGlobalRacha } from '@/lib/racha';
 
@@ -358,6 +358,10 @@ function InviteAndEarnCard({ referralCode }: { referralCode: string }) {
 
   return (
     <Card className="p-3">
+      <p className="mb-2 flex items-center gap-1.5 text-sm text-muted">
+        <Trophy size={14} strokeWidth={1.8} />
+        Refiere amigos y construye tu reputación financiera
+      </p>
       <div className="flex items-center gap-1.5">
         <span className="min-w-0 flex-1 truncate rounded-[var(--r-sm)] border border-border bg-accent-bg px-3 py-2 font-mono text-sm font-bold tracking-widest text-fg">
           {referralCode}
