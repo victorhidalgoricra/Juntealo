@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ReactNode, useMemo, useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { Menu, X, LogOut } from 'lucide-react';
+import { Menu, X, LogOut, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth-store';
 import { isBackofficeAdmin } from '@/services/auth-role.service';
@@ -170,7 +170,19 @@ export function AppShell({ children }: { children: ReactNode }) {
                   : 'font-medium bg-slate-100 text-slate-600 hover:bg-accent-bg hover:text-accent'
               )}
             >
-              {link.label}
+              {link.href === '/ranking' ? (
+                <span className="inline-flex items-center">
+                  {link.label}
+                  <Trophy
+                    className="ml-1 shrink-0 translate-y-px text-amber"
+                    size={16}
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                </span>
+              ) : (
+                link.label
+              )}
             </Link>
           ))}
         </nav>
