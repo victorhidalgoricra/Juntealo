@@ -1,4 +1,5 @@
 import { Junta, JuntaMember, Payment, PaymentSchedule } from '@/types/domain';
+import { normalizePaymentStatus } from '@/lib/payment-status';
 
 export type JuntaScoreLevel = 'Nuevo' | 'Bronce' | 'Plata' | 'Oro' | 'Élite';
 
@@ -118,6 +119,10 @@ function toScore(value: number) {
 
 function getPaymentRegisteredAt(payment: Payment): string | undefined {
   return payment.submitted_at ?? payment.pagado_en ?? payment.validated_at;
+}
+
+function getPaymentStatus(payment: Payment) {
+  return normalizePaymentStatus(payment.payment_status ?? payment.estado);
 }
 
 export function getScoreLevel(score: number): JuntaScoreLevel {
@@ -320,7 +325,7 @@ export function buildJuntaScoreStatsFromDomain(params: {
     const paidAt = payment ? getPaymentRegisteredAt(payment) : undefined;
     const paidDate = paidAt ? new Date(paidAt) : null;
 
-    if (payment?.estado === 'approved') {
+    if (payment && getPaymentStatus(payment) === 'approved') {
       const isLate = Boolean(paidDate && paidDate.getTime() > dueDate.getTime());
       if (isLate) {
         latePaymentsLifetime += 1;
@@ -335,7 +340,7 @@ export function buildJuntaScoreStatsFromDomain(params: {
     }
 
     // Payment is in review — do not count as incumplimiento yet
-    if (payment?.estado === 'submitted' || payment?.estado === 'validating') {
+    if (payment && ['submitted', 'validating'].includes(getPaymentStatus(payment))) {
       return;
     }
 
@@ -355,7 +360,7 @@ export function buildJuntaScoreStatsFromDomain(params: {
   const completedCycles = params.juntas.filter((junta) => myJuntaIds.has(junta.id) && junta.estado === 'cerrada').length;
 
   const approvedDates = myPayments
-    .filter((payment) => payment.estado === 'approved')
+    .filter((payment) => getPaymentStatus(payment) === 'approved')
     .map(getPaymentRegisteredAt)
     .filter((registeredAt): registeredAt is string => Boolean(registeredAt))
     .map((registeredAt) => new Date(registeredAt).getTime())

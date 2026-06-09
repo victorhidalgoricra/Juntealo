@@ -24,6 +24,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { Junta, JuntaMember, Payment, PaymentSchedule, Payout, Profile } from '@/types/domain';
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { getActiveMemberCountByJunta } from '@/lib/junta-members';
+import { normalizePaymentStatus } from '@/lib/payment-status';
 import { JuntaAvatar } from '@/components/junta-avatar';
 import { CheckCircle2, RefreshCw, Users as UsersIcon, Star, Copy, MessageCircle, Trophy } from 'lucide-react';
 import { RachaCard } from '@/components/ui/racha-card';
@@ -130,13 +131,21 @@ function getUpcomingPayout(params: {
 
 function getCurrentCycleContributionSummary(params: {
   userId: string;
+  juntas: Junta[];
   payments: Payment[];
   schedules: PaymentSchedule[];
   myJuntaIds: string[];
 }): ContributionSummaryData {
-  const approvedPayments = params.payments.filter((payment) => payment.profile_id === params.userId && payment.estado === 'approved');
+  const currentJuntaIds = params.juntas
+    .filter((junta) => params.myJuntaIds.includes(junta.id) && junta.estado === 'activa')
+    .map((junta) => junta.id);
+  const approvedPayments = params.payments.filter((payment) =>
+    payment.profile_id === params.userId &&
+    currentJuntaIds.includes(payment.junta_id) &&
+    normalizePaymentStatus(payment.payment_status ?? payment.estado) === 'approved'
+  );
   const totalAportado = approvedPayments.reduce((acc, payment) => acc + payment.monto, 0);
-  const periodCount = params.schedules.filter((schedule) => params.myJuntaIds.includes(schedule.junta_id)).length;
+  const periodCount = params.schedules.filter((schedule) => currentJuntaIds.includes(schedule.junta_id)).length;
 
   return {
     totalAportado,
@@ -733,7 +742,8 @@ export default function DashboardPage() {
     juntas: safeJuntas,
     members: safeMembers,
     payments: safePayments,
-    schedules: safeSchedules
+    schedules: safeSchedules,
+    successfulReferrals: referralStats.active
   });
 
   const currentWeekKey = getWeekKey();
@@ -783,6 +793,7 @@ export default function DashboardPage() {
 
   const contributionSummary = getCurrentCycleContributionSummary({
     userId: user.id,
+    juntas: safeJuntas,
     payments: safePayments,
     schedules: safeSchedules,
     myJuntaIds

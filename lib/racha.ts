@@ -1,4 +1,5 @@
 import type { Payment, PaymentSchedule } from '@/types/domain';
+import { normalizePaymentStatus } from '@/lib/payment-status';
 
 export type EstadoRacha = 'activa' | 'en_riesgo' | 'rota';
 
@@ -34,7 +35,9 @@ export function computeJuntaRacha(params: {
     .sort((a, b) => a.cuota_numero - b.cuota_numero);
 
   const userPayments = payments.filter(
-    (p) => p.junta_id === juntaId && p.profile_id === userId && VALID_PAYMENT_STATES.has(p.estado),
+    (p) => p.junta_id === juntaId &&
+      p.profile_id === userId &&
+      VALID_PAYMENT_STATES.has(normalizePaymentStatus(p.payment_status ?? p.estado)),
   );
 
   // Mark schedules as paid on time using submitted_at (the moment user registered the payment)
