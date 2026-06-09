@@ -13,7 +13,7 @@ import { hasSupabase } from '@/lib/env';
 import { mapRegisterErrorMessage } from '@/services/auth.service';
 import { useState, useRef, useCallback } from 'react';
 import { checkProfileConflicts, ensureProfileExists } from '@/services/profile.service';
-import { validateReferralCode, useReferralCode } from '@/services/referral.service';
+import { validateReferralCode, useReferralCode as redeemReferralCode } from '@/services/referral.service';
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
@@ -124,7 +124,7 @@ export function RegisterPageClient() {
                 if (!profileSync.ok) throw new Error(`profile_sync_failed: ${profileSync.message}`);
 
                 if (referralStatus === 'valid' && referralCode.trim()) {
-                  await useReferralCode(referralCode.trim());
+                  await redeemReferralCode(referralCode.trim());
                 }
 
                 try {

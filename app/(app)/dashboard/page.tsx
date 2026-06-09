@@ -628,7 +628,7 @@ export default function DashboardPage() {
         recordRachaMilestone({ profileId: userId, juntaId: null, hitoSemanas: hito });
       }
     }
-  }, [globalRacha?.semanasActual, userId]);
+  }, [globalRacha, globalRacha?.semanasActual, userId]);
 
   // Fetch propio del dashboard — independiente del layout y del store global.
   // Garantiza que "Mis juntas activas" se cargue al entrar directamente al dashboard
