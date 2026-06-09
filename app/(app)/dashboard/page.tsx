@@ -25,7 +25,7 @@ import { Junta, JuntaMember, Payment, PaymentSchedule, Payout, Profile } from '@
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { getActiveMemberCountByJunta } from '@/lib/junta-members';
 import { JuntaAvatar } from '@/components/junta-avatar';
-import { CheckCircle2, RefreshCw, Users as UsersIcon, Star, Copy, Share2 } from 'lucide-react';
+import { CheckCircle2, RefreshCw, Users as UsersIcon, Star, Copy, MessageCircle } from 'lucide-react';
 import { RachaCard } from '@/components/ui/racha-card';
 import { computeGlobalRacha } from '@/lib/racha';
 
@@ -342,7 +342,7 @@ function UpcomingPayoutCard({ data }: { data: UpcomingPayoutData }) {
   );
 }
 
-function InviteAndEarnCard({ referralCode, stats }: { referralCode: string; stats: ReferralStats }) {
+function InviteAndEarnCard({ referralCode }: { referralCode: string }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -357,28 +357,29 @@ function InviteAndEarnCard({ referralCode, stats }: { referralCode: string; stat
   );
 
   return (
-    <Card className="p-4">
-      <p className="mb-3 text-sm font-semibold text-fg">Invita y gana</p>
-      <div className="mb-3 flex items-center gap-2 rounded-[var(--r-sm)] border border-border bg-surface px-3 py-2">
-        <span className="flex-1 font-mono text-lg font-bold tracking-widest text-fg">{referralCode}</span>
+    <Card className="p-3">
+      <div className="flex items-center gap-1.5">
+        <span className="min-w-0 flex-1 truncate rounded-[var(--r-sm)] border border-border bg-accent-bg px-3 py-2 font-mono text-sm font-bold tracking-widest text-fg">
+          {referralCode}
+        </span>
         <button
           type="button"
           onClick={handleCopy}
-          className="flex items-center gap-1.5 rounded-[var(--r-sm)] border border-border bg-white px-3 py-1.5 text-xs font-medium text-fg transition-colors hover:border-accent hover:text-accent"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-[var(--r-sm)] border border-border bg-white px-2.5 py-2 text-xs font-medium text-fg transition-colors hover:border-accent hover:text-accent"
         >
           <Copy size={12} />
-          {copied ? '¡Copiado!' : 'Copiar código'}
+          {copied ? 'Copiado' : 'Copiar'}
         </button>
+        <a
+          href={`https://wa.me/?text=${whatsappText}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-[var(--r-sm)] border border-green bg-green px-2.5 py-2 text-xs font-medium text-white transition-colors hover:opacity-90"
+        >
+          <MessageCircle size={12} />
+          WhatsApp
+        </a>
       </div>
-      <a
-        href={`https://wa.me/?text=${whatsappText}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mb-4 flex w-full items-center justify-center gap-2 rounded-[var(--r-sm)] border border-emerald-200 bg-emerald-50 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
-      >
-        <Share2 size={14} />
-        Compartir por WhatsApp
-      </a>
     </Card>
   );
 }
@@ -832,7 +833,7 @@ export default function DashboardPage() {
       <DashboardKpis paymentsOnTime={paymentRate} completedCycles={completedCycles} referredActive={referralStats.active} />
 
       {user.referral_code && (
-        <InviteAndEarnCard referralCode={user.referral_code} stats={referralStats} />
+        <InviteAndEarnCard referralCode={user.referral_code} />
       )}
 
       {upcomingPayout && <UpcomingPayoutCard data={upcomingPayout} />}
