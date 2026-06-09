@@ -379,16 +379,6 @@ function InviteAndEarnCard({ referralCode, stats }: { referralCode: string; stat
         <Share2 size={14} />
         Compartir por WhatsApp
       </a>
-      <div className="flex gap-4 text-sm">
-        <div>
-          <span className="font-mono font-bold text-fg">{stats.total}</span>
-          <span className="ml-1 text-muted">personas usaron tu código</span>
-        </div>
-        <div>
-          <span className="font-mono font-bold text-fg">{stats.active}</span>
-          <span className="ml-1 text-muted">activas</span>
-        </div>
-      </div>
     </Card>
   );
 }
