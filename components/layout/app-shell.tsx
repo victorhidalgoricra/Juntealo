@@ -171,15 +171,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             >
               {link.href === '/ranking' ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <span>{link.label}</span>
+                <>
+                  {link.label}
                   <Trophy
-                    className="shrink-0 text-amber-400"
-                    size={18}
+                    className="ml-1 inline-block align-[-2px] text-amber"
+                    size={16}
                     strokeWidth={2}
                     aria-hidden
                   />
-                </span>
+                </>
               ) : (
                 link.label
               )}
