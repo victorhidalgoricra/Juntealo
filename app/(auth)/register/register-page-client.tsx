@@ -11,14 +11,24 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
 import { mapRegisterErrorMessage } from '@/services/auth.service';
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { checkProfileConflicts, ensureProfileExists } from '@/services/profile.service';
+import { validateReferralCode, useReferralCode as redeemReferralCode } from '@/services/referral.service';
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
+
+type ReferralStatus = 'idle' | 'checking' | 'valid' | 'invalid';
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return <p className="text-[11px] text-destructive">{message}</p>;
+}
+
+function ReferralFeedback({ status }: { status: ReferralStatus }) {
+  if (status === 'checking') return <p className="text-[11px] text-muted">Verificando...</p>;
+  if (status === 'valid') return <p className="text-[11px] text-emerald-600">Código válido ✓</p>;
+  if (status === 'invalid') return <p className="text-[11px] text-muted">Código no encontrado</p>;
+  return null;
 }
 
 export function RegisterPageClient() {
@@ -28,6 +38,26 @@ export function RegisterPageClient() {
   const { register, handleSubmit, setError, formState } = useForm<RegisterFormValues>();
   const [authError, setAuthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [referralCode, setReferralCode] = useState('');
+  const [referralStatus, setReferralStatus] = useState<ReferralStatus>('idle');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleReferralChange = useCallback((value: string) => {
+    setReferralCode(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (!value.trim()) {
+      setReferralStatus('idle');
+      return;
+    }
+
+    setReferralStatus('checking');
+    debounceRef.current = setTimeout(async () => {
+      const result = await validateReferralCode(value);
+      setReferralStatus(result.exists ? 'valid' : 'invalid');
+    }, 600);
+  }, []);
 
   return (
     <Card className="w-full space-y-5 p-6 sm:p-7">
@@ -93,6 +123,10 @@ export function RegisterPageClient() {
                 });
                 if (!profileSync.ok) throw new Error(`profile_sync_failed: ${profileSync.message}`);
 
+                if (referralStatus === 'valid' && referralCode.trim()) {
+                  await redeemReferralCode(referralCode.trim());
+                }
+
                 try {
                   await supabase.auth.signOut();
                 } catch {
@@ -139,6 +173,19 @@ export function RegisterPageClient() {
           <label className="text-[13px] font-semibold text-fg">Contraseña</label>
           <Input placeholder="Mínimo 8 caracteres" type="password" autoComplete="new-password" {...register('password')} />
           <FieldError message={formState.errors.password?.message} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[13px] font-semibold text-fg">
+            ¿Tienes un código de invitación? <span className="font-normal text-muted">(opcional)</span>
+          </label>
+          <Input
+            placeholder="Ej. VICTOR47"
+            autoComplete="off"
+            autoCapitalize="characters"
+            value={referralCode}
+            onChange={(e) => handleReferralChange(e.target.value)}
+          />
+          <ReferralFeedback status={referralStatus} />
         </div>
         {authError && <FieldError message={authError} />}
         <Button className="w-full" disabled={loading}>{loading ? 'Creando cuenta...' : 'Crear cuenta'}</Button>

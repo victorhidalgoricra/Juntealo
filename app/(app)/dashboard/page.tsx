@@ -18,13 +18,14 @@ import {
   getUserJuntaScore
 } from '@/services/junta-score.service';
 import { claimMission, fetchClaimedMissions, recordRachaMilestone, type ClaimedMission } from '@/services/missions.repository';
+import { fetchReferralStats, type ReferralStats } from '@/services/referral.service';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { Junta, JuntaMember, Payment, PaymentSchedule, Payout, Profile } from '@/types/domain';
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { getActiveMemberCountByJunta } from '@/lib/junta-members';
 import { JuntaAvatar } from '@/components/junta-avatar';
-import { CheckCircle2, RefreshCw, Users as UsersIcon, Star } from 'lucide-react';
+import { CheckCircle2, RefreshCw, Users as UsersIcon, Star, Copy, MessageCircle, Trophy } from 'lucide-react';
 import { RachaCard } from '@/components/ui/racha-card';
 import { computeGlobalRacha } from '@/lib/racha';
 
@@ -341,6 +342,52 @@ function UpcomingPayoutCard({ data }: { data: UpcomingPayoutData }) {
   );
 }
 
+function InviteAndEarnCard({ referralCode }: { referralCode: string }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(referralCode).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const whatsappText = encodeURIComponent(
+    `Únete a Juntealo con mi código ${referralCode} y organiza tu junta fácil y seguro 👉 juntealo.com`
+  );
+
+  return (
+    <Card className="p-3">
+      <p className="mb-2 flex items-center gap-1.5 text-sm text-muted">
+        <Trophy size={14} strokeWidth={1.8} />
+        Refiere amigos y construye tu reputación financiera
+      </p>
+      <div className="flex items-center gap-1.5">
+        <span className="min-w-0 flex-1 truncate rounded-[var(--r-sm)] border border-border bg-accent-bg px-3 py-2 font-mono text-sm font-bold tracking-widest text-fg">
+          {referralCode}
+        </span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-[var(--r-sm)] border border-border bg-white px-2.5 py-2 text-xs font-medium text-fg transition-colors hover:border-accent hover:text-accent"
+        >
+          <Copy size={12} />
+          {copied ? 'Copiado' : 'Copiar'}
+        </button>
+        <a
+          href={`https://wa.me/?text=${whatsappText}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-[var(--r-sm)] border border-green bg-green px-2.5 py-2 text-xs font-medium text-white transition-colors hover:opacity-90"
+        >
+          <MessageCircle size={12} />
+          WhatsApp
+        </a>
+      </div>
+    </Card>
+  );
+}
+
 function ContributionSummaryCards({ summary }: { summary: ContributionSummaryData }) {
   return (
     <Card className="border-0 bg-accent p-5 text-white">
@@ -518,6 +565,7 @@ export default function DashboardPage() {
 
   const [claimedMissions, setClaimedMissions] = useState<ClaimedMission[]>([]);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [referralStats, setReferralStats] = useState<ReferralStats>({ total: 0, active: 0 });
 
   const myJuntaIds = useMemo(
     () => (user ? getMyJuntaIds(user.id, safeJuntas, safeMembers) : []),
@@ -563,6 +611,11 @@ export default function DashboardPage() {
   }, [userId]);
 
   useEffect(() => {
+    if (!userId) return;
+    fetchReferralStats(userId).then(setReferralStats);
+  }, [userId]);
+
+  useEffect(() => {
     if (!globalRacha || !userId) return;
     const milestones = [4, 8, 12] as const;
     for (const hito of milestones) {
@@ -570,7 +623,7 @@ export default function DashboardPage() {
         recordRachaMilestone({ profileId: userId, juntaId: null, hitoSemanas: hito });
       }
     }
-  }, [globalRacha?.semanasActual, userId]);
+  }, [globalRacha, globalRacha?.semanasActual, userId]);
 
   // Fetch propio del dashboard — independiente del layout y del store global.
   // Garantiza que "Mis juntas activas" se cargue al entrar directamente al dashboard
@@ -781,7 +834,11 @@ export default function DashboardPage() {
         />
       )}
 
-      <DashboardKpis paymentsOnTime={paymentRate} completedCycles={completedCycles} referredActive={scoreStats.successfulReferrals} />
+      <DashboardKpis paymentsOnTime={paymentRate} completedCycles={completedCycles} referredActive={referralStats.active} />
+
+      {user.referral_code && (
+        <InviteAndEarnCard referralCode={user.referral_code} />
+      )}
 
       {upcomingPayout && <UpcomingPayoutCard data={upcomingPayout} />}
 

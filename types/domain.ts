@@ -23,6 +23,7 @@ export interface Profile {
   celular: string;
   dni?: string;
   foto_url?: string;
+  referral_code?: string;
   preferred_payout_method?: 'yape' | 'plin' | 'bank_account' | 'cash' | 'other';
   payout_account_name?: string;
   payout_phone_number?: string;
@@ -31,6 +32,15 @@ export interface Profile {
   payout_cci?: string;
   payout_notes?: string;
   global_role?: GlobalRole;
+}
+
+export interface Referral {
+  id: string;
+  referrer_id: string;
+  referred_id: string;
+  created_at: string;
+  status: 'pending' | 'active';
+  tokens_earned: number;
 }
 
 export interface PublicProfile {

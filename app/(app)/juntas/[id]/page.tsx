@@ -160,7 +160,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       }
     };
     load();
-  }, [juntas, params.id, setData, user, user?.id]);
+  }, [juntas, params.id, searchParams, setData, user, user?.id]);
 
   useEffect(() => {
     if (accessState !== 'allowed' || !junta) return;
