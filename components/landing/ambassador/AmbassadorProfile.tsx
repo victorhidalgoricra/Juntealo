@@ -1,19 +1,23 @@
 import { RevealOnScroll } from '@/components/landing/reveal';
 
 const profiles = [
-  'Líderes de comunidades',
-  'Organizadores de juntas',
-  'Emprendedores',
-  'Creadores de contenido financiero',
-  'Personas que trabajan con asociaciones o grupos',
-  'Usuarios que recomiendan Juntealo dentro de su entorno',
+  'Organizas o participas en juntas.',
+  'Lideras una comunidad.',
+  'Trabajas con asociaciones o grupos.',
+  'Creas contenido sobre finanzas u organización.',
+  'Tienes contacto con emprendedores.',
+  'Disfrutas recomendando soluciones útiles.',
+  'Quieres crecer ayudando a otras personas.',
 ];
 
 export function AmbassadorProfile() {
   return (
     <RevealOnScroll className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-14">
-      <h2 className="text-3xl font-bold tracking-tight text-[var(--text)]">
-        Este programa puede ser para ti
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
+        Perfil
+      </p>
+      <h2 className="mt-2 text-3xl font-bold tracking-tight text-[var(--text)]">
+        Puedes ser embajador de Juntealo si…
       </h2>
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
