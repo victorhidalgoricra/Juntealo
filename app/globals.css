@@ -72,6 +72,12 @@ html {
   overflow-x: clip; /* clip no crea scroll container, no rompe position: sticky */
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 body {
   max-width: 100%;
   overflow-x: clip;
