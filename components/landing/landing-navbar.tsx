@@ -12,6 +12,7 @@ const navLinks = [
   { href: '/como-funciona', label: '¿Cómo funciona?' },
   { href: '/beneficios', label: 'Beneficios' },
   { href: '/explorar', label: 'Explorar juntas' },
+  { href: '/embajador', label: 'Embajador' },
 ];
 
 export function LandingNavbar() {
