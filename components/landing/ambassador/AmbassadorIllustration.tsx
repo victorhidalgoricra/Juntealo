@@ -1,247 +1,126 @@
+import { Check, Gift } from 'lucide-react';
+
+const impactBlocks = [
+  {
+    label: 'Tu comunidad',
+    value: 'Más personas activas',
+    detail: 'Conectadas por ti'
+  },
+  {
+    label: 'Tu crecimiento',
+    value: 'Nuevas oportunidades',
+    detail: 'Según tu impacto'
+  }
+];
+
+const journeySteps = [
+  { label: 'Compartes', status: 'Completado' },
+  { label: 'Activas', status: 'Completado' },
+  { label: 'Creces', status: 'En progreso' }
+];
+
+const communityMembers = ['AL', 'MC', 'DR', 'VN'];
+
 export function AmbassadorIllustration() {
   return (
-    <div
-      aria-hidden="true"
-      className="relative overflow-hidden rounded-[var(--r-xl)] border border-[var(--border)] bg-[var(--surface)] px-5 pb-6 pt-5 shadow-lg sm:px-7 sm:pb-8 sm:pt-7"
+    <section
+      aria-label="Resumen visual del programa de embajadores"
+      className="relative overflow-hidden rounded-[var(--r-xl)] bg-[var(--dark-1)] p-5 text-white shadow-xl sm:p-7"
     >
-      <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--muted)]">
-        Tu impacto crece con tu comunidad
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--dark-muted)]">
+            Programa de Embajadores
+          </p>
+          <h2 className="mt-2 max-w-sm break-words text-2xl font-semibold leading-tight">
+            Tu impacto abre nuevas oportunidades
+          </h2>
+          <p className="mt-1 text-sm text-[var(--dark-muted)]">Crece junto a tu comunidad</p>
+        </div>
 
-      <svg
-        viewBox="0 0 360 175"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="mt-4 w-full"
-        aria-hidden="true"
-      >
-        <style>{`
-          .ambassador-pulse {
-            animation: ambassadorPulse 3.5s ease-in-out infinite;
-          }
-          @keyframes ambassadorPulse {
-            0%, 100% { opacity: 0.08; }
-            50% { opacity: 0.18; }
-          }
-          @media (prefers-reduced-motion: reduce) {
-            .ambassador-pulse { animation: none; opacity: 0.1; }
-          }
-        `}</style>
-
-        {/* ── Connection lines (behind avatars) ── */}
-
-        {/* Ambassador → Hub */}
-        <path
-          d="M 98 88 Q 128 73 154 88"
-          stroke="#2d5be3"
-          strokeWidth="1.5"
-          strokeDasharray="5 3"
-          strokeOpacity="0.3"
-        />
-
-        {/* Hub → C1 center-right */}
-        <path
-          d="M 208 88 L 308 88"
-          stroke="#2d5be3"
-          strokeWidth="1.5"
-          strokeDasharray="5 3"
-          strokeOpacity="0.25"
-        />
-
-        {/* Hub → C2 upper-right */}
-        <path
-          d="M 206 79 Q 244 51 281 51"
-          stroke="#2d5be3"
-          strokeWidth="1.5"
-          strokeDasharray="4 4"
-          strokeOpacity="0.2"
-        />
-
-        {/* Hub → C3 lower-right */}
-        <path
-          d="M 206 97 Q 244 125 281 125"
-          stroke="#2d5be3"
-          strokeWidth="1.5"
-          strokeDasharray="4 4"
-          strokeOpacity="0.2"
-        />
-
-        {/* Hub → C4 far upper */}
-        <path
-          d="M 205 77 Q 231 43 252 40"
-          stroke="#2d5be3"
-          strokeWidth="1"
-          strokeDasharray="3 5"
-          strokeOpacity="0.15"
-        />
-
-        {/* Hub → C5 far lower */}
-        <path
-          d="M 205 99 Q 231 133 252 136"
-          stroke="#2d5be3"
-          strokeWidth="1"
-          strokeDasharray="3 5"
-          strokeOpacity="0.15"
-        />
-
-        {/* Activity dot midpoint on ambassador→hub line */}
-        <circle cx="127" cy="80" r="2.5" fill="#2d5be3" fillOpacity="0.55" />
-
-        {/* ── Far community (small avatars) ── */}
-        <circle cx="252" cy="40" r="14" fill="#eef2fd" />
-        <text
-          x="252"
-          y="44"
-          textAnchor="middle"
-          fill="#2d5be3"
-          fontSize="9"
-          fontFamily="DM Sans, system-ui, sans-serif"
-          fontWeight="600"
-        >
-          VN
-        </text>
-
-        <circle cx="252" cy="136" r="14" fill="#eef2fd" />
-        <text
-          x="252"
-          y="140"
-          textAnchor="middle"
-          fill="#2d5be3"
-          fontSize="9"
-          fontFamily="DM Sans, system-ui, sans-serif"
-          fontWeight="600"
-        >
-          LP
-        </text>
-
-        {/* ── Medium community avatars ── */}
-        <circle cx="281" cy="51" r="18" fill="#eef2fd" />
-        <text
-          x="281"
-          y="55"
-          textAnchor="middle"
-          fill="#141412"
-          fontSize="10"
-          fontFamily="DM Sans, system-ui, sans-serif"
-          fontWeight="600"
-        >
-          AL
-        </text>
-
-        <circle cx="281" cy="125" r="18" fill="#eef2fd" />
-        <text
-          x="281"
-          y="129"
-          textAnchor="middle"
-          fill="#141412"
-          fontSize="10"
-          fontFamily="DM Sans, system-ui, sans-serif"
-          fontWeight="600"
-        >
-          DR
-        </text>
-
-        {/* ── Large community avatar center-right ── */}
-        <circle
-          cx="308"
-          cy="88"
-          r="21"
-          fill="#eef2fd"
-          stroke="#2d5be3"
-          strokeWidth="1.5"
-          strokeOpacity="0.35"
-        />
-        <text
-          x="308"
-          y="92"
-          textAnchor="middle"
-          fill="#141412"
-          fontSize="12"
-          fontFamily="DM Sans, system-ui, sans-serif"
-          fontWeight="600"
-        >
-          MC
-        </text>
-
-        {/* Active badge on MC */}
-        <circle cx="325" cy="73" r="9" fill="white" />
-        <circle cx="325" cy="73" r="7" fill="#16a34a" />
-        <path
-          d="M 321 73 L 324.5 76.5 L 330 69"
-          stroke="white"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-
-        {/* ── Juntealo hub (center) ── */}
-        <circle cx="181" cy="88" r="33" fill="#2d5be3" fillOpacity="0.1" />
-        <circle cx="181" cy="88" r="27" fill="#2d5be3" />
-        <text
-          x="181"
-          y="95"
-          textAnchor="middle"
-          fill="white"
-          fontSize="19"
-          fontFamily="DM Sans, system-ui, sans-serif"
-          fontWeight="700"
-        >
-          J
-        </text>
-
-        {/* ── Ambassador (left, main character) ── */}
-        <circle cx="68" cy="88" r="38" fill="#2d5be3" className="ambassador-pulse" />
-        <circle cx="68" cy="88" r="30" fill="white" stroke="#2d5be3" strokeWidth="2" />
-        {/* Head */}
-        <circle cx="68" cy="80" r="9" fill="#2d5be3" fillOpacity="0.9" />
-        {/* Shoulders */}
-        <path d="M 50 105 Q 68 95 86 105" fill="#5a80f0" fillOpacity="0.45" />
-
-        {/* ── Labels ── */}
-        <text
-          x="68"
-          y="132"
-          textAnchor="middle"
-          fill="#7a7872"
-          fontSize="9"
-          fontFamily="DM Sans, system-ui, sans-serif"
-        >
-          Embajador
-        </text>
-        <text
-          x="181"
-          y="130"
-          textAnchor="middle"
-          fill="#7a7872"
-          fontSize="9"
-          fontFamily="DM Sans, system-ui, sans-serif"
-        >
-          Juntealo
-        </text>
-        <text
-          x="290"
-          y="163"
-          textAnchor="middle"
-          fill="#2d5be3"
-          fontSize="9"
-          fontFamily="DM Sans, system-ui, sans-serif"
-          fontWeight="500"
-        >
-          Tu comunidad
-        </text>
-      </svg>
-
-      <div className="mt-4 flex justify-center gap-2 sm:gap-3">
-        <span className="rounded-full bg-[var(--accent-bg)] px-3 py-1 text-[11px] font-semibold text-[var(--accent)]">
-          Comparte
-        </span>
-        <span className="rounded-full bg-[var(--accent-bg)] px-3 py-1 text-[11px] font-semibold text-[var(--accent)]">
-          Acompaña
-        </span>
-        <span className="rounded-full bg-[var(--accent-bg)] px-3 py-1 text-[11px] font-semibold text-[var(--accent)]">
-          Crece
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--green)]" aria-hidden="true" />
+          En crecimiento
         </span>
       </div>
-    </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {impactBlocks.map((block) => (
+          <div key={block.label} className="rounded-[var(--r-sm)] bg-[var(--dark-3)] p-4">
+            <p className="text-[11px] text-[var(--dark-muted)]">{block.label}</p>
+            <p className="mt-2 text-[15px] font-semibold leading-snug text-white">{block.value}</p>
+            <p className="mt-1 text-xs text-[var(--dark-text)]">{block.detail}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-6 rounded-[var(--r-sm)] bg-[var(--dark-3)] p-4">
+        <div className="relative px-1 pt-2">
+          <div
+            className="absolute left-5 right-5 top-[19px] h-1 rounded-full bg-[var(--dark-4)]"
+            aria-hidden="true"
+          >
+            <div className="h-1 w-2/3 rounded-full bg-[var(--accent)]" />
+          </div>
+
+          <ol className="relative grid grid-cols-3 gap-3">
+            {journeySteps.map((step, index) => {
+              const isComplete = step.status === 'Completado';
+
+              return (
+                <li key={step.label} className="flex min-w-0 flex-col items-center text-center">
+                  <span
+                    className={[
+                      'z-10 inline-flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-semibold',
+                      isComplete
+                        ? 'border-[var(--green)] bg-[var(--green)] text-white'
+                        : 'border-[var(--accent)] bg-[var(--dark-1)] text-[var(--accent)]'
+                    ].join(' ')}
+                    aria-hidden="true"
+                  >
+                    {isComplete ? <Check size={13} strokeWidth={2.5} /> : index + 1}
+                  </span>
+                  <span className="mt-3 text-xs font-semibold text-white">{step.label}</span>
+                  <span className="mt-1 text-[11px] text-[var(--dark-muted)]">{step.status}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+
+        <p className="mt-5 text-center text-xs font-medium text-[var(--dark-text)]">
+          Tu comunidad avanza contigo
+        </p>
+      </div>
+
+      <div className="mt-5 flex flex-col gap-4 rounded-[var(--r-sm)] border border-[color:rgb(45_91_227_/_0.28)] bg-[color:rgb(45_91_227_/_0.12)] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <span
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white"
+            aria-hidden="true"
+          >
+            <Gift size={18} strokeWidth={2.2} />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-white">Beneficio en crecimiento</p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--dark-text)]">
+              Conoce los detalles en una sesión personal
+            </p>
+          </div>
+        </div>
+
+        <div className="flex -space-x-2" aria-label="Comunidad representada por iniciales">
+          {communityMembers.map((member, index) => (
+            <span
+              key={member}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border-2 border-[var(--dark-1)] bg-[var(--dark-4)] text-[11px] font-semibold text-[var(--dark-text)]"
+              style={{ zIndex: communityMembers.length - index }}
+            >
+              {member}
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
