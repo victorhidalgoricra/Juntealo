@@ -487,14 +487,6 @@ export function ComoFuncionaPage() {
               ¿Tienes dudas? Habla con nosotros
             </a>
           </p>
-          <p className="mt-2">
-            <Link
-              href="/embajador"
-              className="text-sm text-[var(--dark-muted)] transition-colors hover:text-white hover:underline hover:underline-offset-2"
-            >
-              ¿Ya lideras un grupo? Conoce el programa de embajadores →
-            </Link>
-          </p>
         </div>
       </section>
     </main>
