@@ -456,8 +456,27 @@ export function ComoFuncionaPage() {
           </div>
         </RevealOnScroll>
 
-        {/* ── 6. CTA FINAL ── */}
-        <section className="order-6 bg-[var(--dark-1)]">
+        {/* ── 6. GANCHO EMBAJADOR ── */}
+        <RevealOnScroll className="order-6 border-y border-[var(--border)] bg-[var(--surface)]">
+          <div className="mx-auto w-full max-w-4xl px-4 py-14 md:px-6 md:py-20">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">¿Ya lideras un grupo así?</p>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight">
+              Conviértete en embajador y gana por ayudar a otros a digitalizar su junta
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
+              Si organizas o conoces grupos que llevan su junta en WhatsApp y una libreta, puedes ayudarles a pasarse a Juntealo y ganar por cada usuario activo que sumes.
+            </p>
+            <Link
+              href="/embajador"
+              className="mt-6 inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
+            >
+              Conocer el programa de embajadores →
+            </Link>
+          </div>
+        </RevealOnScroll>
+
+        {/* ── 7. CTA FINAL ── */}
+        <section className="order-7 bg-[var(--dark-1)]">
           <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center md:py-[72px]">
             <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
               ¿Listo para tu primera junta digital?
