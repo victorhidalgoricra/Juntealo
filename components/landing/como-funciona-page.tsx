@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { ChevronDown } from 'lucide-react';
 import { RevealOnScroll } from './reveal';
 
 type TipoJunta = 'normal' | 'incentivos';
 
 const normalFeatures = [
-  { icon: '📊', title: 'Panel del grupo', desc: 'Todos ven el estado en tiempo real: quién pagó, quién falta y el turno activo.' },
-  { icon: '🔔', title: 'Recordatorios automáticos', desc: 'La plataforma avisa a cada integrante cuando se acerca su fecha de pago.' },
-  { icon: '🛡️', title: 'Score de confianza', desc: 'Cada integrante acumula puntaje según su historial. Transparente para todos.' },
-  { icon: '🔄', title: 'Turnos automáticos', desc: 'El sistema gestiona el orden y confirma quién cobra en cada período.' },
+  { icon: '📊', title: 'Panel del grupo', desc: 'Todos ven el estado en tiempo real: quién pagó, quién falta y el turno activo.', accentBg: 'var(--accent-bg)' },
+  { icon: '🔔', title: 'Recordatorios automáticos', desc: 'La plataforma avisa a cada integrante cuando se acerca su fecha de pago.', accentBg: 'var(--accent-bg)' },
+  { icon: '🛡️', title: 'Score de confianza', desc: 'Cada integrante acumula puntaje según su historial. Transparente para todos.', accentBg: 'var(--green-bg)' },
+  { icon: '🔄', title: 'Turnos automáticos', desc: 'El sistema gestiona el orden y confirma quién cobra en cada período.', accentBg: 'var(--green-bg)' },
 ];
 
 const incentivosFeatures = [
@@ -18,28 +19,24 @@ const incentivosFeatures = [
     icon: '💸',
     title: 'Recibe antes',
     desc: 'Quienes toman los primeros turnos acceden al dinero antes, cuando más lo necesitan.',
-    accent: 'var(--accent)',
     accentBg: 'var(--accent-bg)',
   },
   {
     icon: '📉',
     title: 'Pagas menos si cobras después',
     desc: 'Los últimos turnos reciben la misma bolsa, pero con cuotas más bajas durante todo el ciclo.',
-    accent: 'var(--green)',
     accentBg: 'var(--green-bg)',
   },
   {
     icon: '⚖️',
     title: 'Sistema equilibrado',
     desc: 'El grupo se balancea automáticamente para que todos reciban exactamente la misma bolsa de dinero.',
-    accent: 'var(--accent)',
     accentBg: 'var(--accent-bg)',
   },
   {
     icon: '🤝',
     title: 'Ideal para grupos nuevos',
     desc: 'Personas con distintas necesidades pueden participar sin depender de confianza total previa.',
-    accent: 'var(--green)',
     accentBg: 'var(--green-bg)',
   },
 ];
@@ -78,7 +75,7 @@ export function ComoFuncionaPage() {
   const [cuota, setCuota] = useState(400);
   const [frecuencia, setFrecuencia] = useState<'Semanal' | 'Quincenal' | 'Mensual'>('Semanal');
   const [simTipo, setSimTipo] = useState<TipoJunta>('normal');
-  const [turnoActivo, setTurnoActivo] = useState(2);
+  const [turnoActivo, setTurnoActivo] = useState(1);
 
   useEffect(() => {
     setTurnoActivo((prev) => Math.min(prev, personas));
@@ -86,6 +83,7 @@ export function ComoFuncionaPage() {
 
   const bolsa = personas * cuota;
   const duracionLabel = `${personas} ${frecuencia === 'Semanal' ? 'semanas' : frecuencia === 'Quincenal' ? 'quincenas' : 'meses'}`;
+  const periodoLabel = frecuencia === 'Semanal' ? 'semana' : frecuencia === 'Quincenal' ? 'quincena' : 'mes';
   const cuotaMax = Math.round(cuota * 1.2);
   const cuotaMin = Math.round(cuota * 0.8);
 
@@ -104,402 +102,412 @@ export function ComoFuncionaPage() {
     return 'bg-[var(--border)] text-[var(--muted)]';
   };
 
+  const cuotaDelTurno = turnosCuota[turnoActivo - 1] ?? cuota;
+
   return (
     <main className="flex flex-col">
-        {/* ── 1. HERO ── */}
-        <RevealOnScroll className="order-1 mx-auto w-full max-w-4xl px-4 py-10 text-center md:px-6 md:py-14">
-          <span className="inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
-            ¿Cómo funciona?
-          </span>
-          <h1 className="mt-5 break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl">
-            La junta que siempre hiciste,
-            <br className="hidden md:block" /> ahora sin el drama
-          </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-[17px] leading-relaxed text-[var(--muted)]">
-            Organiza tu grupo de ahorro rotativo en minutos. Elige entre junta normal o con incentivos según la confianza de tu grupo.
-          </p>
-          <a
-            href="#simulador"
-            className="mt-6 inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
+      {/* ── 1. HERO ── */}
+      <RevealOnScroll className="order-1 mx-auto w-full max-w-4xl px-4 py-10 text-center md:px-6 md:py-14">
+        <span className="inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
+          ¿Cómo funciona?
+        </span>
+        <h1 className="mt-5 break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl">
+          La junta que siempre hiciste,
+          <br className="hidden md:block" /> ahora sin el drama
+        </h1>
+        <p className="mx-auto mt-4 max-w-2xl text-[17px] leading-relaxed text-[var(--muted)]">
+          Organiza tu grupo de ahorro rotativo en minutos. Elige entre junta normal o con incentivos según la confianza de tu grupo.
+        </p>
+        <a
+          href="#simulador"
+          className="mt-6 inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
+        >
+          Simular mi junta
+        </a>
+      </RevealOnScroll>
+
+      {/* ── 2. PROCESO ── */}
+      <RevealOnScroll className="order-2 mx-auto w-full max-w-5xl px-4 py-14 md:px-6 md:py-20">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">El proceso</p>
+        <h2 className="mt-2 text-2xl font-bold tracking-tight">4 pasos para empezar</h2>
+
+        <div className="mt-8 grid grid-cols-1 gap-0 md:grid-cols-4 md:gap-5">
+          {[
+            {
+              num: 1,
+              title: 'Crea la junta',
+              body: 'Define nombre, cantidad de integrantes, monto de cuota, frecuencia (semanal / quincenal / mensual) y si será Normal o con Incentivos.',
+              callout: null,
+              last: false,
+            },
+            {
+              num: 2,
+              title: 'Invita a tu grupo',
+              body: 'Comparte un enlace único. Cada integrante se registra y verifica su identidad antes de unirse. Así sabes con quién estás antes de empezar.',
+              callout: null,
+              last: false,
+            },
+            {
+              num: 3,
+              title: 'Todos aportan por su cuenta',
+              body: (
+                <>
+                  Cada integrante paga directamente al receptor del turno o al organizador por{' '}
+                  <strong>Yape, Plin o transferencia bancaria</strong>. La plataforma no mueve ni
+                  retiene dinero — solo registra, envía recordatorios y lleva el control de quién
+                  pagó y quién no.
+                </>
+              ),
+              callout: '⚠️ Los pagos se realizan directamente entre integrantes por Yape, Plin o transferencia. Juntealo no procesa ni retiene dinero.',
+              last: false,
+            },
+            {
+              num: 4,
+              title: 'El turno cobra la bolsa',
+              body: 'Cuando los pagos del período están confirmados, el integrante con el turno activo recibe su bolsa. El ciclo continúa hasta que todos hayan cobrado.',
+              callout: null,
+              last: true,
+            },
+          ].map(({ num, title, body, callout, last }) => (
+            <div key={num} className="flex gap-4 md:block">
+              <div className="flex flex-col items-center">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--dark-1)] text-sm font-bold text-white">
+                  {num}
+                </span>
+                {!last && <div className="mt-2 w-px flex-1 bg-[var(--border)] md:hidden" />}
+              </div>
+              <div className={`${last ? '' : 'pb-8 md:pb-0'} min-w-0 flex-1 pt-1 md:mt-4 md:pt-0`}>
+                <h3 className="text-[15px] font-semibold leading-tight">{title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
+                {callout && (
+                  <div
+                    className="mt-3 rounded-[var(--r-sm)] border p-3 text-sm leading-relaxed"
+                    style={{ background: '#fff8e6', borderColor: '#f0d080', color: '#b37800' }}
+                  >
+                    {callout}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </RevealOnScroll>
+
+      {/* ── 3. TIPOS ── */}
+      <RevealOnScroll className="order-3 mx-auto w-full max-w-4xl px-4 pb-14 md:px-6 md:pb-20">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Tipos de junta</p>
+        <h2 className="mt-2 text-2xl font-bold tracking-tight">Elige el formato que va con tu grupo</h2>
+
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <button
+            onClick={() => setTipoActivo('normal')}
+            className={`rounded-[var(--r)] border-2 bg-[var(--surface)] p-5 text-left transition-all ${
+              tipoActivo === 'normal'
+                ? 'border-[var(--green)] shadow-md'
+                : 'border-[var(--border)] hover:border-[var(--faint)]'
+            }`}
           >
-            Simular mi junta
-          </a>
-        </RevealOnScroll>
+            <span className="text-2xl">🤝</span>
+            <h3 className="mt-3 text-base font-semibold">Junta Normal</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
+              Para grupos con confianza. Todos pagan la misma cuota y reciben la misma bolsa.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {['Turnos automáticos', 'Recordatorios', 'Panel del grupo', 'Score de confianza', 'Sin caos en WhatsApp'].map((f) => (
+                <span
+                  key={f}
+                  className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-2 py-0.5 text-[11px] text-[var(--muted)]"
+                >
+                  {f}
+                </span>
+              ))}
+            </div>
+          </button>
 
-        {/* ── 2. PROCESO ── */}
-        <RevealOnScroll className="order-3 mx-auto w-full max-w-5xl px-4 py-14 md:px-6 md:py-20">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">El proceso</p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight">4 pasos para empezar</h2>
+          <button
+            onClick={() => setTipoActivo('incentivos')}
+            className={`rounded-[var(--r)] border-2 bg-[var(--surface)] p-5 text-left transition-all ${
+              tipoActivo === 'incentivos'
+                ? 'border-[var(--accent)] shadow-md'
+                : 'border-[var(--border)] hover:border-[var(--faint)]'
+            }`}
+          >
+            <span className="text-2xl">🎯</span>
+            <h3 className="mt-3 text-base font-semibold">Junta con Incentivos</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
+              Para grupos mixtos. Quienes reciben el turno antes pagan más; quienes reciben después pagan menos.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {['Todo lo de junta normal', 'Cuotas diferenciadas', 'Sin penalidades', 'Ideal para grupos nuevos'].map((f) => (
+                <span
+                  key={f}
+                  className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-2 py-0.5 text-[11px] text-[var(--muted)]"
+                >
+                  {f}
+                </span>
+              ))}
+            </div>
+          </button>
+        </div>
 
-          <div className="mt-8 grid grid-cols-1 gap-0 md:grid-cols-4 md:gap-5">
+        {/* Detalle expandido */}
+        <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {(tipoActivo === 'normal' ? normalFeatures : incentivosFeatures).map((f) => (
+            <div key={f.title} className="flex gap-3 rounded-[var(--r-sm)] bg-[var(--surface)] p-3">
+              <span
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-lg"
+                style={{ background: f.accentBg }}
+              >
+                {f.icon}
+              </span>
+              <div>
+                <h4 className="text-sm font-semibold leading-snug text-[var(--text)]">{f.title}</h4>
+                <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{f.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </RevealOnScroll>
+
+      {/* ── 4. SIMULADOR ── */}
+      <RevealOnScroll className="order-4 border-y border-[var(--border)] bg-[var(--surface)]">
+        <div id="simulador" className="mx-auto w-full max-w-5xl scroll-mt-20 px-4 py-12 md:px-6 md:py-16">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Simulador</p>
+          <h2 className="mt-2 text-2xl font-bold tracking-tight">Calcula tu junta en segundos</h2>
+
+          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 flex items-center gap-2 text-xs font-semibold text-[var(--text)]">
+                Personas
+                <span className="rounded-full bg-[var(--accent-bg)] px-2 py-0.5 text-[11px] font-bold text-[var(--accent)]">
+                  {personas}
+                </span>
+              </label>
+              <select
+                value={personas}
+                onChange={(e) => setPersonas(+e.target.value)}
+                className="w-full rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              >
+                {Array.from({ length: 17 }, (_, i) => i + 4).map((n) => (
+                  <option key={n} value={n}>{n} personas</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 flex items-center gap-2 text-xs font-semibold text-[var(--text)]">
+                Cuota base
+                <span className="rounded-full bg-[var(--accent-bg)] px-2 py-0.5 text-[11px] font-bold text-[var(--accent)]">
+                  S/ {cuota.toLocaleString('es-PE')}
+                </span>
+              </label>
+              <input
+                type="range"
+                min={20}
+                max={2000}
+                step={10}
+                value={cuota}
+                onChange={(e) => setCuota(+e.target.value)}
+                className="w-full accent-[var(--accent)]"
+              />
+              <div className="mt-1 flex justify-between text-[11px] text-[var(--muted)]">
+                <span>S/ 20</span>
+                <span>S/ 2,000</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-semibold text-[var(--text)]">Frecuencia</label>
+              <select
+                value={frecuencia}
+                onChange={(e) => setFrecuencia(e.target.value as typeof frecuencia)}
+                className="w-full rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              >
+                <option>Semanal</option>
+                <option>Quincenal</option>
+                <option>Mensual</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-semibold text-[var(--text)]">Tipo de junta</label>
+              <div className="flex overflow-hidden rounded-[var(--r-sm)] border border-[var(--border)]">
+                <button
+                  onClick={() => setSimTipo('normal')}
+                  className={`flex-1 py-2 text-sm font-medium transition ${
+                    simTipo === 'normal' ? 'bg-[var(--dark-1)] text-white' : 'bg-[var(--bg)] text-[var(--muted)] hover:bg-[var(--border)]'
+                  }`}
+                >
+                  Normal
+                </button>
+                <button
+                  onClick={() => setSimTipo('incentivos')}
+                  className={`flex-1 py-2 text-sm font-medium transition ${
+                    simTipo === 'incentivos' ? 'bg-[var(--dark-1)] text-white' : 'bg-[var(--bg)] text-[var(--muted)] hover:bg-[var(--border)]'
+                  }`}
+                >
+                  Con Incentivos
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
-              {
-                num: 1,
-                title: 'Crea la junta',
-                body: 'Define nombre, cantidad de integrantes, monto de cuota, frecuencia (semanal / quincenal / mensual) y si será Normal o con Incentivos.',
-                callout: null,
-                last: false,
-              },
-              {
-                num: 2,
-                title: 'Invita a tu grupo',
-                body: 'Comparte un enlace único. Cada integrante se registra y verifica su identidad antes de unirse. Así sabes con quién estás antes de empezar.',
-                callout: null,
-                last: false,
-              },
-              {
-                num: 3,
-                title: 'Todos aportan por su cuenta',
-                body: (
-                  <>
-                    Cada integrante paga directamente al receptor del turno o al organizador por{' '}
-                    <strong>Yape, Plin o transferencia bancaria</strong>. La plataforma no mueve ni
-                    retiene dinero — solo registra, envía recordatorios y lleva el control de quién
-                    pagó y quién no.
-                  </>
-                ),
-                callout: '⚠️ Los pagos se realizan directamente entre integrantes por Yape, Plin o transferencia. Juntealo no procesa ni retiene dinero.',
-                last: false,
-              },
-              {
-                num: 4,
-                title: 'El turno cobra la bolsa',
-                body: 'Cuando los pagos del período están confirmados, el integrante con el turno activo recibe su bolsa. El ciclo continúa hasta que todos hayan cobrado.',
-                callout: null,
-                last: true,
-              },
-            ].map(({ num, title, body, callout, last }) => (
-              <div key={num} className="flex gap-4 md:block">
-                <div className="flex flex-col items-center">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--dark-1)] text-sm font-bold text-white">
-                    {num}
-                  </span>
-                  {!last && <div className="mt-2 w-px flex-1 bg-[var(--border)] md:hidden" />}
-                </div>
-                <div className={`${last ? '' : 'pb-8 md:pb-0'} min-w-0 flex-1 pt-1 md:mt-4 md:pt-0`}>
-                  <h3 className="text-[15px] font-semibold leading-tight">{title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
-                  {callout && (
-                    <div
-                      className="mt-3 rounded-[var(--r-sm)] border p-3 text-sm leading-relaxed"
-                      style={{ background: '#fff8e6', borderColor: '#f0d080', color: '#b37800' }}
-                    >
-                      {callout}
-                    </div>
-                  )}
-                </div>
+              { label: 'Bolsa por turno', value: `S/ ${bolsa.toLocaleString('es-PE')}` },
+              { label: 'Duración del ciclo', value: duracionLabel },
+              simTipo === 'incentivos'
+                ? { label: 'Rango de cuotas', value: `S/ ${cuotaMin} – S/ ${cuotaMax}` }
+                : { label: 'Cuota por período', value: `S/ ${cuota.toLocaleString('es-PE')}` },
+            ].map((item) => (
+              <div key={item.label} className="rounded-[var(--r)] border border-[var(--border)] bg-[var(--bg)] p-4">
+                <p className="text-[11px] uppercase tracking-wider text-[var(--muted)]">{item.label}</p>
+                <p className="mt-1 font-mono text-base font-semibold text-[var(--text)]">{item.value}</p>
               </div>
             ))}
           </div>
-        </RevealOnScroll>
 
-        {/* ── 3. TIPOS ── */}
-        <RevealOnScroll className="order-4 mx-auto w-full max-w-4xl px-4 pb-14 md:px-6 md:pb-20">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Tipos de junta</p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight">Elige el formato que va con tu grupo</h2>
-
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <button
-              onClick={() => setTipoActivo('normal')}
-              className={`rounded-[var(--r)] border-2 bg-[var(--surface)] p-5 text-left transition-all ${
-                tipoActivo === 'normal'
-                  ? 'border-[var(--green)] shadow-md'
-                  : 'border-[var(--border)] hover:border-[var(--faint)]'
-              }`}
-            >
-              <span className="text-2xl">🤝</span>
-              <h3 className="mt-3 text-base font-semibold">Junta Normal</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
-                Para grupos con confianza. Todos pagan la misma cuota y reciben la misma bolsa.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {['Turnos automáticos', 'Recordatorios', 'Panel del grupo', 'Score de confianza', 'Sin caos en WhatsApp'].map((f) => (
+          <div className="mt-6">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Vista de turnos</p>
+              <span className="text-[11px] text-[var(--muted)]">Selecciona tu turno</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: personas }, (_, i) => (
+                <div key={i} className="flex flex-col items-center gap-1">
+                  {simTipo === 'incentivos' && (
+                    <span className="font-mono text-[10px] text-[var(--muted)]">S/{turnosCuota[i]}</span>
+                  )}
                   <span
-                    key={f}
-                    className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-2 py-0.5 text-[11px] text-[var(--muted)]"
+                    onClick={() => setTurnoActivo(i + 1)}
+                    className={`inline-flex cursor-pointer select-none items-center justify-center rounded-full px-3 py-1 text-xs font-semibold transition-opacity hover:opacity-80 ${turnColor(i)}`}
                   >
-                    {f}
+                    T{i + 1}
                   </span>
-                ))}
-              </div>
-            </button>
-
-            <button
-              onClick={() => setTipoActivo('incentivos')}
-              className={`rounded-[var(--r)] border-2 bg-[var(--surface)] p-5 text-left transition-all ${
-                tipoActivo === 'incentivos'
-                  ? 'border-[var(--accent)] shadow-md'
-                  : 'border-[var(--border)] hover:border-[var(--faint)]'
-              }`}
-            >
-              <span className="text-2xl">🎯</span>
-              <h3 className="mt-3 text-base font-semibold">Junta con Incentivos</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
-                Para grupos mixtos. Quienes reciben el turno antes pagan más; quienes reciben después pagan menos.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {['Todo lo de junta normal', 'Cuotas diferenciadas', 'Sin penalidades', 'Ideal para grupos nuevos'].map((f) => (
-                  <span
-                    key={f}
-                    className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-2 py-0.5 text-[11px] text-[var(--muted)]"
-                  >
-                    {f}
-                  </span>
-                ))}
-              </div>
-            </button>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-4 text-[11px] text-[var(--muted)]">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 rounded-full bg-[var(--dark-1)]" />
+                Turno activo
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 rounded-full bg-[var(--green)]" />
+                Ya cobró
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 rounded-full bg-[var(--border)]" />
+                Pendiente
+              </span>
+            </div>
           </div>
 
-          {/* Detalle expandido */}
-          {tipoActivo === 'normal' ? (
-            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {normalFeatures.map((f) => (
-                <div key={f.title} className="flex gap-3 rounded-[var(--r-sm)] bg-[var(--surface)] p-3">
-                  <span className="text-lg">{f.icon}</span>
-                  <div>
-                    <h4 className="text-sm font-semibold">{f.title}</h4>
-                    <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{f.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {incentivosFeatures.map((f) => (
-                <div
-                  key={f.title}
-                  className="flex gap-3 rounded-[var(--r-sm)] bg-[var(--surface)] p-3"
-                >
-                  <span
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-lg"
-                    style={{ background: f.accentBg }}
-                  >
-                    {f.icon}
-                  </span>
-                  <div>
-                    <h4 className="text-sm font-semibold leading-snug text-[var(--text)]">{f.title}</h4>
-                    <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{f.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </RevealOnScroll>
+          {/* Resultado del turno seleccionado */}
+          <div className="mt-5 rounded-[var(--r)] border border-[var(--accent)] bg-[var(--accent-bg)] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--accent)]">
+              Turno {turnoActivo} seleccionado
+            </p>
+            <p className="mt-1 text-sm text-[var(--text)]">
+              Cobras{' '}
+              <span className="font-mono font-semibold">S/ {bolsa.toLocaleString('es-PE')}</span>{' '}
+              en la {periodoLabel} {turnoActivo} del ciclo.
+              {simTipo === 'incentivos' && (
+                <> Tu cuota durante todo el ciclo será{' '}
+                  <span className="font-mono font-semibold">S/ {cuotaDelTurno.toLocaleString('es-PE')}</span>{' '}
+                  por {periodoLabel}.
+                </>
+              )}
+            </p>
+          </div>
 
-        {/* ── 4. SIMULADOR ── */}
-        <RevealOnScroll className="order-2 border-y border-[var(--border)] bg-[var(--surface)]" >
-          <div id="simulador" className="mx-auto w-full max-w-5xl scroll-mt-20 px-4 py-12 md:px-6 md:py-16">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Simulador</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight">Calcula tu junta en segundos</h2>
+          <div className="mt-5 flex justify-end">
+            <Link
+              href="/register"
+              className="inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
+            >
+              Crear esta junta →
+            </Link>
+          </div>
+        </div>
+      </RevealOnScroll>
 
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <label className="mb-2 flex items-center gap-2 text-xs font-semibold text-[var(--text)]">
-                  Personas
-                  <span className="rounded-full bg-[var(--accent-bg)] px-2 py-0.5 text-[11px] font-bold text-[var(--accent)]">
-                    {personas}
-                  </span>
-                </label>
-                <select
-                  value={personas}
-                  onChange={(e) => setPersonas(+e.target.value)}
-                  className="w-full rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                >
-                  {Array.from({ length: 17 }, (_, i) => i + 4).map((n) => (
-                    <option key={n} value={n}>{n} personas</option>
-                  ))}
-                </select>
-              </div>
+      {/* ── 5. FAQ ── */}
+      <RevealOnScroll className="order-5 mx-auto w-full max-w-3xl px-4 py-14 md:px-6 md:py-20">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Preguntas frecuentes</p>
+        <h2 className="mt-2 text-2xl font-bold tracking-tight">Lo que siempre preguntan</h2>
 
-              <div>
-                <label className="mb-2 flex items-center gap-2 text-xs font-semibold text-[var(--text)]">
-                  Cuota base
-                  <span className="rounded-full bg-[var(--accent-bg)] px-2 py-0.5 text-[11px] font-bold text-[var(--accent)]">
-                    S/ {cuota.toLocaleString('es-PE')}
-                  </span>
-                </label>
-                <input
-                  type="range"
-                  min={20}
-                  max={2000}
-                  step={10}
-                  value={cuota}
-                  onChange={(e) => setCuota(+e.target.value)}
-                  className="w-full accent-[var(--accent)]"
+        <div className="mt-6 divide-y divide-[var(--border)]">
+          {faqs.map((faq, i) => (
+            <div key={i}>
+              <button
+                onClick={() => setFaqOpen(faqOpen === i ? null : i)}
+                className="flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-semibold text-[var(--text)] transition-colors hover:text-[var(--accent)]"
+              >
+                <span>{faq.q}</span>
+                <ChevronDown
+                  size={16}
+                  className="shrink-0 text-[var(--muted)] transition-transform duration-200"
+                  style={{ transform: faqOpen === i ? 'rotate(180deg)' : 'rotate(0deg)' }}
                 />
-                <div className="mt-1 flex justify-between text-[11px] text-[var(--muted)]">
-                  <span>S/ 20</span>
-                  <span>S/ 2,000</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-xs font-semibold text-[var(--text)]">Frecuencia</label>
-                <select
-                  value={frecuencia}
-                  onChange={(e) => setFrecuencia(e.target.value as typeof frecuencia)}
-                  className="w-full rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                >
-                  <option>Semanal</option>
-                  <option>Quincenal</option>
-                  <option>Mensual</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-xs font-semibold text-[var(--text)]">Tipo de junta</label>
-                <div className="flex overflow-hidden rounded-[var(--r-sm)] border border-[var(--border)]">
-                  <button
-                    onClick={() => setSimTipo('normal')}
-                    className={`flex-1 py-2 text-sm font-medium transition ${
-                      simTipo === 'normal' ? 'bg-[var(--dark-1)] text-white' : 'bg-[var(--bg)] text-[var(--muted)] hover:bg-[var(--border)]'
-                    }`}
-                  >
-                    Normal
-                  </button>
-                  <button
-                    onClick={() => setSimTipo('incentivos')}
-                    className={`flex-1 py-2 text-sm font-medium transition ${
-                      simTipo === 'incentivos' ? 'bg-[var(--dark-1)] text-white' : 'bg-[var(--bg)] text-[var(--muted)] hover:bg-[var(--border)]'
-                    }`}
-                  >
-                    Con Incentivos
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {[
-                { label: 'Bolsa por turno', value: `S/ ${bolsa.toLocaleString('es-PE')}` },
-                { label: 'Duración del ciclo', value: duracionLabel },
-                simTipo === 'incentivos'
-                  ? { label: 'Rango de cuotas', value: `S/ ${cuotaMin} – S/ ${cuotaMax}` }
-                  : { label: 'Cuota por período', value: `S/ ${cuota.toLocaleString('es-PE')}` },
-              ].map((item) => (
-                <div key={item.label} className="rounded-[var(--r)] border border-[var(--border)] bg-[var(--bg)] p-4">
-                  <p className="text-[11px] uppercase tracking-wider text-[var(--muted)]">{item.label}</p>
-                  <p className="mt-1 font-mono text-base font-semibold text-[var(--text)]">{item.value}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Vista de turnos</p>
-                <span className="text-[11px] text-[var(--muted)]">Toca un turno para simular</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {Array.from({ length: personas }, (_, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1">
-                    {simTipo === 'incentivos' && (
-                      <span className="font-mono text-[10px] text-[var(--muted)]">S/{turnosCuota[i]}</span>
-                    )}
-                    <span
-                      onClick={() => setTurnoActivo(i + 1)}
-                      className={`inline-flex cursor-pointer select-none items-center justify-center rounded-full px-3 py-1 text-xs font-semibold transition-opacity hover:opacity-80 ${turnColor(i)}`}
-                    >
-                      T{i + 1}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-4 text-[11px] text-[var(--muted)]">
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block h-2 w-2 rounded-full bg-[var(--dark-1)]" />
-                  Turno activo
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block h-2 w-2 rounded-full bg-[var(--green)]" />
-                  Ya cobró
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block h-2 w-2 rounded-full bg-[var(--border)]" />
-                  Pendiente
-                </span>
-              </div>
-            </div>
-          </div>
-        </RevealOnScroll>
-
-        {/* ── 5. FAQ ── */}
-        <RevealOnScroll className="order-5 mx-auto w-full max-w-3xl px-4 py-14 md:px-6 md:py-20">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Preguntas frecuentes</p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight">Lo que siempre preguntan</h2>
-
-          <div className="mt-6 divide-y divide-[var(--border)]">
-            {faqs.map((faq, i) => (
-              <div key={i}>
-                <button
-                  onClick={() => setFaqOpen(faqOpen === i ? null : i)}
-                  className="flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-semibold text-[var(--text)] transition-colors hover:text-[var(--accent)]"
-                >
-                  <span>{faq.q}</span>
-                  <span
-                    className="shrink-0 text-[var(--muted)] transition-transform duration-200"
-                    style={{ transform: faqOpen === i ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                  >
-                    ▾
-                  </span>
-                </button>
-                <div
-                  style={{
-                    overflow: 'hidden',
-                    maxHeight: faqOpen === i ? '300px' : '0',
-                    transition: 'max-height 0.25s ease',
-                  }}
-                >
+              </button>
+              <div
+                className="grid transition-[grid-template-rows] duration-200 ease-out"
+                style={{ gridTemplateRows: faqOpen === i ? '1fr' : '0fr' }}
+              >
+                <div className="min-h-0 overflow-hidden">
                   <p className="pb-4 text-sm leading-relaxed text-[var(--muted)]">{faq.a}</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </RevealOnScroll>
+            </div>
+          ))}
+        </div>
+      </RevealOnScroll>
 
-        {/* ── 6. GANCHO EMBAJADOR ── */}
-        <RevealOnScroll className="order-6 border-y border-[var(--border)] bg-[var(--surface)]">
-          <div className="mx-auto w-full max-w-4xl px-4 py-14 md:px-6 md:py-20">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">¿Ya lideras un grupo así?</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight">
-              Conviértete en embajador y gana por ayudar a otros a digitalizar su junta
-            </h2>
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
-              Si organizas o conoces grupos que llevan su junta en WhatsApp y una libreta, puedes ayudarles a pasarse a Juntealo y ganar por cada usuario activo que sumes.
-            </p>
-            <Link
-              href="/embajador"
-              className="mt-6 inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
-            >
-              Conocer el programa de embajadores →
-            </Link>
-          </div>
-        </RevealOnScroll>
+      {/* ── 6. GANCHO EMBAJADOR ── */}
+      <RevealOnScroll className="order-6 border-y border-[var(--border)] bg-[var(--surface)]">
+        <div className="mx-auto w-full max-w-4xl px-4 py-14 md:px-6 md:py-20">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">¿Ya lideras un grupo así?</p>
+          <h2 className="mt-2 text-2xl font-bold tracking-tight">
+            Conviértete en embajador y gana por ayudar a otros a digitalizar su junta
+          </h2>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
+            Si organizas o conoces grupos que llevan su junta en WhatsApp y una libreta, puedes ayudarles a pasarse a Juntealo y ganar por cada usuario activo que sumes.
+          </p>
+          <Link
+            href="/embajador"
+            className="mt-6 inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
+          >
+            Conocer el programa de embajadores →
+          </Link>
+        </div>
+      </RevealOnScroll>
 
-        {/* ── 7. CTA FINAL ── */}
-        <section className="order-7 bg-[var(--dark-1)]">
-          <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center md:py-[72px]">
-            <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-              ¿Listo para tu primera junta digital?
-            </h2>
-            <p className="mt-3 text-sm text-[var(--dark-text)] md:text-base">
-              Gratis, sin app, sin burocracia. Tu grupo empieza hoy.
-            </p>
-            <Link
-              href="/register"
-              className="mt-6 inline-flex rounded-[var(--r-sm)] bg-white px-5 py-3 text-sm font-semibold text-[var(--dark-1)] transition hover:bg-[var(--faint)]"
+      {/* ── 7. CTA FINAL ── */}
+      <section className="order-7 bg-[var(--dark-1)]">
+        <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center md:py-[72px]">
+          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
+            ¿Listo para tu primera junta digital?
+          </h2>
+          <p className="mt-3 text-sm text-[var(--dark-text)] md:text-base">
+            Gratis, sin app, sin burocracia. Tu grupo empieza hoy.
+          </p>
+          <Link
+            href="/register"
+            className="mt-6 inline-flex rounded-[var(--r-sm)] bg-white px-5 py-3 text-sm font-semibold text-[var(--dark-1)] transition hover:bg-[var(--faint)]"
+          >
+            Crear mi junta →
+          </Link>
+          <p className="mt-4">
+            <a
+              href="mailto:hola@juntealo.com"
+              className="text-sm text-[var(--dark-muted)] transition-colors hover:text-white hover:underline hover:underline-offset-2"
             >
-              Crear mi junta →
-            </Link>
-            <p className="mt-4">
-              <a
-                href="mailto:hola@juntealo.com"
-                className="text-sm text-[var(--dark-muted)] transition-colors hover:text-white hover:underline hover:underline-offset-2"
-              >
-                ¿Tienes dudas? Habla con nosotros
-              </a>
-            </p>
-          </div>
-        </section>
+              ¿Tienes dudas? Habla con nosotros
+            </a>
+          </p>
+        </div>
+      </section>
     </main>
   );
 }
