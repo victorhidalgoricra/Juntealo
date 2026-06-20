@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { RevealOnScroll } from './reveal';
 
 const steps = [
@@ -44,6 +46,15 @@ export function HowItWorksSection() {
             </p>
           </article>
         ))}
+      </div>
+
+      <div className="mt-6 flex justify-center">
+        <Link
+          href="/como-funciona"
+          className="inline-flex rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--accent-bg)]"
+        >
+          Ver el detalle completo →
+        </Link>
       </div>
     </RevealOnScroll>
   );
