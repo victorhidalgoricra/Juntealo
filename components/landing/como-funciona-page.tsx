@@ -105,9 +105,9 @@ export function ComoFuncionaPage() {
   };
 
   return (
-    <main>
+    <main className="flex flex-col">
         {/* ── 1. HERO ── */}
-        <RevealOnScroll className="mx-auto w-full max-w-4xl px-4 py-14 text-center md:px-6 md:py-20">
+        <RevealOnScroll className="order-1 mx-auto w-full max-w-4xl px-4 py-10 text-center md:px-6 md:py-14">
           <span className="inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
             ¿Cómo funciona?
           </span>
@@ -118,14 +118,20 @@ export function ComoFuncionaPage() {
           <p className="mx-auto mt-4 max-w-2xl text-[17px] leading-relaxed text-[var(--muted)]">
             Organiza tu grupo de ahorro rotativo en minutos. Elige entre junta normal o con incentivos según la confianza de tu grupo.
           </p>
+          <a
+            href="#simulador"
+            className="mt-6 inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
+          >
+            Simular mi junta
+          </a>
         </RevealOnScroll>
 
         {/* ── 2. PROCESO ── */}
-        <RevealOnScroll className="mx-auto w-full max-w-3xl px-4 pb-14 md:px-6 md:pb-20">
+        <RevealOnScroll className="order-3 mx-auto w-full max-w-5xl px-4 py-14 md:px-6 md:py-20">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">El proceso</p>
           <h2 className="mt-2 text-2xl font-bold tracking-tight">4 pasos para empezar</h2>
 
-          <div className="mt-8 space-y-0">
+          <div className="mt-8 grid grid-cols-1 gap-0 md:grid-cols-4 md:gap-5">
             {[
               {
                 num: 1,
@@ -163,14 +169,14 @@ export function ComoFuncionaPage() {
                 last: true,
               },
             ].map(({ num, title, body, callout, last }) => (
-              <div key={num} className="flex gap-4">
+              <div key={num} className="flex gap-4 md:block">
                 <div className="flex flex-col items-center">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--dark-1)] text-sm font-bold text-white">
                     {num}
                   </span>
-                  {!last && <div className="mt-2 flex-1 w-px bg-[var(--border)]" />}
+                  {!last && <div className="mt-2 w-px flex-1 bg-[var(--border)] md:hidden" />}
                 </div>
-                <div className={`${last ? '' : 'pb-8'} pt-1 min-w-0 flex-1`}>
+                <div className={`${last ? '' : 'pb-8 md:pb-0'} min-w-0 flex-1 pt-1 md:mt-4 md:pt-0`}>
                   <h3 className="text-[15px] font-semibold leading-tight">{title}</h3>
                   <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
                   {callout && (
@@ -188,7 +194,7 @@ export function ComoFuncionaPage() {
         </RevealOnScroll>
 
         {/* ── 3. TIPOS ── */}
-        <RevealOnScroll className="mx-auto w-full max-w-4xl px-4 pb-14 md:px-6 md:pb-20">
+        <RevealOnScroll className="order-4 mx-auto w-full max-w-4xl px-4 pb-14 md:px-6 md:pb-20">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Tipos de junta</p>
           <h2 className="mt-2 text-2xl font-bold tracking-tight">Elige el formato que va con tu grupo</h2>
 
@@ -246,32 +252,34 @@ export function ComoFuncionaPage() {
 
           {/* Detalle expandido */}
           {tipoActivo === 'normal' ? (
-            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {normalFeatures.map((f) => (
-                <div key={f.title} className="rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-4">
-                  <span className="text-xl">{f.icon}</span>
-                  <h4 className="mt-2 text-sm font-semibold">{f.title}</h4>
-                  <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{f.desc}</p>
+                <div key={f.title} className="flex gap-3 rounded-[var(--r-sm)] bg-[var(--surface)] p-3">
+                  <span className="text-lg">{f.icon}</span>
+                  <div>
+                    <h4 className="text-sm font-semibold">{f.title}</h4>
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{f.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {incentivosFeatures.map((f) => (
                 <div
                   key={f.title}
-                  className="group rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-5 transition-shadow hover:shadow-sm"
+                  className="flex gap-3 rounded-[var(--r-sm)] bg-[var(--surface)] p-3"
                 >
                   <span
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-xl"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-lg"
                     style={{ background: f.accentBg }}
                   >
                     {f.icon}
                   </span>
-                  <h4 className="mt-3 text-sm font-bold leading-snug tracking-tight text-[var(--text)]">
-                    {f.title}
-                  </h4>
-                  <p className="mt-1.5 text-xs leading-relaxed text-[var(--muted)]">{f.desc}</p>
+                  <div>
+                    <h4 className="text-sm font-semibold leading-snug text-[var(--text)]">{f.title}</h4>
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{f.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -279,8 +287,8 @@ export function ComoFuncionaPage() {
         </RevealOnScroll>
 
         {/* ── 4. SIMULADOR ── */}
-        <RevealOnScroll className="border-y border-[var(--border)] bg-[var(--surface)]">
-          <div className="mx-auto w-full max-w-4xl px-4 py-14 md:px-6 md:py-20">
+        <RevealOnScroll className="order-2 border-y border-[var(--border)] bg-[var(--surface)]" >
+          <div id="simulador" className="mx-auto w-full max-w-5xl scroll-mt-20 px-4 py-12 md:px-6 md:py-16">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Simulador</p>
             <h2 className="mt-2 text-2xl font-bold tracking-tight">Calcula tu junta en segundos</h2>
 
@@ -415,7 +423,7 @@ export function ComoFuncionaPage() {
         </RevealOnScroll>
 
         {/* ── 5. FAQ ── */}
-        <RevealOnScroll className="mx-auto w-full max-w-3xl px-4 py-14 md:px-6 md:py-20">
+        <RevealOnScroll className="order-5 mx-auto w-full max-w-3xl px-4 py-14 md:px-6 md:py-20">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Preguntas frecuentes</p>
           <h2 className="mt-2 text-2xl font-bold tracking-tight">Lo que siempre preguntan</h2>
 
@@ -449,7 +457,7 @@ export function ComoFuncionaPage() {
         </RevealOnScroll>
 
         {/* ── 6. CTA FINAL ── */}
-        <section className="bg-[var(--dark-1)]">
+        <section className="order-6 bg-[var(--dark-1)]">
           <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center md:py-[72px]">
             <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
               ¿Listo para tu primera junta digital?
