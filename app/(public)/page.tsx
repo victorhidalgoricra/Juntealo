@@ -13,8 +13,8 @@ export default function HomePage() {
       <HowItWorksSection />
       <FeaturesGrid />
       <ExploreJuntasSection />
-      <SocialProofSection />
       <AmbassadorHomeSection />
+      <SocialProofSection />
       <FinalCTASection />
     </>
   );
