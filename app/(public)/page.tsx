@@ -11,10 +11,10 @@ export default function HomePage() {
     <>
       <LandingHero />
       <HowItWorksSection />
+      <AmbassadorInviteSection />
       <FeaturesGrid />
       <ExploreJuntasSection />
       <SocialProofSection />
-      <AmbassadorInviteSection />
       <FinalCTASection />
     </>
   );
