@@ -12,13 +12,13 @@ export function AmbassadorHero() {
         </p>
 
         <h1 className="break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl md:tracking-[-1.5px]">
-          ¿Ya organizas juntas con tu comunidad?{' '}
-          <span className="text-[var(--accent)]">Hazla crecer con Juntealo.</span>
+          Haz crecer tu comunidad.{' '}
+          <span className="text-[var(--accent)]">Crece con Juntealo.</span>
         </h1>
 
         <p className="max-w-xl text-[17px] leading-relaxed text-[var(--muted)]">
-          Organiza sus juntas de forma más simple y transparente, acompaña a tu comunidad y
-          crece como embajador a medida que generas un mayor impacto.
+          Recomienda una forma más simple y transparente de organizar juntas. Acompaña a tu
+          comunidad y avanza dentro del programa a medida que generas un mayor impacto.
         </p>
 
         <div className="flex flex-wrap gap-3">
