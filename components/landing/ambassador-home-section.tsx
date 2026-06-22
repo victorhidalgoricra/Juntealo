@@ -27,22 +27,22 @@ export function AmbassadorHomeSection() {
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
           Programa de Embajadores
         </p>
-        <div className="mt-2 md:flex md:items-end md:justify-between md:gap-8">
-          <div>
+        <div className="mt-2">
+          <div className="space-y-4">
             <h2 className="text-3xl font-bold tracking-tight text-[var(--text)]">
               ¿Ya organizas juntas con tu comunidad?
             </h2>
-            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-[var(--muted)]">
+            <p className="max-w-xl text-[15px] leading-relaxed text-[var(--muted)]">
               Conviértete en embajador. Ayuda a más grupos a organizarse mejor y avanza dentro
               del programa mientras tu impacto crece.
             </p>
+            <Link
+              href="/embajador"
+              className="inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
+            >
+              Conoce el programa →
+            </Link>
           </div>
-          <Link
-            href="/embajador"
-            className="mt-4 inline-flex shrink-0 rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)] md:mt-0"
-          >
-            Conoce el programa →
-          </Link>
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">

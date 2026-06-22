@@ -48,12 +48,12 @@ export function HowItWorksSection() {
         ))}
       </div>
 
-      <div className="mt-4 flex justify-stretch -mb-4 sm:justify-end md:-mb-6">
+      <div className="mt-6 flex justify-stretch sm:justify-start">
         <Link
           href="/como-funciona"
           className="inline-flex w-full justify-center rounded-[var(--r-sm)] bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)] sm:w-auto"
         >
-          Ver el detalle completo →
+          Ver cómo funciona →
         </Link>
       </div>
     </RevealOnScroll>
