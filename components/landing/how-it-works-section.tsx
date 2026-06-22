@@ -33,7 +33,7 @@ export function HowItWorksSection() {
       <div className="mt-5 flex justify-stretch sm:justify-start">
         <Link
           href="/como-funciona"
-          className="inline-flex w-full justify-center rounded-[var(--r-sm)] bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)] sm:w-auto"
+          className="inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
         >
           Ver cómo funciona →
         </Link>
