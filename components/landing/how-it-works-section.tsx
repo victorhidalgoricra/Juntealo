@@ -48,10 +48,10 @@ export function HowItWorksSection() {
         ))}
       </div>
 
-      <div className="mt-6 flex justify-center">
+      <div className="mt-4 flex justify-stretch -mb-4 sm:justify-end md:-mb-6">
         <Link
           href="/como-funciona"
-          className="inline-flex rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--accent-bg)]"
+          className="inline-flex w-full justify-center rounded-[var(--r-sm)] bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)] sm:w-auto"
         >
           Ver el detalle completo →
         </Link>
