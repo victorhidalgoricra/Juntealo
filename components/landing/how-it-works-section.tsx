@@ -26,6 +26,18 @@ export function HowItWorksSection() {
     <RevealOnScroll className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-14">
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Así funciona</p>
       <h2 className="mt-2 text-3xl font-bold tracking-tight text-[var(--text)]">De la idea al cobro en 4 pasos</h2>
+      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
+        Conoce cómo se crea una junta, se organizan los aportes y se completa cada turno desde un solo lugar.
+      </p>
+
+      <div className="mt-5 flex justify-stretch sm:justify-start">
+        <Link
+          href="/como-funciona"
+          className="inline-flex w-full justify-center rounded-[var(--r-sm)] bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)] sm:w-auto"
+        >
+          Ver cómo funciona →
+        </Link>
+      </div>
 
       <div className="relative mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6 md:before:absolute md:before:left-10 md:before:right-10 md:before:top-7 md:before:h-px md:before:bg-[var(--border)] md:before:content-['']">
         {steps.map((step, index) => (
@@ -46,15 +58,6 @@ export function HowItWorksSection() {
             </p>
           </article>
         ))}
-      </div>
-
-      <div className="mt-6 flex justify-stretch sm:justify-start">
-        <Link
-          href="/como-funciona"
-          className="inline-flex w-full justify-center rounded-[var(--r-sm)] bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)] sm:w-auto"
-        >
-          Ver cómo funciona →
-        </Link>
       </div>
     </RevealOnScroll>
   );
