@@ -39,7 +39,7 @@ export function AmbassadorHomeSection() {
           </div>
           <Link
             href="/embajador"
-            className="mt-4 inline-flex shrink-0 items-center gap-2 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--bg)] px-5 py-3 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--accent-bg)] hover:border-[var(--accent)] hover:text-[var(--accent)] md:mt-0"
+            className="mt-4 inline-flex shrink-0 rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)] md:mt-0"
           >
             Conoce el programa →
           </Link>
