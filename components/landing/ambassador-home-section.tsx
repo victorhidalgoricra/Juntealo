@@ -45,11 +45,11 @@ export function AmbassadorHomeSection() {
           </Link>
         </div>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
           {pillars.map(({ Icon, title, description }) => (
             <article
               key={title}
-              className="rounded-[var(--r)] border border-[var(--border)] bg-[var(--bg)] p-5"
+              className="rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-5"
             >
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--r-sm)] bg-[var(--accent-bg)]">
                 <Icon size={18} className="text-[var(--accent)]" aria-hidden="true" />
