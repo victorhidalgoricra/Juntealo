@@ -8,10 +8,10 @@ export function AmbassadorInviteSection() {
       <div className="rounded-[var(--r)] border border-[var(--border)] bg-[var(--accent-bg)] px-5 py-5 md:flex md:items-center md:justify-between md:gap-8 md:px-6">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-[var(--text)] md:text-2xl">
-            ¿Siempre eres tú quien arma el grupo?
+            ¿Ya organizas juntas con tu comunidad?
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--muted)] md:text-[15px]">
-            Convierte esa iniciativa en impacto ayudando a más personas a organizar sus juntas.
+            Organiza todo más fácil y hazla crecer con Juntealo.
           </p>
         </div>
 
