@@ -10,7 +10,7 @@ const publicJuntas = [
 
 export function ExploreJuntasSection() {
   return (
-    <RevealOnScroll className="border-y border-[var(--border)] bg-[var(--surface)]">
+    <RevealOnScroll className="border-t border-[var(--border)] bg-[var(--surface)]">
       <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 md:grid-cols-2 md:px-6 md:py-14">
         <div className="space-y-4">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Explorar sin registrarse</p>

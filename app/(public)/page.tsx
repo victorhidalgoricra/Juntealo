@@ -1,4 +1,5 @@
 import { ExploreJuntasSection } from '@/components/landing/explore-juntas-section';
+import { AmbassadorHomeSection } from '@/components/landing/ambassador-home-section';
 import { FeaturesGrid } from '@/components/landing/features-grid';
 import { FinalCTASection } from '@/components/landing/final-cta-section';
 import { HowItWorksSection } from '@/components/landing/how-it-works-section';
@@ -12,6 +13,7 @@ export default function HomePage() {
       <HowItWorksSection />
       <FeaturesGrid />
       <ExploreJuntasSection />
+      <AmbassadorHomeSection />
       <SocialProofSection />
       <FinalCTASection />
     </>
