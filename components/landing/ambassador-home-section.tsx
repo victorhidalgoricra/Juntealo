@@ -22,7 +22,7 @@ const pillars = [
 
 export function AmbassadorHomeSection() {
   return (
-    <RevealOnScroll className="border-y border-[var(--border)] bg-[var(--surface)]">
+    <RevealOnScroll className="border-b border-[var(--border)] bg-[var(--surface)]">
       <div className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-14">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
           Programa de Embajadores
