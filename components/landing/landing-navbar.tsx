@@ -9,9 +9,9 @@ import { cn } from '@/lib/utils';
 
 const navLinks = [
   { href: '/', label: 'Inicio' },
+  { href: '/explorar', label: 'Explorar juntas' },
   { href: '/como-funciona', label: '¿Cómo funciona?' },
   { href: '/beneficios', label: 'Beneficios' },
-  { href: '/explorar', label: 'Explorar juntas' },
   { href: '/embajador', label: 'Embajador' },
 ];
 

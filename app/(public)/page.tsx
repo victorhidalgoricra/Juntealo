@@ -11,8 +11,8 @@ export default function HomePage() {
     <>
       <LandingHero />
       <HowItWorksSection />
-      <FeaturesGrid />
       <ExploreJuntasSection />
+      <FeaturesGrid />
       <AmbassadorHomeSection />
       <SocialProofSection />
       <FinalCTASection />

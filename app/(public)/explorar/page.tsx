@@ -113,7 +113,7 @@ export default function ExplorarPage() {
     <div>
       {/* Hero */}
       <div className="border-b border-[var(--border)] bg-[var(--accent-bg)]">
-        <div className="mx-auto max-w-5xl px-4 py-10 md:px-6 md:py-14">
+        <div className="mx-auto max-w-6xl px-4 py-10 md:px-6 md:py-14">
           <p className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
             <Zap className="h-3.5 w-3.5" />
             Juntas públicas
@@ -142,7 +142,7 @@ export default function ExplorarPage() {
       </div>
 
       {/* Content */}
-      <div className="mx-auto max-w-5xl px-4 py-8 md:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
         {loading && (
           <div className="grid gap-4 md:grid-cols-2">
             {[1, 2, 3, 4].map((i) => (
@@ -172,7 +172,7 @@ export default function ExplorarPage() {
         )}
 
         {!loading && !error && juntas.length > 0 && (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {juntas.map((j) => {
               const isOwner = Boolean(user?.id) && j.admin_id === user?.id;
               const integrantesBase = Number(j.integrantes_actuales ?? 0);
@@ -244,6 +244,26 @@ export default function ExplorarPage() {
           </div>
         )}
       </div>
+
+      {/* Footer CTA */}
+      {!loading && !error && (
+        <div className="border-t border-[var(--border)] bg-[var(--dark-1)]">
+          <div className="mx-auto max-w-6xl px-4 py-14 text-center md:px-6">
+            <h2 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
+              ¿Preferís armar tu propio grupo?
+            </h2>
+            <p className="mt-2 text-sm text-[var(--dark-text)]">
+              Creá tu junta gratis, invitá a tu gente y empezá hoy.
+            </p>
+            <Link
+              href="/register"
+              className="mt-6 inline-flex rounded-[var(--r-sm)] bg-white px-5 py-3 text-sm font-semibold text-[var(--dark-1)] transition hover:bg-[var(--faint)]"
+            >
+              Crear mi junta gratis →
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
