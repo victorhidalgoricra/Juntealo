@@ -1,6 +1,4 @@
 import Link from 'next/link';
-import { MoneyIllustration } from './money-illustration';
-import { CommunityIllustration } from './community-illustration';
 
 export function DualPathSelector() {
   return (
@@ -9,7 +7,6 @@ export function DualPathSelector() {
 
         {/* --- tarjeta dinero --- */}
         <div className="group flex flex-col gap-5 rounded-[var(--r)] border-2 border-[var(--accent)] bg-[var(--accent-bg)] p-6 transition-shadow duration-200 hover:shadow-[var(--shadow-lg)]">
-          <MoneyIllustration className="h-20 w-20 motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105" />
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Para ti</p>
             <h2 className="mt-1 text-xl font-bold text-[var(--text)]">
@@ -29,7 +26,6 @@ export function DualPathSelector() {
 
         {/* --- tarjeta embajador --- */}
         <div className="group flex flex-col gap-5 rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-6 transition-[border-color,box-shadow] duration-200 hover:border-[var(--accent)] hover:shadow-[var(--shadow)]">
-          <CommunityIllustration className="h-20 w-20 motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105" />
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">Para organizadores</p>
             <h2 className="mt-1 text-xl font-bold text-[var(--text)]">
