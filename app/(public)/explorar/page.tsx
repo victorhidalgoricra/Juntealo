@@ -12,11 +12,26 @@ import { saveExploreJoinIntent } from '@/lib/explore-join-intent';
 import { JuntaAvatar } from '@/components/junta-avatar';
 import { Users, Zap } from 'lucide-react';
 
+type FiltroFrecuencia = 'todas' | 'semanal' | 'quincenal' | 'mensual';
+
 const frecuenciaCopy: Record<string, string> = {
   semanal: 'semana',
   quincenal: '15 días',
   mensual: 'mes',
 };
+
+const frecuenciaLabel: Record<string, string> = {
+  semanal: 'Semanal',
+  quincenal: 'Quincenal',
+  mensual: 'Mensual',
+};
+
+const filtros: { value: FiltroFrecuencia; label: string }[] = [
+  { value: 'todas', label: 'Todas' },
+  { value: 'semanal', label: 'Semanal' },
+  { value: 'quincenal', label: 'Quincenal' },
+  { value: 'mensual', label: 'Mensual' },
+];
 
 export default function ExplorarPage() {
   const router = useRouter();
@@ -26,6 +41,7 @@ export default function ExplorarPage() {
   const [juntas, setJuntas] = useState<Junta[]>([]);
   const [memberJuntaIds, setMemberJuntaIds] = useState<string[]>([]);
   const [membershipLoading, setMembershipLoading] = useState(false);
+  const [filtroFrecuencia, setFiltroFrecuencia] = useState<FiltroFrecuencia>('todas');
 
   useEffect(() => {
     let mounted = true;
@@ -93,6 +109,11 @@ export default function ExplorarPage() {
     return { openCount, totalCupos };
   }, [juntas]);
 
+  const juntasFiltradas = useMemo(() => {
+    if (filtroFrecuencia === 'todas') return juntas;
+    return juntas.filter((j) => j.frecuencia_pago === filtroFrecuencia);
+  }, [juntas, filtroFrecuencia]);
+
   const resolveIsStarted = (junta: Junta) => junta.estado === 'activa';
 
   const handleJoinClick = (junta: Junta, options: { disabled: boolean; isMember: boolean }) => {
@@ -143,10 +164,30 @@ export default function ExplorarPage() {
 
       {/* Content */}
       <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
+
+        {/* Filtros */}
+        {!loading && !error && juntas.length > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {filtros.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setFiltroFrecuencia(value)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  filtroFrecuencia === value
+                    ? 'bg-[var(--accent)] text-white'
+                    : 'border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--accent-bg)]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {loading && (
-          <div className="grid gap-4 md:grid-cols-2">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-52 animate-pulse rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)]" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-64 animate-pulse rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)]" />
             ))}
           </div>
         )}
@@ -171,9 +212,24 @@ export default function ExplorarPage() {
           </div>
         )}
 
-        {!loading && !error && juntas.length > 0 && (
+        {!loading && !error && juntas.length > 0 && juntasFiltradas.length === 0 && (
+          <div className="rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-10 text-center">
+            <p className="font-semibold text-[var(--text)]">
+              No hay juntas {frecuenciaLabel[filtroFrecuencia]?.toLowerCase()}s disponibles.
+            </p>
+            <p className="mt-1 text-sm text-[var(--muted)]">Prueba con otra frecuencia.</p>
+            <button
+              onClick={() => setFiltroFrecuencia('todas')}
+              className="mt-4 text-sm font-semibold text-[var(--accent)] hover:underline"
+            >
+              Ver todas las juntas
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && juntasFiltradas.length > 0 && (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {juntas.map((j) => {
+            {juntasFiltradas.map((j) => {
               const isOwner = Boolean(user?.id) && j.admin_id === user?.id;
               const integrantesBase = Number(j.integrantes_actuales ?? 0);
               const integrantes = isOwner ? Math.max(1, integrantesBase) : integrantesBase;
@@ -202,7 +258,11 @@ export default function ExplorarPage() {
                       <JuntaAvatar nombre={j.nombre} size="md" />
                       <div className="min-w-0">
                         <h2 className="break-words font-semibold text-[var(--text)]">{j.nombre}</h2>
-                        <p className="mt-0.5 text-xs text-[var(--muted)]">{integrantes}/{j.participantes_max} personas</p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                          <p className="text-xs text-[var(--muted)]">{integrantes}/{j.participantes_max} personas</p>
+                          <span className="text-[var(--faint)]">·</span>
+                          <p className="text-xs text-[var(--muted)]">{frecuenciaLabel[j.frecuencia_pago] ?? j.frecuencia_pago}</p>
+                        </div>
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -217,7 +277,7 @@ export default function ExplorarPage() {
                   {/* Bolsa */}
                   <div className="rounded-[var(--r-sm)] bg-[var(--accent-bg)] px-4 py-3">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--accent)]">Recibirás en tu turno</p>
-                    <p className="mt-0.5 font-mono text-2xl font-bold text-[var(--text)]">
+                    <p className="mt-1 font-mono text-3xl font-bold text-[var(--text)]">
                       S/ {bolsa.toLocaleString('es-PE')}
                     </p>
                     <p className="mt-0.5 text-xs text-[var(--muted)]">

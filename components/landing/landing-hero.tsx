@@ -36,19 +36,25 @@ export function LandingHero() {
         </p>
 
         <h1 className="break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl md:tracking-[-1.5px]">
-          Tu junta, <span className="text-[var(--accent)]">digital</span> y sin drama.
+          Tu plata, <span className="text-[var(--accent)]">al toque.</span>
         </h1>
 
         <p className="max-w-xl text-[17px] leading-relaxed text-[var(--muted)]">
-          Organiza turnos, aportes y cobros con tu grupo — sin WhatsApps perdidos, sin cuentas confusas, sin mora sin control.
+          Únete a una junta pública o crea la tuya con tu grupo — sin banco, sin papeleos, sin WhatsApps perdidos.
         </p>
 
-        <div className="flex flex-wrap gap-3">
-          <Link href="/register" className="inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]">
-            Crear mi junta gratis →
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <Link
+            href="/explorar"
+            className="inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
+          >
+            Buscar una junta →
           </Link>
-          <Link href="/explorar" className="inline-flex rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface)] px-5 py-3 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--accent-bg)]">
-            Explorar juntas
+          <Link
+            href="/embajador"
+            className="text-sm font-medium text-[var(--muted)] transition hover:text-[var(--accent)] sm:px-2"
+          >
+            Quiero ser embajador →
           </Link>
         </div>
 
