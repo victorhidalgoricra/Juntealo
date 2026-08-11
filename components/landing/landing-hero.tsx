@@ -1,32 +1,31 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RevealOnScroll } from './reveal';
 
 const demoMembers = ['AL', 'MC', 'DR', 'VN', 'LP'];
 
+const juntaMembers = [
+  { initials: 'JV', name: 'Juan V.' },
+  { initials: 'RM', name: 'Rosa M.' },
+  { initials: 'SL', name: 'Sara L.' },
+  { initials: 'PC', name: 'Pedro C.' },
+  { initials: 'AG', name: 'Ana G.' },
+  { initials: 'LF', name: 'Luis F.' },
+];
+
 export function LandingHero() {
-  const [progress, setProgress] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    const duration = 800;
-    const target = 50;
-    const start = performance.now();
-    let raf = 0;
-
-    const animate = (now: number) => {
-      const elapsed = Math.min((now - start) / duration, 1);
-      const eased = 1 - (1 - elapsed) * (1 - elapsed);
-      setProgress(Math.round(target * eased));
-      if (elapsed < 1) raf = requestAnimationFrame(animate);
-    };
-
-    raf = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(raf);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const id = setInterval(
+      () => setActiveIndex(i => (i + 1) % juntaMembers.length),
+      2500,
+    );
+    return () => clearInterval(id);
   }, []);
-
-  const progressStyle = useMemo(() => ({ width: `${progress}%` }), [progress]);
 
   return (
     <RevealOnScroll className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 md:grid-cols-2 md:items-center md:px-6 md:py-16">
@@ -74,42 +73,51 @@ export function LandingHero() {
         </div>
       </div>
 
+      {/* Right — animated turno card */}
       <div className="relative rounded-[var(--r-xl)] bg-[var(--dark-1)] p-5 text-white shadow-xl sm:p-7">
         <span className="absolute right-6 top-6 inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
           ● Activa
         </span>
+
         <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--dark-muted)]">Junta de ejemplo</p>
         <h2 className="mt-2 break-words text-2xl font-semibold">Taxistas Norte</h2>
         <p className="mt-1 text-sm text-[var(--dark-muted)]">Ahorro semanal con turnos automáticos</p>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {[
-            ['Bolsa esta semana', 'S/ 4,000'],
-            ['Tu turno', 'Semana 8'],
-            ['Score', '94/100'],
-            ['Semana actual', '5 de 10']
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-[var(--r-sm)] bg-[var(--dark-3)] p-3">
-              <p className="text-[11px] text-[var(--dark-muted)]">{label}</p>
-              <p className="mt-1 font-mono text-sm font-semibold">{value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-5 flex flex-wrap items-center gap-2 md:flex-nowrap">
-          {['JV', 'RM', 'SL', 'PC', 'AG'].map((member) => (
-            <span key={member} className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--dark-4)] text-[11px] font-semibold">
-              {member}
-            </span>
-          ))}
-          <span className="inline-flex h-8 items-center justify-center rounded-full border border-[var(--dark-4)] px-3 text-xs text-[var(--dark-text)]">+5</span>
-        </div>
-
-        <div className="mt-5">
-          <div className="h-1.5 rounded-full bg-[var(--dark-4)]">
-            <div className="h-1.5 rounded-full bg-[var(--green)] transition-[width] duration-700" style={progressStyle} />
+        {/* Avatar ring — turno rotante */}
+        <div className="mt-5 space-y-4 rounded-[var(--r)] bg-[var(--dark-3)] px-4 py-5">
+          <p className="text-[11px] uppercase tracking-[0.1em] text-[var(--dark-muted)]">
+            Turno activo esta semana
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            {juntaMembers.map((m, i) => (
+              <span
+                key={m.initials}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-semibold transition-all duration-300 ease-in-out"
+                style={{
+                  backgroundColor: 'var(--dark-4)',
+                  color: i === activeIndex ? 'white' : 'var(--dark-muted)',
+                  boxShadow:
+                    i === activeIndex
+                      ? '0 0 0 2px var(--green), 0 0 0 4px var(--dark-3)'
+                      : 'none',
+                  transform: i === activeIndex ? 'scale(1.25)' : 'scale(1)',
+                }}
+              >
+                {m.initials}
+              </span>
+            ))}
           </div>
-          <p className="mt-2 text-xs text-[var(--dark-text)]">Semana 5 / 5 de 10 pagaron ✓</p>
+          <p className="text-center text-sm text-[var(--dark-muted)]">
+            <span className="font-semibold text-white">{juntaMembers[activeIndex].name}</span>
+            {' recibe esta semana · semana '}
+            <span className="font-mono">{activeIndex + 1}</span>
+            {` de ${juntaMembers.length}`}
+          </p>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between border-t border-[var(--dark-4)] pt-4">
+          <p className="text-sm text-[var(--dark-muted)]">Bolsa acumulada</p>
+          <p className="font-mono text-sm font-semibold">S/ 4,000</p>
         </div>
       </div>
     </RevealOnScroll>
