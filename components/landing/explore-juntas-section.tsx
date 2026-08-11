@@ -37,18 +37,18 @@ export function ExploreJuntasSection() {
               <div className="text-left sm:text-right">
                 <p className="font-mono text-sm font-medium text-[var(--text)]">{junta.fee}</p>
                 <p className="mt-0.5 text-xs text-[var(--muted)]">{junta.slots}</p>
-                <button
-                  type="button"
-                  disabled={!junta.open}
-                  className={[
-                    'mt-2 inline-flex rounded-[var(--r-sm)] px-3 py-1.5 text-xs font-semibold',
-                    junta.open
-                      ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent-dark)]'
-                      : 'cursor-not-allowed bg-[var(--faint)] text-[#67645E]'
-                  ].join(' ')}
-                >
-                  {junta.open ? 'Unirme' : 'Completa'}
-                </button>
+                {junta.open ? (
+                  <Link
+                    href="/explorar"
+                    className="mt-2 inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--accent-dark)]"
+                  >
+                    Unirme
+                  </Link>
+                ) : (
+                  <span className="mt-2 inline-flex rounded-[var(--r-sm)] bg-[var(--faint)] px-3 py-1.5 text-xs font-semibold text-[#67645E]">
+                    Completa
+                  </span>
+                )}
               </div>
             </article>
           ))}
