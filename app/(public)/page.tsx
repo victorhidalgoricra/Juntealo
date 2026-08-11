@@ -4,6 +4,7 @@ import { LandingHero } from '@/components/landing/landing-hero';
 import { SocialProofSection } from '@/components/landing/social-proof-section';
 import { DualPathSelector } from '@/components/landing/dual-path-selector';
 import { MoneyTrustStrip } from '@/components/landing/money-trust-strip';
+import { FinalCTASection } from '@/components/landing/final-cta-section';
 
 export default function HomePage() {
   return (
@@ -17,6 +18,7 @@ export default function HomePage() {
         <ExploreJuntasSection />
         <SocialProofSection />
       </div>
+      <FinalCTASection />
     </>
   );
 }
