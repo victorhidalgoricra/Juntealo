@@ -1,5 +1,7 @@
 'use client';
 
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
@@ -10,6 +12,19 @@ import { Junta } from '@/types/domain';
 import { useAuthStore } from '@/store/auth-store';
 import { saveExploreJoinIntent } from '@/lib/explore-join-intent';
 import { JuntaAvatar } from '@/components/junta-avatar';
+
+function money(value: number) {
+  return `S/ ${Math.round(value).toLocaleString('es-PE')}`;
+}
+
+function formatFecha(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  try {
+    return format(parseISO(iso), 'dd MMM yyyy', { locale: es });
+  } catch {
+    return null;
+  }
+}
 
 export default function ExplorarPage() {
   const router = useRouter();
@@ -125,7 +140,7 @@ export default function ExplorarPage() {
       {!loading && !error && (juntas.length === 0 ? (
         <Card>{emptyMessage}</Card>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {juntas.map((j) => {
             const isOwner = Boolean(user?.id) && j.admin_id === user?.id;
             const integrantesBase = Number(j.integrantes_actuales ?? 0);
@@ -136,28 +151,68 @@ export default function ExplorarPage() {
             const joinDisabled = (!isMember && (juntaIniciada || cupoCompleto)) || (Boolean(user?.id) && membershipLoading);
             const actionLabel = isMember
               ? 'Ver detalle'
-              : (membershipLoading ? 'Validando...' : (juntaIniciada ? 'En curso' : (cupoCompleto ? 'Cupo completo' : 'Unirme')));
+              : (membershipLoading ? 'Validando...' : (juntaIniciada ? 'En curso' : (cupoCompleto ? 'Cupo completo' : 'Unirme →')));
+
+            const cuota = Number(j.cuota_base ?? j.monto_cuota ?? 0) || null;
+            const bolsa = (cuota && j.participantes_max) ? cuota * j.participantes_max : null;
+            const cuposLibres = Math.max(0, j.participantes_max - integrantes);
 
             return (
-              <Card key={j.id} className="space-y-3">
+              <Card key={j.id} className="flex flex-col gap-3">
+                {/* 1. Header */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex min-w-0 items-center gap-3">
                     <JuntaAvatar nombre={j.nombre} size="md" />
-                    <h2 className="break-words font-semibold text-fg">{j.nombre}</h2>
+                    <div className="min-w-0">
+                      <h2 className="break-words font-semibold text-fg">{j.nombre}</h2>
+                      <p className="text-xs text-muted">{integrantes}/{j.participantes_max} personas · {j.frecuencia_pago}</p>
+                    </div>
                   </div>
-                  <Badge className="shrink-0">Pública</Badge>
+                  <Badge className="shrink-0">{j.visibilidad === 'privada' ? 'Privada' : 'Pública'}</Badge>
                 </div>
-                <p className="text-sm text-slate-600 line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
-                <p className="break-words text-xs text-slate-500">Frecuencia: {j.frecuencia_pago} · Cuota: S/ {j.cuota_base ?? j.monto_cuota}</p>
-                <p className="break-words text-xs text-slate-500">Inicio: {j.fecha_inicio} · Integrantes: {integrantes}/{j.participantes_max}</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    disabled={joinDisabled}
-                    onClick={() => handleJoinClick(j, { disabled: joinDisabled, isMember })}
-                  >
-                    {actionLabel}
-                  </Button>
+
+                {/* 2. Monto destacado */}
+                {bolsa !== null && (
+                  <div className="rounded-[var(--r-md)] bg-accent p-4 text-white">
+                    <p className="text-xs text-white/70">Recibirás en tu turno</p>
+                    <p className="break-words font-mono text-3xl font-bold">{money(bolsa)}</p>
+                    <p className="text-xs text-white/70">Aportando {money(cuota!)} por {j.frecuencia_pago}</p>
+                  </div>
+                )}
+
+                {/* 3. Descripción */}
+                <p className="text-sm text-muted line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
+
+                {/* 4. Grilla 2x2 de datos */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-2">
+                    <p className="text-xs text-muted">Cuota</p>
+                    <p className="text-sm font-semibold text-fg">{cuota !== null ? money(cuota) : '—'}</p>
+                  </div>
+                  <div className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-2">
+                    <p className="text-xs text-muted">Frecuencia</p>
+                    <p className="capitalize text-sm font-semibold text-fg">{j.frecuencia_pago ?? '—'}</p>
+                  </div>
+                  <div className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-2">
+                    <p className="text-xs text-muted">Inicio</p>
+                    <p className="text-sm font-semibold text-fg">{formatFecha(j.fecha_inicio) ?? '—'}</p>
+                  </div>
+                  <div className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-2">
+                    <p className="text-xs text-muted">Cupos libres</p>
+                    <p className="text-sm font-semibold text-fg">{cuposLibres}</p>
+                  </div>
                 </div>
+
+                {/* 5. Botón */}
+                <Button
+                  disabled={joinDisabled}
+                  onClick={() => handleJoinClick(j, { disabled: joinDisabled, isMember })}
+                >
+                  {actionLabel}
+                </Button>
+
+                {/* 6. Estado de integrantes */}
+                <p className="text-center text-xs text-muted">{integrantes} de {j.participantes_max} integrantes confirmados</p>
               </Card>
             );
           })}
