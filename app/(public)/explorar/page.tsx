@@ -140,7 +140,7 @@ export default function ExplorarPage() {
       {!loading && !error && (juntas.length === 0 ? (
         <Card>{emptyMessage}</Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {juntas.map((j) => {
             const isOwner = Boolean(user?.id) && j.admin_id === user?.id;
             const integrantesBase = Number(j.integrantes_actuales ?? 0);
