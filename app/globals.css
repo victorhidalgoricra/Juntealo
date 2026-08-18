@@ -48,9 +48,10 @@
   --font-mono: var(--font-dm-mono), 'DM Mono', monospace;
 
   /* Border radius */
-  --r:    14px;
-  --r-sm:  8px;
-  --r-xl: 20px;
+  --r-sm:   8px;
+  --r-md:  12px;
+  --r:     14px;
+  --r-xl:  20px;
   --r-full: 9999px;
 
   /* Shadows */

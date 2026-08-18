@@ -12,6 +12,7 @@ import { Junta } from '@/types/domain';
 import { useAuthStore } from '@/store/auth-store';
 import { saveExploreJoinIntent } from '@/lib/explore-join-intent';
 import { JuntaAvatar } from '@/components/junta-avatar';
+import { JuntaAmountBlock } from '@/components/ui/junta-amount-block';
 
 function money(value: number) {
   return `S/ ${Math.round(value).toLocaleString('es-PE')}`;
@@ -173,11 +174,10 @@ export default function ExplorarPage() {
 
                 {/* 2. Monto destacado */}
                 {bolsa !== null && (
-                  <div className="rounded-[var(--r-md)] bg-accent p-4 text-white">
-                    <p className="text-xs text-white/70">Recibirás en tu turno</p>
-                    <p className="break-words font-mono text-3xl font-bold">{money(bolsa)}</p>
-                    <p className="text-xs text-white/70">Aportando {money(cuota!)} por {j.frecuencia_pago}</p>
-                  </div>
+                  <JuntaAmountBlock
+                    amount={money(bolsa)}
+                    sublabel={`Aportando ${money(cuota!)} por ${j.frecuencia_pago}`}
+                  />
                 )}
 
                 {/* 3. Descripción */}

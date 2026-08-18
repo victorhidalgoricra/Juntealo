@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { RevealOnScroll } from './reveal';
+import { JuntaAmountBlock } from '@/components/ui/junta-amount-block';
 
 const demoMembers = ['AL', 'MC', 'DR', 'VN', 'LP'];
 
@@ -77,12 +78,12 @@ export function LandingHero() {
         <h2 className="mt-2 break-words text-2xl font-semibold">Taxistas Norte</h2>
         <p className="mt-1 text-sm text-[var(--dark-muted)]">Ahorro semanal con turnos automáticos</p>
 
-        {/* Bloque de monto destacado — mismo patrón que la tarjeta de /explorar */}
-        <div className="mt-5 rounded-[var(--r-md)] bg-[var(--accent)] p-4 text-white">
-          <p className="text-xs text-white/70">Recibirás en tu turno</p>
-          <p className="font-mono text-3xl font-bold">S/ 4,000</p>
-          <p className="text-xs text-white/70">Aportando S/ 400 por semana · Tu turno: semana 8</p>
-        </div>
+        {/* Bloque de monto destacado — componente compartido con /explorar */}
+        <JuntaAmountBlock
+          className="mt-5"
+          amount="S/ 4,000"
+          sublabel="Aportando S/ 400 por semana · Tu turno: semana 8"
+        />
 
         {/* Stats secundarios */}
         <div className="mt-3 grid grid-cols-2 gap-3">
