@@ -78,8 +78,9 @@ export function LandingHero() {
         <h2 className="mt-2 break-words text-2xl font-semibold">Taxistas Norte</h2>
         <p className="mt-1 text-sm text-[var(--dark-muted)]">Ahorro semanal con turnos automáticos</p>
 
-        {/* Bloque de monto destacado — componente compartido con /explorar */}
+        {/* Bloque de monto destacado — variante dark del componente compartido con /explorar */}
         <JuntaAmountBlock
+          variant="dark"
           className="mt-5"
           amount="S/ 4,000"
           sublabel="Aportando S/ 400 por semana · Tu turno: semana 8"
