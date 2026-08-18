@@ -36,7 +36,8 @@ export function LandingHero() {
         </p>
 
         <h1 className="break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl md:tracking-[-1.5px]">
-          Tu junta, <span className="text-[var(--accent)]">digital</span> y sin drama.
+          El dinero que necesitas, con la{' '}
+          <span className="text-[var(--accent)]">gente en la que confías.</span>
         </h1>
 
         <p className="max-w-xl text-[17px] leading-relaxed text-[var(--muted)]">
@@ -44,11 +45,11 @@ export function LandingHero() {
         </p>
 
         <div className="flex flex-wrap gap-3">
-          <Link href="/register" className="inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]">
-            Crear mi junta gratis →
+          <Link href="/explorar" className="inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]">
+            Explorar juntas →
           </Link>
-          <Link href="/explorar" className="inline-flex rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface)] px-5 py-3 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--accent-bg)]">
-            Explorar juntas
+          <Link href="/register" className="inline-flex rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface)] px-5 py-3 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--accent-bg)]">
+            Crear mi junta gratis
           </Link>
         </div>
 
@@ -76,18 +77,23 @@ export function LandingHero() {
         <h2 className="mt-2 break-words text-2xl font-semibold">Taxistas Norte</h2>
         <p className="mt-1 text-sm text-[var(--dark-muted)]">Ahorro semanal con turnos automáticos</p>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {[
-            ['Bolsa esta semana', 'S/ 4,000'],
-            ['Tu turno', 'Semana 8'],
-            ['Score', '94/100'],
-            ['Semana actual', '5 de 10']
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-[var(--r-sm)] bg-[var(--dark-3)] p-3">
-              <p className="text-[11px] text-[var(--dark-muted)]">{label}</p>
-              <p className="mt-1 font-mono text-sm font-semibold">{value}</p>
-            </div>
-          ))}
+        {/* Bloque de monto destacado — mismo patrón que la tarjeta de /explorar */}
+        <div className="mt-5 rounded-[var(--r-md)] bg-[var(--accent)] p-4 text-white">
+          <p className="text-xs text-white/70">Recibirás en tu turno</p>
+          <p className="font-mono text-3xl font-bold">S/ 4,000</p>
+          <p className="text-xs text-white/70">Aportando S/ 400 por semana · Tu turno: semana 8</p>
+        </div>
+
+        {/* Stats secundarios */}
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="rounded-[var(--r-sm)] bg-[var(--dark-3)] p-3">
+            <p className="text-[11px] text-[var(--dark-muted)]">Score</p>
+            <p className="mt-1 font-mono text-sm font-semibold">94/100</p>
+          </div>
+          <div className="rounded-[var(--r-sm)] bg-[var(--dark-3)] p-3">
+            <p className="text-[11px] text-[var(--dark-muted)]">Semana actual</p>
+            <p className="mt-1 font-mono text-sm font-semibold">5 de 10</p>
+          </div>
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-2 md:flex-nowrap">
