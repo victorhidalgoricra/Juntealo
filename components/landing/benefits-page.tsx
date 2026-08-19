@@ -303,17 +303,15 @@ export function BenefitsPage() {
         <RevealOnScroll className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 md:grid-cols-2 md:items-center md:px-6 md:py-20">
           <div className="space-y-6">
             <p className="inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
-              ● Tu buena conducta en Juntealo no se pierde
+              ● Tu buen historial abre más oportunidades
             </p>
 
             <h1 className="break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl">
-              Haz que pagar puntual{' '}
-              <span className="text-[var(--accent)]">valga más</span>{' '}
-              que un mensaje en WhatsApp
+              Cumple hoy para acceder a mejores juntas mañana.
             </h1>
 
             <p className="max-w-xl text-[17px] leading-relaxed text-[var(--muted)]">
-              Juntealo registra cumplimiento, ciclos y constancia para construir reputación dentro de la plataforma. Lo que antes se perdía en chats, ahora queda en tu historial.
+              Cada pago puntual construye tu reputación en Juntealo. Mientras mejor sea tu historial, más fácil será demostrar que eres un buen participante y acceder a nuevas juntas.
             </p>
 
             <div className="flex flex-wrap gap-3">
