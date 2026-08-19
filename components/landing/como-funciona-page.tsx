@@ -69,6 +69,9 @@ const faqs = [
 ];
 
 export function ComoFuncionaPage() {
+  const [activeProcessStep, setActiveProcessStep] = useState(0);
+  const [hoveredProcessStep, setHoveredProcessStep] = useState<number | null>(null);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [tipoActivo, setTipoActivo] = useState<TipoJunta>('normal');
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
   const [personas, setPersonas] = useState(5);
@@ -80,6 +83,28 @@ export function ComoFuncionaPage() {
   useEffect(() => {
     setTurnoActivo((prev) => Math.min(prev, personas));
   }, [personas]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateMotionPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+    updateMotionPreference();
+    mediaQuery.addEventListener('change', updateMotionPreference);
+
+    return () => mediaQuery.removeEventListener('change', updateMotionPreference);
+  }, []);
+
+  useEffect(() => {
+    if (prefersReducedMotion || hoveredProcessStep !== null) return;
+
+    const intervalId = window.setInterval(() => {
+      setActiveProcessStep((currentStep) => (currentStep + 1) % 4);
+    }, 2500);
+
+    return () => window.clearInterval(intervalId);
+  }, [hoveredProcessStep, prefersReducedMotion]);
+
+  const visibleProcessStep = hoveredProcessStep ?? (prefersReducedMotion ? 0 : activeProcessStep);
 
   const bolsa = personas * cuota;
   const duracionLabel = `${personas} ${frecuencia === 'Semanal' ? 'semanas' : frecuencia === 'Quincenal' ? 'quincenas' : 'meses'}`;
@@ -128,23 +153,19 @@ export function ComoFuncionaPage() {
       {/* ── 2. PROCESO ── */}
       <RevealOnScroll className="order-2 mx-auto w-full max-w-5xl px-4 py-14 md:px-6 md:py-20">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">El proceso</p>
-        <h2 className="mt-2 text-2xl font-bold tracking-tight">4 pasos para empezar</h2>
+        <h2 className="mt-2 text-2xl font-bold tracking-tight">4 pasos para crear una junta</h2>
 
-        <div className="mt-8 grid grid-cols-1 gap-0 md:grid-cols-4 md:gap-5">
+        <div className="relative mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6 md:before:absolute md:before:left-10 md:before:right-10 md:before:top-7 md:before:h-px md:before:bg-[var(--border)] md:before:content-['']">
           {[
             {
               num: 1,
               title: 'Crea la junta',
               body: 'Define nombre, cantidad de integrantes, monto de cuota, frecuencia (semanal / quincenal / mensual) y si será Normal o con Incentivos.',
-              callout: null,
-              last: false,
             },
             {
               num: 2,
               title: 'Invita a tu grupo',
               body: 'Comparte un enlace único. Cada integrante se registra y verifica su identidad antes de unirse. Así sabes con quién estás antes de empezar.',
-              callout: null,
-              last: false,
             },
             {
               num: 3,
@@ -157,38 +178,55 @@ export function ComoFuncionaPage() {
                   pagó y quién no.
                 </>
               ),
-              callout: null,
-              last: false,
             },
             {
               num: 4,
               title: 'El turno cobra la bolsa',
               body: 'Cuando los pagos del período están confirmados, el integrante con el turno activo recibe su bolsa. El ciclo continúa hasta que todos hayan cobrado.',
-              callout: null,
-              last: true,
             },
-          ].map(({ num, title, body, callout, last }) => (
-            <div key={num} className="flex gap-4 md:block">
-              <div className="flex flex-col items-center">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--dark-1)] text-sm font-bold text-white">
+          ].map(({ num, title, body }, index) => {
+            const isActive = visibleProcessStep === index;
+
+            return (
+              <article
+                key={num}
+                onMouseEnter={() => {
+                  setActiveProcessStep(index);
+                  setHoveredProcessStep(index);
+                }}
+                onMouseLeave={() => setHoveredProcessStep(null)}
+                className={`relative rounded-[var(--r)] border p-4 transition-all duration-200 ${
+                  isActive
+                    ? '-translate-y-1 border-[var(--accent)] bg-[var(--accent-bg)] shadow-md'
+                    : 'border-[var(--border)] bg-[var(--surface)]'
+                }`}
+              >
+                <span
+                  className={`relative z-10 inline-flex h-14 w-14 items-center justify-center rounded-full border text-base font-semibold transition-all duration-200 ${
+                    isActive
+                      ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                      : 'border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]'
+                  }`}
+                >
                   {num}
                 </span>
-                {!last && <div className="mt-2 w-px flex-1 bg-[var(--border)] md:hidden" />}
-              </div>
-              <div className={`${last ? '' : 'pb-8 md:pb-0'} min-w-0 flex-1 pt-1 md:mt-4 md:pt-0`}>
-                <h3 className="text-[15px] font-semibold leading-tight">{title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
-                {callout && (
-                  <div
-                    className="mt-3 rounded-[var(--r-sm)] border p-3 text-sm leading-relaxed"
-                    style={{ background: '#fff8e6', borderColor: '#f0d080', color: '#b37800' }}
-                  >
-                    {callout}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+                <h3
+                  className={`mt-4 text-sm font-semibold transition duration-200 ${
+                    isActive ? 'text-[var(--accent)]' : 'text-[var(--text)]'
+                  }`}
+                >
+                  {title}
+                </h3>
+                <p
+                  className={`mt-2 text-sm leading-relaxed transition duration-200 ${
+                    isActive ? 'text-[var(--text)]' : 'text-[var(--muted)]'
+                  }`}
+                >
+                  {body}
+                </p>
+              </article>
+            );
+          })}
         </div>
       </RevealOnScroll>
 
