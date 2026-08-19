@@ -69,6 +69,9 @@ const faqs = [
 ];
 
 export function ComoFuncionaPage() {
+  const [activeProcessStep, setActiveProcessStep] = useState(0);
+  const [hoveredProcessStep, setHoveredProcessStep] = useState<number | null>(null);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [tipoActivo, setTipoActivo] = useState<TipoJunta>('normal');
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
   const [personas, setPersonas] = useState(5);
@@ -80,6 +83,28 @@ export function ComoFuncionaPage() {
   useEffect(() => {
     setTurnoActivo((prev) => Math.min(prev, personas));
   }, [personas]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateMotionPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+    updateMotionPreference();
+    mediaQuery.addEventListener('change', updateMotionPreference);
+
+    return () => mediaQuery.removeEventListener('change', updateMotionPreference);
+  }, []);
+
+  useEffect(() => {
+    if (prefersReducedMotion || hoveredProcessStep !== null) return;
+
+    const intervalId = window.setInterval(() => {
+      setActiveProcessStep((currentStep) => (currentStep + 1) % 4);
+    }, 2500);
+
+    return () => window.clearInterval(intervalId);
+  }, [hoveredProcessStep, prefersReducedMotion]);
+
+  const visibleProcessStep = hoveredProcessStep ?? (prefersReducedMotion ? 0 : activeProcessStep);
 
   const bolsa = personas * cuota;
   const duracionLabel = `${personas} ${frecuencia === 'Semanal' ? 'semanas' : frecuencia === 'Quincenal' ? 'quincenas' : 'meses'}`;
@@ -159,18 +184,49 @@ export function ComoFuncionaPage() {
               title: 'El turno cobra la bolsa',
               body: 'Cuando los pagos del período están confirmados, el integrante con el turno activo recibe su bolsa. El ciclo continúa hasta que todos hayan cobrado.',
             },
-          ].map(({ num, title, body }) => (
-            <article
-              key={num}
-              className="relative rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-4"
-            >
-              <span className="relative z-10 inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--accent)] bg-[var(--accent)] text-base font-semibold text-white">
-                {num}
-              </span>
-              <h3 className="mt-4 text-sm font-semibold text-[var(--text)]">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
-            </article>
-          ))}
+          ].map(({ num, title, body }, index) => {
+            const isActive = visibleProcessStep === index;
+
+            return (
+              <article
+                key={num}
+                onMouseEnter={() => {
+                  setActiveProcessStep(index);
+                  setHoveredProcessStep(index);
+                }}
+                onMouseLeave={() => setHoveredProcessStep(null)}
+                className={`relative rounded-[var(--r)] border p-4 transition-all duration-200 ${
+                  isActive
+                    ? '-translate-y-1 border-[var(--accent)] bg-[var(--accent-bg)] shadow-md'
+                    : 'border-[var(--border)] bg-[var(--surface)]'
+                }`}
+              >
+                <span
+                  className={`relative z-10 inline-flex h-14 w-14 items-center justify-center rounded-full border text-base font-semibold transition-all duration-200 ${
+                    isActive
+                      ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                      : 'border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]'
+                  }`}
+                >
+                  {num}
+                </span>
+                <h3
+                  className={`mt-4 text-sm font-semibold transition duration-200 ${
+                    isActive ? 'text-[var(--accent)]' : 'text-[var(--text)]'
+                  }`}
+                >
+                  {title}
+                </h3>
+                <p
+                  className={`mt-2 text-sm leading-relaxed transition duration-200 ${
+                    isActive ? 'text-[var(--text)]' : 'text-[var(--muted)]'
+                  }`}
+                >
+                  {body}
+                </p>
+              </article>
+            );
+          })}
         </div>
       </RevealOnScroll>
 
