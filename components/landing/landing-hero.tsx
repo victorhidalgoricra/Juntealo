@@ -41,8 +41,8 @@ export function LandingHero() {
           <span className="text-[var(--accent)]">gente en la que confías.</span>
         </h1>
 
-        <p className="max-w-xl text-[17px] leading-relaxed text-[var(--muted)]">
-          Conecta con personas con ganas de ahorrar, organiza tus aportes y recibe el dinero cuando llegue tu turno. Todo claro, simple y en un solo lugar.
+        <p className="max-w-lg text-[17px] leading-relaxed text-[var(--muted)]">
+          Conecta con personas con ganas de ahorrar, organiza tus aportes y recibe el dinero cuando llegue tu turno. Todo en un solo lugar.
         </p>
 
         <div className="flex flex-wrap gap-3">
