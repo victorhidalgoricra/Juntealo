@@ -112,17 +112,16 @@ export function ComoFuncionaPage() {
           ¿Cómo funciona?
         </span>
         <h1 className="mt-5 break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl">
-          La junta que siempre hiciste,
-          <br className="hidden md:block" /> ahora sin el drama
+          ¿Cuánto <span className="text-[var(--accent)]">quieres recibir?</span>
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-[17px] leading-relaxed text-[var(--muted)]">
-          Organiza tu grupo de ahorro rotativo en minutos. Elige entre junta normal o con incentivos según la confianza de tu grupo.
+          Define cuánto quieres recibir, cuánto puedes aportar y cada cuánto. Te mostramos cómo podría quedar tu junta antes de crearla.
         </p>
         <a
           href="#simulador"
           className="mt-6 inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
         >
-          Simular mi junta
+          Simula aquí
         </a>
       </RevealOnScroll>
 

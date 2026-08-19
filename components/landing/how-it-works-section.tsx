@@ -4,30 +4,30 @@ import { RevealOnScroll } from './reveal';
 
 const steps = [
   {
-    title: 'Crea la junta',
-    description: 'Define monto, personas, frecuencia e incentivos.'
+    title: 'Encuentra una junta',
+    description: 'Explora opciones según monto, aporte y frecuencia.'
   },
   {
-    title: 'Invita a tu grupo',
-    description: 'Comparte enlace de invitación y verificación de identidad.'
+    title: 'Revisa antes de unirte',
+    description: 'Conoce los turnos, integrantes y condiciones de la junta.'
   },
   {
-    title: 'Todos aportan',
-    description: 'Yape, Plin o transferencia bancaria, recordatorios automáticos y control de mora.'
+    title: 'Haz tus aportes',
+    description: 'Cumple cada periodo y sigue el avance de tu junta desde Juntealo.'
   },
   {
-    title: 'El turno cobra',
-    description: 'Desembolso con trazabilidad completa.'
+    title: 'Recibe en tu turno',
+    description: 'Cuando llegue tu turno, recibes la bolsa formada por los aportes del grupo.'
   }
 ];
 
 export function HowItWorksSection() {
   return (
     <RevealOnScroll className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-14">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Así funciona</p>
-      <h2 className="mt-2 text-3xl font-bold tracking-tight text-[var(--text)]">De la idea al cobro en 4 pasos</h2>
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">ASÍ FUNCIONA</p>
+      <h2 className="mt-2 text-3xl font-bold tracking-tight text-[var(--text)]">Entra a una junta y recibe cuando llegue tu turno</h2>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
-        Conoce cómo se crea una junta, se organizan los aportes y se completa cada turno desde un solo lugar.
+        Explora juntas disponibles, revisa cómo funcionan y únete a la que mejor se adapte a lo que puedes aportar.
       </p>
 
       <div className="mt-5 flex justify-stretch sm:justify-start">
@@ -35,7 +35,7 @@ export function HowItWorksSection() {
           href="/como-funciona"
           className="inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
         >
-          Ver cómo funciona →
+          Cómo funciona →
         </Link>
       </div>
 
