@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 import { RevealOnScroll } from './reveal';
@@ -22,6 +25,32 @@ const steps = [
 ];
 
 export function HowItWorksSection() {
+  const [activeStep, setActiveStep] = useState(0);
+  const [hoveredStep, setHoveredStep] = useState<number | null>(null);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateMotionPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+    updateMotionPreference();
+    mediaQuery.addEventListener('change', updateMotionPreference);
+
+    return () => mediaQuery.removeEventListener('change', updateMotionPreference);
+  }, []);
+
+  useEffect(() => {
+    if (prefersReducedMotion || hoveredStep !== null) return;
+
+    const intervalId = window.setInterval(() => {
+      setActiveStep((currentStep) => (currentStep + 1) % steps.length);
+    }, 2500);
+
+    return () => window.clearInterval(intervalId);
+  }, [hoveredStep, prefersReducedMotion]);
+
+  const visibleActiveStep = hoveredStep ?? (prefersReducedMotion ? 0 : activeStep);
+
   return (
     <RevealOnScroll className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-14">
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">ASÍ FUNCIONA</p>
@@ -40,24 +69,49 @@ export function HowItWorksSection() {
       </div>
 
       <div className="relative mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6 md:before:absolute md:before:left-10 md:before:right-10 md:before:top-7 md:before:h-px md:before:bg-[var(--border)] md:before:content-['']">
-        {steps.map((step, index) => (
-          <article
-            key={step.title}
-            className="group relative rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-4 transition-all duration-200 hover:-translate-y-1 hover:border-[var(--accent)] hover:bg-[var(--accent-bg)] hover:shadow-md"
-          >
-            <span
-              className="relative z-10 inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-base font-semibold text-[var(--muted)] transition-all duration-200 group-hover:border-[var(--accent)] group-hover:bg-[var(--accent)] group-hover:text-white"
+        {steps.map((step, index) => {
+          const isActive = visibleActiveStep === index;
+
+          return (
+            <article
+              key={step.title}
+              onMouseEnter={() => {
+                setActiveStep(index);
+                setHoveredStep(index);
+              }}
+              onMouseLeave={() => setHoveredStep(null)}
+              className={`relative rounded-[var(--r)] border p-4 transition-all duration-200 ${
+                isActive
+                  ? '-translate-y-1 border-[var(--accent)] bg-[var(--accent-bg)] shadow-md'
+                  : 'border-[var(--border)] bg-[var(--surface)]'
+              }`}
             >
-              {index + 1}
-            </span>
-            <h3 className="mt-4 text-sm font-semibold text-[var(--text)] transition duration-200 group-hover:text-[var(--accent)]">
-              {step.title}
-            </h3>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--muted)] transition duration-200 group-hover:text-[var(--text)]">
-              {step.description}
-            </p>
-          </article>
-        ))}
+              <span
+                className={`relative z-10 inline-flex h-14 w-14 items-center justify-center rounded-full border text-base font-semibold transition-all duration-200 ${
+                  isActive
+                    ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                    : 'border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]'
+                }`}
+              >
+                {index + 1}
+              </span>
+              <h3
+                className={`mt-4 text-sm font-semibold transition duration-200 ${
+                  isActive ? 'text-[var(--accent)]' : 'text-[var(--text)]'
+                }`}
+              >
+                {step.title}
+              </h3>
+              <p
+                className={`mt-2 text-sm leading-relaxed transition duration-200 ${
+                  isActive ? 'text-[var(--text)]' : 'text-[var(--muted)]'
+                }`}
+              >
+                {step.description}
+              </p>
+            </article>
+          );
+        })}
       </div>
     </RevealOnScroll>
   );
