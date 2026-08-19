@@ -307,7 +307,7 @@ export function BenefitsPage() {
             </p>
 
             <h1 className="break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl">
-              Cumple hoy para acceder a mejores juntas mañana.
+              Cumple hoy para <span className="text-[var(--accent)]">acceder a mejores juntas mañana.</span>
             </h1>
 
             <p className="max-w-xl text-[17px] leading-relaxed text-[var(--muted)]">
