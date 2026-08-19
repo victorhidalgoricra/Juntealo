@@ -42,7 +42,7 @@ export function LandingHero() {
         </h1>
 
         <p className="max-w-xl text-[17px] leading-relaxed text-[var(--muted)]">
-          Organiza turnos, aportes y cobros con tu grupo — sin WhatsApps perdidos, sin cuentas confusas, sin mora sin control.
+          Conecta con personas con ganas de ahorrar, organiza tus aportes y recibe el dinero cuando llegue tu turno. Todo claro, simple y en un solo lugar.
         </p>
 
         <div className="flex flex-wrap gap-3">
