@@ -57,6 +57,15 @@ export function FeaturesGrid() {
           Lo que construyes al participar
         </h2>
 
+        <div className="mt-5 flex justify-stretch sm:justify-start">
+          <Link
+            href="/beneficios"
+            className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)] transition hover:text-[var(--accent-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+          >
+            Ver todos los beneficios →
+          </Link>
+        </div>
+
         <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
           {features.map((feature) => (
             <article key={feature.title} className={`rounded-[var(--r)] border border-[var(--border)] p-6 ${feature.cardClass}`}>
@@ -67,14 +76,6 @@ export function FeaturesGrid() {
           ))}
         </div>
 
-        <div className="mt-5 flex justify-stretch sm:justify-start">
-          <Link
-            href="/beneficios"
-            className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)] transition hover:text-[var(--accent-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
-          >
-            Ver todos los beneficios →
-          </Link>
-        </div>
       </RevealOnScroll>
     </section>
   );
