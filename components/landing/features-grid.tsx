@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { RevealOnScroll } from './reveal';
 
 const features = [
@@ -47,16 +48,35 @@ const features = [
 
 export function FeaturesGrid() {
   return (
-    <RevealOnScroll className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-14">
-      <div className="grid gap-4 md:grid-cols-3">
-        {features.map((feature) => (
-          <article key={feature.title} className={`rounded-[var(--r)] border border-[var(--border)] p-6 ${feature.cardClass}`}>
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--r-sm)] bg-white/75 text-lg">{feature.icon}</span>
-            <h3 className="mt-4 text-[15px] font-semibold">{feature.title}</h3>
-            <p className={`mt-2 text-[13px] leading-relaxed ${feature.descClass}`}>{feature.description}</p>
-          </article>
-        ))}
-      </div>
-    </RevealOnScroll>
+    <section id="beneficios">
+      <RevealOnScroll className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-14">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
+          BENEFICIOS
+        </p>
+        <h2 className="mt-2 text-3xl font-bold tracking-tight text-[var(--text)]">
+          Lo que construyes al participar
+        </h2>
+
+        <div className="mt-5 flex justify-stretch sm:justify-start">
+          <Link
+            href="/beneficios"
+            className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)] transition hover:text-[var(--accent-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+          >
+            Ver todos los beneficios →
+          </Link>
+        </div>
+
+        <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+          {features.map((feature) => (
+            <article key={feature.title} className={`rounded-[var(--r)] border border-[var(--border)] p-6 ${feature.cardClass}`}>
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--r-sm)] bg-white/75 text-lg">{feature.icon}</span>
+              <h3 className="mt-4 text-[15px] font-semibold">{feature.title}</h3>
+              <p className={`mt-2 text-[13px] leading-relaxed ${feature.descClass}`}>{feature.description}</p>
+            </article>
+          ))}
+        </div>
+
+      </RevealOnScroll>
+    </section>
   );
 }

@@ -62,7 +62,7 @@ export function HowItWorksSection() {
       <div className="mt-5 flex justify-stretch sm:justify-start">
         <Link
           href="/como-funciona"
-          className="inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
+          className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)] transition hover:text-[var(--accent-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
         >
           Cómo funciona →
         </Link>

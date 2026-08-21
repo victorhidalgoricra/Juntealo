@@ -18,7 +18,7 @@ export function ExploreJuntasSection() {
           <p className="max-w-md text-sm leading-relaxed text-[var(--muted)]">
             Mira juntas abiertas, revisa cupos disponibles y conoce la dinámica antes de crear tu propio grupo.
           </p>
-          <Link href="/explorar" className="inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]">
+          <Link href="/explorar" className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)] transition hover:text-[var(--accent-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">
             Ver todas las juntas →
           </Link>
         </div>
