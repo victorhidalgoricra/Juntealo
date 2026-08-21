@@ -141,7 +141,7 @@ export default function ExplorarPage() {
       {!loading && !error && (juntas.length === 0 ? (
         <Card>{emptyMessage}</Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {juntas.map((j) => {
             const isOwner = Boolean(user?.id) && j.admin_id === user?.id;
             const integrantesBase = Number(j.integrantes_actuales ?? 0);
@@ -159,17 +159,27 @@ export default function ExplorarPage() {
             const cuposLibres = Math.max(0, j.participantes_max - integrantes);
 
             return (
-              <Card key={j.id} className="flex flex-col gap-3">
+              <Card
+                key={j.id}
+                className="flex flex-col gap-5 rounded-[var(--r-xl)] p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-lg)] sm:p-6"
+              >
                 {/* 1. Header */}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <JuntaAvatar nombre={j.nombre} size="md" />
-                    <div className="min-w-0">
-                      <h2 className="break-words font-semibold text-fg">{j.nombre}</h2>
-                      <p className="text-xs text-muted">{integrantes}/{j.participantes_max} personas · {j.frecuencia_pago}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3.5">
+                    <JuntaAvatar nombre={j.nombre} size="lg" />
+                    <div className="min-w-0 space-y-1">
+                      <h2 className="break-words text-base font-bold leading-tight text-fg">{j.nombre}</h2>
+                      <p className="text-xs leading-snug text-muted">{integrantes}/{j.participantes_max} personas · {j.frecuencia_pago}</p>
                     </div>
                   </div>
-                  <Badge className="shrink-0">{j.visibilidad === 'privada' ? 'Privada' : 'Pública'}</Badge>
+                  <Badge
+                    className={j.visibilidad === 'privada'
+                      ? 'shrink-0'
+                      : 'shrink-0 gap-1.5 bg-green-bg text-green'}
+                  >
+                    {j.visibilidad !== 'privada' && <span className="h-1.5 w-1.5 rounded-full bg-green" />}
+                    {j.visibilidad === 'privada' ? 'Privada' : 'Pública'}
+                  </Badge>
                 </div>
 
                 {/* 2. Monto destacado */}
@@ -177,29 +187,30 @@ export default function ExplorarPage() {
                   <JuntaAmountBlock
                     amount={money(bolsa)}
                     sublabel={`Aportando ${money(cuota!)} por ${j.frecuencia_pago}`}
+                    className="rounded-[var(--r-lg)] px-5 py-5 [&>p:nth-child(2)]:mt-1 [&>p:nth-child(2)]:text-4xl [&>p:nth-child(3)]:mt-1.5"
                   />
                 )}
 
                 {/* 3. Descripción */}
-                <p className="text-sm text-muted line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
+                <p className="line-clamp-2 text-sm font-medium leading-relaxed text-fg">{j.descripcion ?? 'Sin descripción'}</p>
 
                 {/* 4. Grilla 2x2 de datos */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-2">
-                    <p className="text-xs text-muted">Cuota</p>
-                    <p className="text-sm font-semibold text-fg">{cuota !== null ? money(cuota) : '—'}</p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="rounded-[var(--r-md)] bg-slate-50 px-3.5 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">Cuota</p>
+                    <p className="mt-1 text-sm font-semibold text-fg">{cuota !== null ? money(cuota) : '—'}</p>
                   </div>
-                  <div className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-2">
-                    <p className="text-xs text-muted">Frecuencia</p>
-                    <p className="capitalize text-sm font-semibold text-fg">{j.frecuencia_pago ?? '—'}</p>
+                  <div className="rounded-[var(--r-md)] bg-slate-50 px-3.5 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">Frecuencia</p>
+                    <p className="mt-1 text-sm font-semibold capitalize text-fg">{j.frecuencia_pago ?? '—'}</p>
                   </div>
-                  <div className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-2">
-                    <p className="text-xs text-muted">Inicio</p>
-                    <p className="text-sm font-semibold text-fg">{formatFecha(j.fecha_inicio) ?? '—'}</p>
+                  <div className="rounded-[var(--r-md)] bg-slate-50 px-3.5 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">Inicio</p>
+                    <p className="mt-1 text-sm font-semibold text-fg">{formatFecha(j.fecha_inicio) ?? '—'}</p>
                   </div>
-                  <div className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-2">
-                    <p className="text-xs text-muted">Cupos libres</p>
-                    <p className="text-sm font-semibold text-fg">{cuposLibres}</p>
+                  <div className="rounded-[var(--r-md)] bg-slate-50 px-3.5 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">Cupos</p>
+                    <p className="mt-1 text-sm font-semibold text-fg">{cuposLibres} libres</p>
                   </div>
                 </div>
 
@@ -207,6 +218,8 @@ export default function ExplorarPage() {
                 <Button
                   disabled={joinDisabled}
                   onClick={() => handleJoinClick(j, { disabled: joinDisabled, isMember })}
+                  size="lg"
+                  className="mt-auto w-full rounded-[var(--r-md)] uppercase tracking-[0.04em]"
                 >
                   {actionLabel}
                 </Button>
