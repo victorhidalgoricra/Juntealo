@@ -169,7 +169,14 @@ export default function ExplorarPage() {
                       <p className="text-xs text-muted">{integrantes}/{j.participantes_max} personas · {j.frecuencia_pago}</p>
                     </div>
                   </div>
-                  <Badge className="shrink-0">{j.visibilidad === 'privada' ? 'Privada' : 'Pública'}</Badge>
+                  <Badge
+                    className={j.visibilidad === 'privada'
+                      ? 'shrink-0'
+                      : 'shrink-0 bg-[var(--green-bg)] text-[var(--green)]'}
+                  >
+                    {j.visibilidad !== 'privada' && <span aria-hidden="true">●&nbsp;</span>}
+                    {j.visibilidad === 'privada' ? 'Privada' : 'Pública'}
+                  </Badge>
                 </div>
 
                 {/* 2. Monto destacado */}
