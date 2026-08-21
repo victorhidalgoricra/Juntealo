@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { RevealOnScroll } from './reveal';
 
 const features = [
@@ -64,6 +65,15 @@ export function FeaturesGrid() {
               <p className={`mt-2 text-[13px] leading-relaxed ${feature.descClass}`}>{feature.description}</p>
             </article>
           ))}
+        </div>
+
+        <div className="mt-5 flex justify-stretch sm:justify-start">
+          <Link
+            href="/beneficios"
+            className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-[var(--accent)] transition hover:text-[var(--accent-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+          >
+            Ver todos los beneficios →
+          </Link>
         </div>
       </RevealOnScroll>
     </section>
