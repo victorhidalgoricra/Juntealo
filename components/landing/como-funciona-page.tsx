@@ -159,30 +159,28 @@ export function ComoFuncionaPage() {
           {[
             {
               num: 1,
-              title: 'Crea la junta',
-              body: 'Define nombre, cantidad de integrantes, monto de cuota, frecuencia (semanal / quincenal / mensual) y si será Normal o con Incentivos.',
+              title: 'Crea tu junta',
+              body: 'Define integrantes, cuota, frecuencia, modalidad y elige si será pública o privada.',
             },
             {
               num: 2,
-              title: 'Invita a tu grupo',
-              body: 'Comparte un enlace único. Cada integrante se registra y verifica su identidad antes de unirse. Así sabes con quién estás antes de empezar.',
+              title: 'Completa tu grupo',
+              body: 'Espera a que se llenen los cupos para iniciar la junta.',
             },
             {
               num: 3,
-              title: 'Todos aportan por su cuenta',
+              title: 'Todos aportan',
               body: (
                 <>
-                  Cada integrante paga directamente al receptor del turno o al organizador por{' '}
-                  <strong>Yape, Plin o transferencia bancaria</strong>. La plataforma no mueve ni
-                  retiene dinero — solo registra, envía recordatorios y lleva el control de quién
-                  pagó y quién no.
+                  Cada integrante paga al receptor del turno.{' '}
+                  <strong>Juntealo registra los pagos y envía recordatorios.</strong>
                 </>
               ),
             },
             {
               num: 4,
-              title: 'El turno cobra la bolsa',
-              body: 'Cuando los pagos del período están confirmados, el integrante con el turno activo recibe su bolsa. El ciclo continúa hasta que todos hayan cobrado.',
+              title: 'El turno cobra',
+              body: 'Cuando se completan los aportes, quien tiene el turno recibe la bolsa.',
             },
           ].map(({ num, title, body }, index) => {
             const isActive = visibleProcessStep === index;
