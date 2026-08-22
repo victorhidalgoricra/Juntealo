@@ -165,7 +165,7 @@ export default function ExplorarPage() {
                   <div className="flex min-w-0 items-center gap-3">
                     <JuntaAvatar nombre={j.nombre} size="md" />
                     <div className="min-w-0">
-                      <h2 className="break-words font-semibold text-fg">{j.nombre}</h2>
+                      <h2 className="truncate font-semibold text-fg">{j.nombre}</h2>
                       <p className="text-xs text-muted">{integrantes}/{j.participantes_max} personas · {j.frecuencia_pago}</p>
                     </div>
                   </div>
@@ -179,16 +179,18 @@ export default function ExplorarPage() {
                   </Badge>
                 </div>
 
-                {/* 2. Monto destacado */}
+                {/* 2. Descripción */}
+                <p className="text-sm text-muted line-clamp-1">
+                  {j.descripcion?.trim() || 'Junta abierta para nuevos integrantes.'}
+                </p>
+
+                {/* 3. Monto destacado */}
                 {bolsa !== null && (
                   <JuntaAmountBlock
                     amount={money(bolsa)}
                     sublabel={`Aportando ${money(cuota!)} por ${j.frecuencia_pago}`}
                   />
                 )}
-
-                {/* 3. Descripción */}
-                <p className="text-sm text-muted line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
 
                 {/* 4. Grilla 2x2 de datos */}
                 <div className="grid grid-cols-2 gap-2">
