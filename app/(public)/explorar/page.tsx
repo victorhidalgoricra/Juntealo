@@ -187,8 +187,10 @@ export default function ExplorarPage() {
                   />
                 )}
 
-                {/* 3. Descripción */}
-                <p className="text-sm text-muted line-clamp-2">{j.descripcion ?? 'Sin descripción'}</p>
+                {/* 3. Descripción — altura fija de 2 líneas (text-sm line-height 1.25rem × 2 = h-10) */}
+                <div className="h-10 overflow-hidden">
+                  {j.descripcion && <p className="text-sm text-muted line-clamp-2">{j.descripcion}</p>}
+                </div>
 
                 {/* 4. Grilla 2x2 de datos */}
                 <div className="grid grid-cols-2 gap-2">
