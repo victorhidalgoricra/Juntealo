@@ -42,6 +42,7 @@ export function RegisterPageClient() {
   const [referralCode, setReferralCode] = useState('');
   const [referralStatus, setReferralStatus] = useState<ReferralStatus>('idle');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const conversionSentRef = useRef(false);
 
   const handleReferralChange = useCallback((value: string) => {
     setReferralCode(value);
@@ -132,6 +133,11 @@ export function RegisterPageClient() {
                 } catch {
                   // no-op defensivo: igual redirigimos al login
                 }
+              }
+
+              if (!conversionSentRef.current) {
+                conversionSentRef.current = true;
+                if (typeof (window as any).gtag === 'function') (window as any).gtag('event', 'conversion', { send_to: 'AW-11105388316/yJdwCTvZqcEaEJyOu68p', value: 1.0, currency: 'PEN' });
               }
 
               const signupState = requiresEmailConfirmation ? 'confirm_email' : 'success';
