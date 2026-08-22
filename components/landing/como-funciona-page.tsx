@@ -83,8 +83,6 @@ export function ComoFuncionaPage() {
 
   // Hero mini simulator — solo cuota es ajustable; personas y frecuencia son fijos
   const [heroCuota, setHeroCuota] = useState(400);
-  const [heroAmountInput, setHeroAmountInput] = useState('2000');
-  const [heroEditing, setHeroEditing] = useState(false);
 
   // Simulador completo
   const [personas, setPersonas] = useState(5);
@@ -125,12 +123,6 @@ export function ComoFuncionaPage() {
   const setHeroAmount = (amount: number) => {
     const clampedAmount = Math.min(HERO_MAX_AMOUNT, Math.max(HERO_MIN_AMOUNT, amount));
     setHeroCuota(clampedAmount / HERO_PERSONAS);
-    setHeroAmountInput(String(clampedAmount));
-  };
-
-  const commitHeroAmountInput = () => {
-    const parsedAmount = Number(heroAmountInput);
-    setHeroAmount(Number.isFinite(parsedAmount) ? parsedAmount : hero.bolsa);
   };
 
   // Cálculo compartido: simulador completo
@@ -164,56 +156,41 @@ export function ComoFuncionaPage() {
 
           {/* Columna derecha — mini simulador */}
           <DarkHeroCard>
-            <label htmlFor="hero-amount" className="text-xs font-semibold text-[var(--dark-text)]">
-              Monto que quieres recibir
+            <label htmlFor="hero-amount" className="text-sm font-semibold text-[var(--dark-text)]">
+              ¿Cuánto quieres recibir?
             </label>
-            <div className="mt-2 rounded-[var(--r-md)] bg-accent p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-white/70">
-                Recibirás en tu turno
-              </p>
-              <div className="flex items-baseline break-all font-mono text-3xl font-bold text-white">
-                <span>S/&nbsp;</span>
+            <div className="mt-2 flex w-full items-center gap-3 rounded-[var(--r-md)] border-2 border-white/15 bg-[var(--dark-3)] px-4 py-3 transition-colors focus-within:border-[var(--accent)] focus-within:ring-4 focus-within:ring-[var(--accent)]/20">
+              <span aria-hidden="true" className="shrink-0 font-mono text-xl font-semibold text-[var(--dark-muted)]">
+                S/
+              </span>
+              <div className="min-w-0 flex-1">
                 <input
                   id="hero-amount"
-                  type="text"
-                  inputMode="numeric"
-                  value={heroEditing ? heroAmountInput : hero.bolsa.toLocaleString('es-PE')}
-                  onFocus={() => {
-                    setHeroEditing(true);
-                    setHeroAmountInput(String(hero.bolsa));
-                  }}
+                  type="number"
+                  min={HERO_MIN_AMOUNT}
+                  max={HERO_MAX_AMOUNT}
+                  step={1}
+                  value={hero.bolsa}
                   onChange={(event) => {
-                    const nextValue = event.target.value;
-                    setHeroAmountInput(nextValue);
-                    const parsedValue = Number(nextValue);
-                    if (nextValue !== '' && parsedValue >= HERO_MIN_AMOUNT && parsedValue <= HERO_MAX_AMOUNT) {
-                      setHeroCuota(parsedValue / HERO_PERSONAS);
+                    const nextAmount = event.currentTarget.valueAsNumber;
+                    if (Number.isFinite(nextAmount) && nextAmount >= HERO_MIN_AMOUNT && nextAmount <= HERO_MAX_AMOUNT) {
+                      setHeroAmount(nextAmount);
                     }
                   }}
-                  onBlur={() => {
-                    setHeroEditing(false);
-                    commitHeroAmountInput();
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') event.currentTarget.blur();
-                  }}
                   aria-label="Monto que quieres recibir en soles"
-                  className="min-w-0 flex-1 bg-transparent outline-none [appearance:textfield] [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  className="w-full min-w-0 bg-transparent font-mono text-3xl font-bold text-white outline-none [appearance:textfield] placeholder:text-white/40 sm:text-4xl [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
               </div>
-              <p className="mt-0.5 text-xs text-white/60">
-                Con {HERO_PERSONAS} personas · {HERO_FRECUENCIA}
-              </p>
             </div>
             <input
               type="range"
               min={20}
               max={2000}
-              step={10}
+              step={1 / HERO_PERSONAS}
               value={heroCuota}
               onChange={(event) => setHeroAmount(+event.target.value * HERO_PERSONAS)}
               aria-label="Monto que quieres recibir"
-              className="mt-3 w-full accent-[var(--accent)]"
+              className="mt-4 h-6 w-full cursor-pointer accent-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
             />
             <div className="mt-1 flex justify-between text-[11px] text-[var(--dark-muted)]">
               <span>S/ 100</span>
@@ -235,7 +212,14 @@ export function ComoFuncionaPage() {
 
             <a
               href="#simulador"
-              className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[var(--accent)] transition-opacity hover:opacity-75"
+              className="mt-5 inline-flex w-full items-center justify-center rounded-[var(--r-md)] bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:scale-[0.99] active:brightness-95"
+            >
+              Simular mi junta
+            </a>
+
+            <a
+              href="#simulador"
+              className="mt-3 inline-flex w-full items-center justify-center gap-1 text-sm font-semibold text-[var(--accent)] transition-opacity hover:opacity-75 focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
             >
               Personalizar más →
             </a>
