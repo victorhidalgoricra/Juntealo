@@ -191,7 +191,7 @@ const WHAT_YOU_BUILD = [
 
 function ScoreDemoCard() {
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-[var(--r-xl)] bg-[var(--dark-1)] p-5 text-white shadow-xl sm:p-7 md:self-stretch md:justify-between">
+    <div className="relative overflow-hidden rounded-[var(--r-xl)] bg-[var(--dark-1)] p-5 text-white shadow-xl sm:p-7">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--dark-muted)]">Tu perfil demo</p>
