@@ -180,7 +180,9 @@ export default function ExplorarPage() {
                 </div>
 
                 {/* 2. Descripción */}
-                {j.descripcion && <p className="text-sm text-muted line-clamp-2">{j.descripcion}</p>}
+                <p className="text-sm text-muted line-clamp-1">
+                  {j.descripcion ?? 'Junta abierta para nuevos integrantes.'}
+                </p>
 
                 {/* 3. Monto destacado */}
                 {bolsa !== null && (
