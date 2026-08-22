@@ -6,9 +6,13 @@ import { ChevronDown } from 'lucide-react';
 import { RevealOnScroll } from './reveal';
 import { calcSimulador } from '@/lib/junta-calc';
 import type { TipoJunta, Frecuencia } from '@/lib/junta-calc';
+import { JuntaAmountBlock } from '@/components/ui/junta-amount-block';
+import { DarkHeroCard } from './dark-hero-card';
 
 const HERO_PERSONAS = 5;
 const HERO_FRECUENCIA: Frecuencia = 'Semanal';
+const HERO_MIN_AMOUNT = 100;
+const HERO_MAX_AMOUNT = 10_000;
 
 const normalFeatures = [
   { icon: '📊', title: 'Panel del grupo', desc: 'Todos ven el estado en tiempo real: quién pagó, quién falta y el turno activo.', accentBg: 'var(--accent-bg)' },
@@ -80,6 +84,7 @@ export function ComoFuncionaPage() {
 
   // Hero mini simulator — solo cuota es ajustable; personas y frecuencia son fijos
   const [heroCuota, setHeroCuota] = useState(400);
+  const [heroAmountInput, setHeroAmountInput] = useState('2000');
 
   // Simulador completo
   const [personas, setPersonas] = useState(5);
@@ -117,6 +122,17 @@ export function ComoFuncionaPage() {
   // Cálculo compartido: hero mini
   const hero = calcSimulador(heroCuota, HERO_PERSONAS, HERO_FRECUENCIA);
 
+  const setHeroAmount = (amount: number) => {
+    const clampedAmount = Math.min(HERO_MAX_AMOUNT, Math.max(HERO_MIN_AMOUNT, amount));
+    setHeroCuota(clampedAmount / HERO_PERSONAS);
+    setHeroAmountInput(String(clampedAmount));
+  };
+
+  const commitHeroAmountInput = () => {
+    const parsedAmount = Number(heroAmountInput);
+    setHeroAmount(Number.isFinite(parsedAmount) ? parsedAmount : hero.bolsa);
+  };
+
   // Cálculo compartido: simulador completo
   const sim = calcSimulador(cuota, personas, frecuencia);
   const cuotaDelTurno = sim.turnosCuota[turnoActivo - 1] ?? cuota;
@@ -132,14 +148,14 @@ export function ComoFuncionaPage() {
     <main className="flex flex-col">
       {/* ── 1. HERO ── */}
       <RevealOnScroll className="order-1 mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-16">
-        <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-12">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-12">
           {/* Columna izquierda — texto */}
           <div className="space-y-5">
             <span className="inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
               ¿Cómo funciona?
             </span>
             <h1 className="break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl">
-              ¿Cuánto <span className="text-[var(--accent)]">quieres recibir?</span>
+              ¿Cuánto dinero <span className="text-[var(--accent)]">quieres recibir?</span>
             </h1>
             <p className="text-[17px] leading-relaxed text-[var(--muted)]">
               Mueve el slider y ve al instante cuánto cobrarías y cuánto aportarías cada semana. Cuando quieras afinar tu grupo, el simulador completo está más abajo.
@@ -147,23 +163,58 @@ export function ComoFuncionaPage() {
           </div>
 
           {/* Columna derecha — mini simulador */}
-          <div className="rounded-[var(--r-xl)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:p-6">
-            <label className="flex items-center justify-between text-xs font-semibold text-[var(--text)]">
-              <span>Monto que quieres recibir</span>
-              <span className="rounded-full bg-[var(--accent-bg)] px-2.5 py-0.5 font-mono text-[13px] font-bold text-[var(--accent)]">
-                S/ {hero.bolsa.toLocaleString('es-PE')}
-              </span>
+          <DarkHeroCard>
+            <label htmlFor="hero-amount" className="text-xs font-semibold text-[var(--dark-text)]">
+              Monto que quieres recibir
             </label>
+            <JuntaAmountBlock
+              variant="dark"
+              className="mt-2"
+              label="Recibirás en tu turno"
+              amount={`S/ ${hero.bolsa.toLocaleString('es-PE')}`}
+              sublabel={`Con ${HERO_PERSONAS} personas · ${HERO_FRECUENCIA}`}
+            />
+
+            <div className="mt-4">
+              <span className="text-[11px] text-[var(--dark-muted)]">También puedes escribir el monto</span>
+              <div className="mt-1 flex items-center rounded-[var(--r-sm)] bg-[var(--dark-3)] px-3 focus-within:ring-2 focus-within:ring-[var(--accent)]">
+                <span className="font-mono text-sm font-semibold text-[var(--dark-text)]">S/</span>
+                <input
+                  id="hero-amount"
+                  type="number"
+                  inputMode="numeric"
+                  min={HERO_MIN_AMOUNT}
+                  max={HERO_MAX_AMOUNT}
+                  step={50}
+                  value={heroAmountInput}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setHeroAmountInput(nextValue);
+                    const parsedValue = Number(nextValue);
+                    if (nextValue !== '' && parsedValue >= HERO_MIN_AMOUNT && parsedValue <= HERO_MAX_AMOUNT) {
+                      setHeroCuota(parsedValue / HERO_PERSONAS);
+                    }
+                  }}
+                  onBlur={commitHeroAmountInput}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') event.currentTarget.blur();
+                  }}
+                  aria-label="Monto que quieres recibir en soles"
+                  className="min-w-0 flex-1 bg-transparent px-2 py-2.5 font-mono text-base font-bold text-white outline-none"
+                />
+              </div>
+            </div>
             <input
               type="range"
               min={20}
               max={2000}
               step={10}
               value={heroCuota}
-              onChange={(e) => setHeroCuota(+e.target.value)}
+              onChange={(event) => setHeroAmount(+event.target.value * HERO_PERSONAS)}
+              aria-label="Monto que quieres recibir"
               className="mt-3 w-full accent-[var(--accent)]"
             />
-            <div className="mt-1 flex justify-between text-[11px] text-[var(--muted)]">
+            <div className="mt-1 flex justify-between text-[11px] text-[var(--dark-muted)]">
               <span>S/ 100</span>
               <span>S/ 10,000</span>
             </div>
@@ -174,16 +225,12 @@ export function ComoFuncionaPage() {
                 { label: 'Cuota por semana', value: `S/ ${heroCuota.toLocaleString('es-PE')}` },
                 { label: 'Duración', value: hero.duracionLabel },
               ].map((item) => (
-                <div key={item.label} className="rounded-[var(--r)] border border-[var(--border)] bg-[var(--bg)] p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-[var(--muted)]">{item.label}</p>
-                  <p className="mt-1 font-mono text-sm font-semibold text-[var(--text)]">{item.value}</p>
+                <div key={item.label} className="rounded-[var(--r-sm)] bg-[var(--dark-3)] p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-[var(--dark-muted)]">{item.label}</p>
+                  <p className="mt-1 font-mono text-sm font-semibold text-white">{item.value}</p>
                 </div>
               ))}
             </div>
-
-            <p className="mt-1 text-[11px] text-[var(--muted)]">
-              Con {HERO_PERSONAS} personas · {HERO_FRECUENCIA}
-            </p>
 
             <a
               href="#simulador"
@@ -191,7 +238,7 @@ export function ComoFuncionaPage() {
             >
               Personalizar más →
             </a>
-          </div>
+          </DarkHeroCard>
         </div>
       </RevealOnScroll>
 

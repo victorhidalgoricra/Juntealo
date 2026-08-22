@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { RevealOnScroll } from './reveal';
 import { JuntaAmountBlock } from '@/components/ui/junta-amount-block';
+import { DarkHeroCard } from './dark-hero-card';
 
 const demoMembers = ['AL', 'MC', 'DR', 'VN', 'LP'];
 
@@ -70,7 +71,7 @@ export function LandingHero() {
         </div>
       </div>
 
-      <div className="relative rounded-[var(--r-xl)] bg-[var(--dark-1)] p-5 text-white shadow-xl sm:p-7">
+      <DarkHeroCard>
         <span className="absolute right-6 top-6 inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
           ● Activa
         </span>
@@ -113,7 +114,7 @@ export function LandingHero() {
           </div>
           <p className="mt-2 text-xs text-[var(--dark-text)]">Semana 5 / 5 de 10 pagaron ✓</p>
         </div>
-      </div>
+      </DarkHeroCard>
     </RevealOnScroll>
   );
 }
