@@ -128,7 +128,7 @@ export default function ExplorarPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-4 px-4 py-10">
       <h1 className="text-3xl font-bold">Juntas disponibles</h1>
-      <p className="text-slate-600">Explora juntas públicas y únete con un solo paso.</p>
+      <p className="text-slate-600">Elige cuánto dinero quieres recibir y encuentra la junta ideal para lograrlo.</p>
 
       {loading && <Card>Cargando juntas públicas...</Card>}
       {error && (
