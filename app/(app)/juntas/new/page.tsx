@@ -511,7 +511,7 @@ export default function NewJuntaPage() {
                   )}
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Tamaño del grupo (4–{levelLimits.maxJuntaMembers})</label>
+                  <label className="text-sm font-medium">Tamaño del grupo (4 integrantes como mínimo)</label>
                   <Input type="number" min={4} max={levelLimits.maxJuntaMembers} step={1} {...register('participantes_max', { valueAsNumber: true })} />
                   {formState.errors.participantes_max && <p className="text-xs text-red-600">{formState.errors.participantes_max.message}</p>}
                 </div>
