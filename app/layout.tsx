@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Analytics } from '@vercel/analytics/react';
 import { DM_Mono, DM_Sans } from 'next/font/google';
 import { ReactNode } from 'react';
+import Script from 'next/script';
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -33,6 +34,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         {children}
         <Analytics />
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-11105388316"
+          strategy="afterInteractive"
+        />
+        <Script id="google-ads-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'AW-11105388316');
+          `}
+        </Script>
       </body>
     </html>
   );
