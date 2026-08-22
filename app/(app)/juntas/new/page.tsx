@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm, useWatch } from 'react-hook-form';
@@ -119,6 +119,8 @@ export default function NewJuntaPage() {
   }, [user, allJuntas, allMembers, allPayments, allSchedules]);
 
   const levelLimits = getLevelCreationLimits(userLevel);
+
+  const conversionFiredRef = useRef(false);
 
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
@@ -395,6 +397,18 @@ export default function NewJuntaPage() {
 
                 const persist = await createJuntaRecord(payload.junta);
                 if (!persist.ok) throw new Error(persist.message);
+
+                if (!conversionFiredRef.current) {
+                  conversionFiredRef.current = true;
+                  if (typeof (window as any).gtag === 'function') {
+                    (window as any).gtag('event', 'conversion', {
+                      send_to: 'AW-11105388316/9VnhCMvd5-UcEJyOu68p',
+                      value: 1.0,
+                      currency: 'PEN',
+                      transaction_id: payload.juntaId
+                    });
+                  }
+                }
 
                 const juntaUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/juntas/${payload.juntaId}`;
                 const isPrivate = payload.junta.visibilidad === 'privada';
