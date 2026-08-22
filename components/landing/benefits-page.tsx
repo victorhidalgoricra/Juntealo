@@ -300,7 +300,7 @@ export function BenefitsPage() {
   return (
     <main>
         {/* ── Hero ── */}
-        <RevealOnScroll className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 md:grid-cols-2 md:items-center md:px-6 md:py-20">
+        <RevealOnScroll className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 md:grid-cols-2 md:items-center md:px-6 md:py-16">
           <div className="space-y-6">
             <p className="inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
               ● Tu buen historial abre más oportunidades
