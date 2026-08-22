@@ -141,7 +141,7 @@ export default function ExplorarPage() {
       {!loading && !error && (juntas.length === 0 ? (
         <Card>{emptyMessage}</Card>
       ) : (
-        <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {juntas.map((j) => {
             const isOwner = Boolean(user?.id) && j.admin_id === user?.id;
             const integrantesBase = Number(j.integrantes_actuales ?? 0);
@@ -159,7 +159,7 @@ export default function ExplorarPage() {
             const cuposLibres = Math.max(0, j.participantes_max - integrantes);
 
             return (
-              <Card key={j.id} className="flex h-full flex-col gap-3">
+              <Card key={j.id} className="flex flex-col gap-3">
                 {/* 1. Header */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex min-w-0 items-center gap-3">
@@ -181,7 +181,7 @@ export default function ExplorarPage() {
 
                 {/* 2. Descripción */}
                 <p className="text-sm text-muted line-clamp-1">
-                  {j.descripcion ?? 'Junta abierta para nuevos integrantes.'}
+                  {j.descripcion?.trim() || 'Junta abierta para nuevos integrantes.'}
                 </p>
 
                 {/* 3. Monto destacado */}
