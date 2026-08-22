@@ -179,10 +179,8 @@ export default function ExplorarPage() {
                   </Badge>
                 </div>
 
-                {/* 2. Descripción — altura fija de 2 líneas (text-sm line-height 1.25rem × 2 = h-10) */}
-                <div className="h-10 overflow-hidden">
-                  {j.descripcion && <p className="text-sm text-muted line-clamp-2">{j.descripcion}</p>}
-                </div>
+                {/* 2. Descripción */}
+                {j.descripcion && <p className="text-sm text-muted line-clamp-2">{j.descripcion}</p>}
 
                 {/* 3. Monto destacado */}
                 {bolsa !== null && (
