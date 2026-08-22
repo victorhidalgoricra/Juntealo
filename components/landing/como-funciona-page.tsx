@@ -148,7 +148,7 @@ export function ComoFuncionaPage() {
     <main className="flex flex-col">
       {/* ── 1. HERO ── */}
       <RevealOnScroll className="order-1 mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-16">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-12">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-center md:gap-12">
           {/* Columna izquierda — texto */}
           <div className="space-y-5">
             <span className="inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
