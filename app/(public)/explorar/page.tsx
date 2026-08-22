@@ -179,18 +179,18 @@ export default function ExplorarPage() {
                   </Badge>
                 </div>
 
-                {/* 2. Monto destacado */}
+                {/* 2. Descripción — altura fija de 2 líneas (text-sm line-height 1.25rem × 2 = h-10) */}
+                <div className="h-10 overflow-hidden">
+                  {j.descripcion && <p className="text-sm text-muted line-clamp-2">{j.descripcion}</p>}
+                </div>
+
+                {/* 3. Monto destacado */}
                 {bolsa !== null && (
                   <JuntaAmountBlock
                     amount={money(bolsa)}
                     sublabel={`Aportando ${money(cuota!)} por ${j.frecuencia_pago}`}
                   />
                 )}
-
-                {/* 3. Descripción — altura fija de 2 líneas (text-sm line-height 1.25rem × 2 = h-10) */}
-                <div className="h-10 overflow-hidden">
-                  {j.descripcion && <p className="text-sm text-muted line-clamp-2">{j.descripcion}</p>}
-                </div>
 
                 {/* 4. Grilla 2x2 de datos */}
                 <div className="grid grid-cols-2 gap-2">
