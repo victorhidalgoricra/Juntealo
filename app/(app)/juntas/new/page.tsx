@@ -171,7 +171,7 @@ export default function NewJuntaPage() {
     structure:
       Number.isInteger(previewParticipantes) &&
       previewParticipantes >= 4 &&
-      previewParticipantes <= 20 &&
+      previewParticipantes <= 40 &&
       previewCuota >= 20,
     incentives:
       form.tipo_junta === 'normal'
@@ -233,8 +233,8 @@ export default function NewJuntaPage() {
       const participants = Number(values.participantes_max ?? 0);
       const cuota = Number(values.monto_cuota ?? 0);
 
-      if (!Number.isInteger(participants) || participants < 4 || participants > 20) {
-        setError('participantes_max', { message: 'El tamaño del grupo debe ser entero entre 4 y 20.' });
+      if (!Number.isInteger(participants) || participants < 4 || participants > 40) {
+        setError('participantes_max', { message: 'El tamaño del grupo debe ser entero entre 4 y 40.' });
         return false;
       }
       if (cuota < 20) {
@@ -511,8 +511,8 @@ export default function NewJuntaPage() {
                   )}
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Tamaño del grupo (4–20)</label>
-                  <Input type="number" min={4} max={20} step={1} {...register('participantes_max', { valueAsNumber: true })} />
+                  <label className="text-sm font-medium">Tamaño del grupo (4–{levelLimits.maxJuntaMembers})</label>
+                  <Input type="number" min={4} max={levelLimits.maxJuntaMembers} step={1} {...register('participantes_max', { valueAsNumber: true })} />
                   {formState.errors.participantes_max && <p className="text-xs text-red-600">{formState.errors.participantes_max.message}</p>}
                 </div>
                 <div>
