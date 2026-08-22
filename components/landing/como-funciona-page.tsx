@@ -4,8 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronDown } from 'lucide-react';
 import { RevealOnScroll } from './reveal';
+import { calcSimulador } from '@/lib/junta-calc';
+import type { TipoJunta, Frecuencia } from '@/lib/junta-calc';
 
-type TipoJunta = 'normal' | 'incentivos';
+const HERO_PERSONAS = 5;
+const HERO_FRECUENCIA: Frecuencia = 'Semanal';
 
 const normalFeatures = [
   { icon: '📊', title: 'Panel del grupo', desc: 'Todos ven el estado en tiempo real: quién pagó, quién falta y el turno activo.', accentBg: 'var(--accent-bg)' },
@@ -74,9 +77,14 @@ export function ComoFuncionaPage() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [tipoActivo, setTipoActivo] = useState<TipoJunta>('normal');
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
+
+  // Hero mini simulator — solo cuota es ajustable; personas y frecuencia son fijos
+  const [heroCuota, setHeroCuota] = useState(400);
+
+  // Simulador completo
   const [personas, setPersonas] = useState(5);
   const [cuota, setCuota] = useState(400);
-  const [frecuencia, setFrecuencia] = useState<'Semanal' | 'Quincenal' | 'Mensual'>('Semanal');
+  const [frecuencia, setFrecuencia] = useState<Frecuencia>('Semanal');
   const [simTipo, setSimTipo] = useState<TipoJunta>('normal');
   const [turnoActivo, setTurnoActivo] = useState(1);
 
@@ -106,19 +114,12 @@ export function ComoFuncionaPage() {
 
   const visibleProcessStep = hoveredProcessStep ?? (prefersReducedMotion ? 0 : activeProcessStep);
 
-  const bolsa = personas * cuota;
-  const duracionLabel = `${personas} ${frecuencia === 'Semanal' ? 'semanas' : frecuencia === 'Quincenal' ? 'quincenas' : 'meses'}`;
-  const periodoLabel = frecuencia === 'Semanal' ? 'semana' : frecuencia === 'Quincenal' ? 'quincena' : 'mes';
-  const cuotaMax = Math.round(cuota * 1.2);
-  const cuotaMin = Math.round(cuota * 0.8);
+  // Cálculo compartido: hero mini
+  const hero = calcSimulador(heroCuota, HERO_PERSONAS, HERO_FRECUENCIA);
 
-  // Redistribución lineal simétrica: suma de turnosCuota = personas × cuota exactamente.
-  // Turno i=0 paga más (+20%), turno i=N-1 paga menos (-20%), el central queda neutro.
-  const turnosCuota = Array.from({ length: personas }, (_, i) => {
-    if (personas === 1) return cuota;
-    const delta = Math.round(cuota * 0.2 * (1 - (2 * i) / (personas - 1)));
-    return cuota + delta;
-  });
+  // Cálculo compartido: simulador completo
+  const sim = calcSimulador(cuota, personas, frecuencia);
+  const cuotaDelTurno = sim.turnosCuota[turnoActivo - 1] ?? cuota;
 
   const turnColor = (i: number) => {
     const num = i + 1;
@@ -127,27 +128,71 @@ export function ComoFuncionaPage() {
     return 'bg-[var(--border)] text-[var(--muted)]';
   };
 
-  const cuotaDelTurno = turnosCuota[turnoActivo - 1] ?? cuota;
-
   return (
     <main className="flex flex-col">
       {/* ── 1. HERO ── */}
-      <RevealOnScroll className="order-1 mx-auto w-full max-w-4xl px-4 py-10 text-center md:px-6 md:py-14">
-        <span className="inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
-          ¿Cómo funciona?
-        </span>
-        <h1 className="mt-5 break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl">
-          ¿Cuánto <span className="text-[var(--accent)]">quieres recibir?</span>
-        </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-[17px] leading-relaxed text-[var(--muted)]">
-          Define cuánto quieres recibir, cuánto puedes aportar y cada cuánto. Te mostramos cómo podría quedar tu junta antes de crearla.
-        </p>
-        <a
-          href="#simulador"
-          className="mt-6 inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
-        >
-          Simula aquí
-        </a>
+      <RevealOnScroll className="order-1 mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-16">
+        <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-12">
+          {/* Columna izquierda — texto */}
+          <div className="space-y-5">
+            <span className="inline-flex items-center rounded-full bg-[var(--green-bg)] px-3 py-1 text-xs font-semibold text-[var(--green)]">
+              ¿Cómo funciona?
+            </span>
+            <h1 className="break-words text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl">
+              ¿Cuánto <span className="text-[var(--accent)]">quieres recibir?</span>
+            </h1>
+            <p className="text-[17px] leading-relaxed text-[var(--muted)]">
+              Mueve el slider y ve al instante cuánto cobrarías y cuánto aportarías cada semana. Cuando quieras afinar tu grupo, el simulador completo está más abajo.
+            </p>
+          </div>
+
+          {/* Columna derecha — mini simulador */}
+          <div className="rounded-[var(--r-xl)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:p-6">
+            <label className="flex items-center justify-between text-xs font-semibold text-[var(--text)]">
+              <span>Monto que quieres recibir</span>
+              <span className="rounded-full bg-[var(--accent-bg)] px-2.5 py-0.5 font-mono text-[13px] font-bold text-[var(--accent)]">
+                S/ {hero.bolsa.toLocaleString('es-PE')}
+              </span>
+            </label>
+            <input
+              type="range"
+              min={20}
+              max={2000}
+              step={10}
+              value={heroCuota}
+              onChange={(e) => setHeroCuota(+e.target.value)}
+              className="mt-3 w-full accent-[var(--accent)]"
+            />
+            <div className="mt-1 flex justify-between text-[11px] text-[var(--muted)]">
+              <span>S/ 100</span>
+              <span>S/ 10,000</span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                { label: 'Bolsa por turno', value: `S/ ${hero.bolsa.toLocaleString('es-PE')}` },
+                { label: 'Cuota por semana', value: `S/ ${heroCuota.toLocaleString('es-PE')}` },
+                { label: 'Duración', value: hero.duracionLabel },
+              ].map((item) => (
+                <div key={item.label} className="rounded-[var(--r)] border border-[var(--border)] bg-[var(--bg)] p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-[var(--muted)]">{item.label}</p>
+                  <p className="mt-1 font-mono text-sm font-semibold text-[var(--text)]">{item.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-1 text-[11px] text-[var(--muted)]">
+              Con {HERO_PERSONAS} personas · {HERO_FRECUENCIA}
+            </p>
+
+            <a
+              href="#simulador"
+              className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[var(--accent)] transition-opacity hover:opacity-75"
+            >
+              Personalizar más →
+            </a>
+          </div>
+        </div>
       </RevealOnScroll>
 
       {/* ── 2. PROCESO ── */}
@@ -355,7 +400,7 @@ export function ComoFuncionaPage() {
               <label className="mb-2 block text-xs font-semibold text-[var(--text)]">Frecuencia</label>
               <select
                 value={frecuencia}
-                onChange={(e) => setFrecuencia(e.target.value as typeof frecuencia)}
+                onChange={(e) => setFrecuencia(e.target.value as Frecuencia)}
                 className="w-full rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
               >
                 <option>Semanal</option>
@@ -389,10 +434,10 @@ export function ComoFuncionaPage() {
 
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
-              { label: 'Bolsa por turno', value: `S/ ${bolsa.toLocaleString('es-PE')}` },
-              { label: 'Duración del ciclo', value: duracionLabel },
+              { label: 'Bolsa por turno', value: `S/ ${sim.bolsa.toLocaleString('es-PE')}` },
+              { label: 'Duración del ciclo', value: sim.duracionLabel },
               simTipo === 'incentivos'
-                ? { label: 'Rango de cuotas', value: `S/ ${cuotaMin} – S/ ${cuotaMax}` }
+                ? { label: 'Rango de cuotas', value: `S/ ${sim.cuotaMin} – S/ ${sim.cuotaMax}` }
                 : { label: 'Cuota por período', value: `S/ ${cuota.toLocaleString('es-PE')}` },
             ].map((item) => (
               <div key={item.label} className="rounded-[var(--r)] border border-[var(--border)] bg-[var(--bg)] p-4">
@@ -411,7 +456,7 @@ export function ComoFuncionaPage() {
               {Array.from({ length: personas }, (_, i) => (
                 <div key={i} className="flex flex-col items-center gap-1">
                   {simTipo === 'incentivos' && (
-                    <span className="font-mono text-[10px] text-[var(--muted)]">S/{turnosCuota[i]}</span>
+                    <span className="font-mono text-[10px] text-[var(--muted)]">S/{sim.turnosCuota[i]}</span>
                   )}
                   <span
                     onClick={() => setTurnoActivo(i + 1)}
@@ -445,12 +490,12 @@ export function ComoFuncionaPage() {
             </p>
             <p className="mt-1 text-sm text-[var(--text)]">
               Cobras{' '}
-              <span className="font-mono font-semibold">S/ {bolsa.toLocaleString('es-PE')}</span>{' '}
-              en la {periodoLabel} {turnoActivo} del ciclo.
+              <span className="font-mono font-semibold">S/ {sim.bolsa.toLocaleString('es-PE')}</span>{' '}
+              en la {sim.periodoLabel} {turnoActivo} del ciclo.
               {simTipo === 'incentivos' && (
                 <> Tu cuota durante todo el ciclo será{' '}
                   <span className="font-mono font-semibold">S/ {cuotaDelTurno.toLocaleString('es-PE')}</span>{' '}
-                  por {periodoLabel}.
+                  por {sim.periodoLabel}.
                 </>
               )}
             </p>
