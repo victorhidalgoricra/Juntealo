@@ -567,7 +567,7 @@ export function BenefitsPage() {
         </RevealOnScroll>
 
         {/* ── CTA Final ── */}
-        <RevealOnScroll className="bg-[var(--dark-3)]">
+        <RevealOnScroll className="bg-[var(--dark-4)]">
           <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center md:py-[72px]">
             <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
               Empieza a construir tu historial de junta
@@ -584,7 +584,7 @@ export function BenefitsPage() {
               </Link>
               <Link
                 href="/explorar"
-                className="inline-flex rounded-[var(--r-sm)] border border-[var(--dark-4)] px-5 py-3 text-sm font-semibold text-[var(--dark-text)] transition hover:bg-[var(--dark-3)]"
+                className="inline-flex rounded-[var(--r-sm)] border border-white/20 px-5 py-3 text-sm font-semibold text-[var(--dark-text)] transition hover:bg-[var(--dark-3)]"
               >
                 Explorar juntas
               </Link>
