@@ -32,21 +32,8 @@ export default function TerminosYCondicionesPage() {
         Versión 1.0 &mdash; Última actualización: 23 de agosto de 2026
       </p>
 
-      {/* Draft notice banner */}
-      <div
-        role="alert"
-        className="mt-8 rounded-[var(--r-md)] border border-[var(--amber)] bg-[var(--amber-bg)] px-5 py-4"
-      >
-        <p className="text-sm leading-relaxed text-[var(--text)]">
-          <span className="font-semibold text-[var(--amber)]">Borrador funcional.</span>{' '}
-          Este documento es un borrador funcional. Antes de considerarlo definitivo, debe ser
-          revisado por asesoría legal, en particular las secciones marcadas como &ldquo;en
-          revisión&rdquo;.
-        </p>
-      </div>
-
       {/* Table of contents */}
-      <nav aria-label="Tabla de contenido" className="mt-12">
+      <nav aria-label="Tabla de contenido" className="mt-8">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
           Contenido
         </h2>
