@@ -4,7 +4,7 @@ import { AMBASSADOR_CALENDLY_URL } from './constants';
 
 export function AmbassadorCta() {
   return (
-    <RevealOnScroll className="bg-[var(--dark-1)]">
+    <RevealOnScroll className="bg-[var(--dark-3)]">
       <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center md:py-[72px]">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--accent-light)]">
           Da el siguiente paso

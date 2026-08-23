@@ -567,7 +567,7 @@ export function BenefitsPage() {
         </RevealOnScroll>
 
         {/* ── CTA Final ── */}
-        <RevealOnScroll className="bg-[var(--dark-1)]">
+        <RevealOnScroll className="bg-[var(--dark-3)]">
           <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center md:py-[72px]">
             <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
               Empieza a construir tu historial de junta

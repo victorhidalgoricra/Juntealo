@@ -500,7 +500,7 @@ export function ComoFuncionaPage() {
       </RevealOnScroll>
 
       {/* ── 6. CTA FINAL ── */}
-      <section className="order-7 bg-[var(--dark-1)]">
+      <section className="order-7 bg-[var(--dark-3)]">
         <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center md:py-[72px]">
           <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
             ¿Listo para tu primera junta digital?
