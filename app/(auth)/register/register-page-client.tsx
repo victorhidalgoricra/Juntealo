@@ -195,9 +195,11 @@ export function RegisterPageClient() {
         </div>
         {authError && <FieldError message={authError} />}
         <Button className="w-full" disabled={loading}>{loading ? 'Creando cuenta...' : 'Crear cuenta'}</Button>
-        <Link className="text-sm text-muted hover:text-fg hover:underline" href={`/login?redirect=${encodeURIComponent(redirect)}`}>
-          Ya tengo cuenta
-        </Link>
+        <div className="flex flex-col gap-2 pt-1 text-sm">
+          <Link className="text-muted hover:text-fg hover:underline" href={`/login?redirect=${encodeURIComponent(redirect)}`}>
+            Ya tengo cuenta
+          </Link>
+        </div>
       </form>
     </Card>
   );
