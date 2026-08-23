@@ -37,7 +37,7 @@ export function LandingFooter() {
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {/* Marca */}
           <div className="flex flex-col gap-4">
-            <JuntealoLogo />
+            <JuntealoLogo variant="white" />
             <p className="max-w-[220px] text-sm leading-relaxed text-[var(--dark-muted)]">
               Ahorra en comunidad, sin bancos ni complicaciones.
             </p>
@@ -111,12 +111,12 @@ export function LandingFooter() {
               </li>
               <li>
                 <a
-                  href="https://wa.me/51962019181"
+                  href="https://wa.me/51962019181?text=Hola%2C%20tengo%20una%20consulta%20sobre%20Juntealo."
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-[var(--dark-muted)] transition-colors hover:text-white"
                 >
-                  +51 962 019 181
+                  Escríbenos por WhatsApp
                 </a>
               </li>
             </ul>
