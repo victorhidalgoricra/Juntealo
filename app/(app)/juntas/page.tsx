@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
@@ -16,6 +18,7 @@ import { APP_BUSINESS_TIMEZONE, isJuntaBlockedByDeadline } from '@/lib/junta-blo
 import { canDeleteJunta } from '@/lib/junta-permissions';
 import { getActiveMemberCountByJunta, isUserMember } from '@/lib/junta-members';
 import { JuntaAvatar } from '@/components/junta-avatar';
+import { JuntaAmountBlock } from '@/components/ui/junta-amount-block';
 import {
   activateJuntaIfReady,
   deleteDraftJunta,
@@ -37,6 +40,19 @@ const filters = [
 type FilterId = (typeof filters)[number]['id'];
 
 const ITEMS_PER_PAGE = 6;
+
+function money(value: number) {
+  return `S/ ${Math.round(value).toLocaleString('es-PE')}`;
+}
+
+function formatFecha(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  try {
+    return format(parseISO(iso), 'dd MMM yyyy', { locale: es });
+  } catch {
+    return null;
+  }
+}
 
 export default function JuntasDisponiblesPage() {
   const router = useRouter();
@@ -523,7 +539,6 @@ export default function JuntasDisponiblesPage() {
               Number(j.integrantes_actuales ?? 0)
             );
             const cupoCompleto = miembrosActuales >= j.participantes_max;
-            const estadoVisual = isJuntaActive(j.estado) ? 'activa' : cupoCompleto ? 'completa' : 'borrador';
             const isBlocked = isJuntaBlockedByDeadline(j);
             const roleState = isOwner ? 'owner' : isMember ? 'member' : 'visitor';
             const isActive = isJuntaActive(j.estado);
@@ -544,7 +559,9 @@ export default function JuntasDisponiblesPage() {
             });
             const canJoinPublic = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'publica' && !isBlocked;
             const canAccessPrivate = roleState === 'visitor' && !cupoCompleto && j.visibilidad === 'privada' && !isBlocked;
-            const actionBranch = roleState === 'owner' ? 'owner-actions' : roleState === 'member' ? 'member-actions' : 'visitor-actions';
+            const cuota = Number(j.cuota_base ?? j.monto_cuota ?? 0) || null;
+            const bolsa = cuota && j.participantes_max ? cuota * j.participantes_max : null;
+            const cuposLibres = Math.max(0, j.participantes_max - miembrosActuales);
 
             // eslint-disable-next-line no-console
             console.debug('[DELETE BUTTON DEBUG]', {
@@ -564,25 +581,52 @@ export default function JuntasDisponiblesPage() {
             });
 
             return (
-              <Card key={juntaId} className="flex h-full flex-col justify-between gap-4 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-                <div className="space-y-3">
+              <Card key={juntaId} className="flex h-full flex-col gap-3">
+                <div className="flex flex-1 flex-col gap-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 items-center gap-3">
-                      <JuntaAvatar nombre={j.nombre} size="lg" />
-                      <h3 className="break-words text-lg font-semibold leading-tight">{j.nombre}</h3>
+                      <JuntaAvatar nombre={j.nombre} size="md" />
+                      <div className="min-w-0">
+                        <h3 className="truncate font-semibold text-fg">{j.nombre}</h3>
+                        <p className="text-xs text-muted">{miembrosActuales}/{j.participantes_max} personas · {j.frecuencia_pago}</p>
+                      </div>
                     </div>
-                    <Badge className="shrink-0">{j.visibilidad === 'publica' ? 'Pública' : 'Privada'}</Badge>
+                    <Badge
+                      className={j.visibilidad === 'privada'
+                        ? 'shrink-0'
+                        : 'shrink-0 bg-[var(--green-bg)] text-[var(--green)]'}
+                    >
+                      {j.visibilidad === 'publica' && <span aria-hidden="true">●&nbsp;</span>}
+                      {j.visibilidad === 'publica' ? 'Pública' : 'Privada'}
+                    </Badge>
                   </div>
                   {isBlocked && <Badge>Bloqueada</Badge>}
-                  <p className="break-words text-sm text-slate-600">{description}</p>
+                  <p className="line-clamp-1 break-words text-sm text-muted">{description}</p>
 
-                  <div className="grid grid-cols-1 gap-2 text-xs text-slate-500 sm:grid-cols-2">
-                    <p><span className="font-medium">Frecuencia:</span> {j.frecuencia_pago}</p>
-                    <p><span className="font-medium">Cuota base:</span> S/ {j.cuota_base ?? j.monto_cuota}</p>
-                    <p><span className="font-medium">Inicio:</span> {j.fecha_inicio}</p>
-                    <p><span className="font-medium">Tipo:</span> {j.tipo_junta === 'incentivo' ? 'Incentivos' : 'Normal'}</p>
-                    <p><span className="font-medium">Integrantes:</span> {miembrosActuales}/{j.participantes_max}</p>
-                    <p><span className="font-medium">Estado:</span> {estadoVisual}</p>
+                  {bolsa !== null && (
+                    <JuntaAmountBlock
+                      amount={money(bolsa)}
+                      sublabel={`Aportando ${money(cuota!)} por ${j.frecuencia_pago}`}
+                    />
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-2">
+                      <p className="text-xs text-muted">Cuota</p>
+                      <p className="text-sm font-semibold text-fg">{cuota !== null ? money(cuota) : '—'}</p>
+                    </div>
+                    <div className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-2">
+                      <p className="text-xs text-muted">Frecuencia</p>
+                      <p className="capitalize text-sm font-semibold text-fg">{j.frecuencia_pago ?? '—'}</p>
+                    </div>
+                    <div className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-2">
+                      <p className="text-xs text-muted">Inicio</p>
+                      <p className="text-sm font-semibold text-fg">{formatFecha(j.fecha_inicio) ?? '—'}</p>
+                    </div>
+                    <div className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-2">
+                      <p className="text-xs text-muted">Cupos libres</p>
+                      <p className="text-sm font-semibold text-fg">{cuposLibres}</p>
+                    </div>
                   </div>
 
                   {cupoCompleto && <div className="rounded-md bg-amber-50 p-2 text-xs text-amber-700">Cupo completo</div>}
@@ -646,6 +690,7 @@ export default function JuntasDisponiblesPage() {
                   {joinErrorByJunta[juntaId] && !(roleState === 'owner' && joinErrorByJunta[juntaId].includes('creador no puede retirarse')) && (
                     <p className="text-xs text-red-600">{joinErrorByJunta[juntaId]}</p>
                   )}
+                  <p className="text-center text-xs text-muted">{miembrosActuales} de {j.participantes_max} integrantes confirmados</p>
                 </div>
               </Card>
             );
