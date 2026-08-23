@@ -205,46 +205,48 @@ export function RegisterPageClient() {
           />
           <ReferralFeedback status={referralStatus} />
         </div>
-        <div className="space-y-1.5">
-          <label className="flex items-start gap-3 text-sm leading-5 text-fg">
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent)]"
-              {...register('acceptsTerms')}
-            />
-            <span>
-              Declaro que soy mayor de 18 años y acepto los{' '}
-              <Link
-                href="/terminos-y-condiciones"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[var(--accent)] underline underline-offset-2"
-              >
-                Términos y Condiciones
-              </Link>{' '}
-              y la{' '}
-              <Link
-                href="/politica-de-privacidad"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[var(--accent)] underline underline-offset-2"
-              >
-                Política de Privacidad
-              </Link>{' '}
-              de Juntealo.
-            </span>
-          </label>
-          <FieldError message={formState.errors.acceptsTerms?.message} />
-        </div>
-        <div className="space-y-1.5 border-t border-border pt-4">
-          <label className="flex items-start gap-3 text-sm leading-5 text-fg">
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent)]"
-              {...register('marketingConsent')}
-            />
-            <span>Quiero recibir novedades, promociones y beneficios de Juntealo.</span>
-          </label>
+        <div className="mt-5 flex flex-col gap-5">
+          <div className="space-y-1.5">
+            <label className="flex items-start gap-3 text-sm leading-5 text-fg">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent)]"
+                {...register('acceptsTerms')}
+              />
+              <span>
+                Declaro que soy mayor de 18 años y acepto los{' '}
+                <Link
+                  href="/terminos-y-condiciones"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--accent)] underline underline-offset-2"
+                >
+                  Términos y Condiciones
+                </Link>{' '}
+                y la{' '}
+                <Link
+                  href="/politica-de-privacidad"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--accent)] underline underline-offset-2"
+                >
+                  Política de Privacidad
+                </Link>{' '}
+                de Juntealo.
+              </span>
+            </label>
+            <FieldError message={formState.errors.acceptsTerms?.message} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="flex items-start gap-3 text-sm leading-5 text-fg">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent)]"
+                {...register('marketingConsent')}
+              />
+              <span>Quiero recibir novedades, promociones y beneficios de Juntealo.</span>
+            </label>
+          </div>
         </div>
         {authError && <FieldError message={authError} />}
         <Button className="w-full" disabled={loading}>{loading ? 'Creando cuenta...' : 'Crear cuenta'}</Button>
