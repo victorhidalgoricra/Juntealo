@@ -227,7 +227,13 @@ export default function TerminosYCondicionesPage() {
             >
               soporte@juntealo.com
             </a>
-            .
+            .{' '}
+            <a
+              href="/politica-de-privacidad"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              Consulta nuestra Política de privacidad completa aquí.
+            </a>
           </p>
         </div>
 

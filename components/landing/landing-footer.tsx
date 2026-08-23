@@ -12,6 +12,7 @@ const companyLinks = [
   { href: '/sobre-nosotros', label: 'Sobre nosotros' },
   { href: '/embajador', label: 'Embajador' },
   { href: '/terminos-y-condiciones', label: 'Términos y condiciones' },
+  { href: '/politica-de-privacidad', label: 'Política de privacidad' },
 ];
 
 function InstagramIcon() {
