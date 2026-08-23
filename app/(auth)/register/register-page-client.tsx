@@ -14,6 +14,7 @@ import { mapRegisterErrorMessage } from '@/services/auth.service';
 import { useState, useRef, useCallback } from 'react';
 import { checkProfileConflicts, ensureProfileExists } from '@/services/profile.service';
 import { validateReferralCode, useReferralCode as redeemReferralCode } from '@/services/referral.service';
+import { LEGAL_DOCUMENTS } from '@/lib/legal-documents';
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
@@ -35,7 +36,9 @@ export function RegisterPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
-  const { register, handleSubmit, setError, formState } = useForm<RegisterFormValues>();
+  const { register, handleSubmit, setError, formState } = useForm<RegisterFormValues>({
+    defaultValues: { acceptsTerms: false, marketingConsent: false }
+  });
   const [authError, setAuthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -73,7 +76,7 @@ export function RegisterPageClient() {
           const parsed = registerSchema.safeParse(values);
           if (!parsed.success) {
             const issue = parsed.error.issues[0];
-            setError(issue.path[0] as 'nombre' | 'dni' | 'celular' | 'email' | 'password', { message: issue.message });
+            setError(issue.path[0] as keyof RegisterFormValues, { message: issue.message });
             return;
           }
 
@@ -97,7 +100,16 @@ export function RegisterPageClient() {
                 email: normalized.email,
                 password: normalized.password,
                 options: {
-                  data: { full_name: normalized.nombre, phone: normalized.celular, dni: normalized.dni },
+                  data: {
+                    full_name: normalized.nombre,
+                    phone: normalized.celular,
+                    dni: normalized.dni,
+                    terms_accepted: normalized.acceptsTerms,
+                    terms_version: LEGAL_DOCUMENTS.terms.version,
+                    privacy_accepted: normalized.acceptsTerms,
+                    privacy_version: LEGAL_DOCUMENTS.privacy.version,
+                    marketing_consent: normalized.marketingConsent
+                  },
                   emailRedirectTo
                 }
               });
@@ -193,11 +205,54 @@ export function RegisterPageClient() {
           />
           <ReferralFeedback status={referralStatus} />
         </div>
+        <div className="space-y-1.5">
+          <label className="flex items-start gap-3 text-sm leading-5 text-fg">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent)]"
+              {...register('acceptsTerms')}
+            />
+            <span>
+              Declaro que soy mayor de 18 años y acepto los{' '}
+              <Link
+                href="/terminos-y-condiciones"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--accent)] underline underline-offset-2"
+              >
+                Términos y Condiciones
+              </Link>{' '}
+              y la{' '}
+              <Link
+                href="/politica-de-privacidad"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--accent)] underline underline-offset-2"
+              >
+                Política de Privacidad
+              </Link>{' '}
+              de Juntealo.
+            </span>
+          </label>
+          <FieldError message={formState.errors.acceptsTerms?.message} />
+        </div>
+        <div className="space-y-1.5 border-t border-border pt-4">
+          <label className="flex items-start gap-3 text-sm leading-5 text-fg">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent)]"
+              {...register('marketingConsent')}
+            />
+            <span>Quiero recibir novedades, promociones y beneficios de Juntealo.</span>
+          </label>
+        </div>
         {authError && <FieldError message={authError} />}
         <Button className="w-full" disabled={loading}>{loading ? 'Creando cuenta...' : 'Crear cuenta'}</Button>
-        <Link className="text-sm text-muted hover:text-fg hover:underline" href={`/login?redirect=${encodeURIComponent(redirect)}`}>
-          Ya tengo cuenta
-        </Link>
+        <div className="flex flex-col gap-2 pt-1 text-sm">
+          <Link className="text-muted hover:text-fg hover:underline" href={`/login?redirect=${encodeURIComponent(redirect)}`}>
+            Ya tengo cuenta
+          </Link>
+        </div>
       </form>
     </Card>
   );

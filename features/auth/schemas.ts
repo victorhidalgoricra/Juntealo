@@ -11,7 +11,11 @@ export const registerSchema = z.object({
   dni: z.string().transform((value) => normalizeDni(value)).refine((value) => /^\d{8}$/.test(value), 'Ingresa un DNI válido de 8 dígitos'),
   celular: z.string().transform((value) => normalizePhone(value)).refine((value) => /^\d{9,11}$/.test(value), 'Ingresa un celular válido (solo números, 9 a 11 dígitos)'),
   email: z.string().trim().email('Correo inválido'),
-  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres')
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
+  acceptsTerms: z.boolean().refine((accepted) => accepted, {
+    message: 'Debes aceptar los Términos y Condiciones y la Política de Privacidad para crear tu cuenta.'
+  }),
+  marketingConsent: z.boolean().default(false)
 });
 
 export const forgotPasswordSchema = z.object({

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { LEGAL_DOCUMENTS } from '@/lib/legal-documents';
 
 export const metadata: Metadata = {
   title: 'Política de privacidad | Juntealo',
@@ -26,7 +27,7 @@ export default function PoliticaDePrivacidadPage() {
         Política de privacidad
       </h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        Versión 1.0 &mdash; Última actualización: 23 de agosto de 2026
+        Versión {LEGAL_DOCUMENTS.privacy.version} &mdash; Última actualización: {LEGAL_DOCUMENTS.privacy.updatedAtLabel}
       </p>
 
       {/* Table of contents */}
@@ -187,7 +188,7 @@ export default function PoliticaDePrivacidadPage() {
       {/* Footer note */}
       <div className="mt-16 border-t border-[var(--border)] pt-6">
         <p className="text-xs text-[var(--muted)]">
-          Versión 1.0 &mdash; 23 de agosto de 2026. Juntealo SACS.
+          Versión {LEGAL_DOCUMENTS.privacy.version} &mdash; {LEGAL_DOCUMENTS.privacy.updatedAtLabel}. Juntealo SACS.
         </p>
       </div>
 
