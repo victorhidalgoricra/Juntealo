@@ -4,6 +4,7 @@ import Link from 'next/link';
 type Props = {
   size?: 'sm' | 'md';
   href?: string;
+  variant?: 'default' | 'white';
 };
 
 const sizes = {
@@ -11,7 +12,7 @@ const sizes = {
   md: { icon: 32, text: 18 },
 };
 
-function LogoContent({ size = 'md' }: Pick<Props, 'size'>) {
+function LogoContent({ size = 'md', variant = 'default' }: Pick<Props, 'size' | 'variant'>) {
   const { icon, text } = sizes[size ?? 'md'];
   return (
     <span className="inline-flex items-center gap-2 select-none">
@@ -24,7 +25,7 @@ function LogoContent({ size = 'md' }: Pick<Props, 'size'>) {
         aria-hidden
       />
       <span
-        className="font-bold tracking-[-0.03em] text-[var(--accent)]"
+        className={`font-bold tracking-[-0.03em] ${variant === 'white' ? 'text-white' : 'text-[var(--accent)]'}`}
         style={{ fontSize: text }}
       >
         juntealo
@@ -33,10 +34,10 @@ function LogoContent({ size = 'md' }: Pick<Props, 'size'>) {
   );
 }
 
-export function JuntealoLogo({ size = 'md', href = '/' }: Props) {
+export function JuntealoLogo({ size = 'md', href = '/', variant = 'default' }: Props) {
   return (
     <Link href={href} className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded">
-      <LogoContent size={size} />
+      <LogoContent size={size} variant={variant} />
     </Link>
   );
 }

@@ -567,24 +567,24 @@ export function BenefitsPage() {
         </RevealOnScroll>
 
         {/* ── CTA Final ── */}
-        <RevealOnScroll className="bg-[var(--dark-1)]">
+        <RevealOnScroll className="bg-[var(--bg)]">
           <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center md:py-[72px]">
-            <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
+            <h2 className="text-3xl font-bold tracking-tight text-[var(--text)] md:text-4xl">
               Empieza a construir tu historial de junta
             </h2>
-            <p className="mt-3 text-sm text-[var(--dark-text)] md:text-base">
+            <p className="mt-3 text-sm text-[var(--muted)] md:text-base">
               Tu buena conducta en una junta deja de perderse en WhatsApp y empieza a construir confianza.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <Link
                 href="/register"
-                className="inline-flex items-center gap-2 rounded-[var(--r-sm)] bg-white px-5 py-3 text-sm font-semibold text-[var(--dark-1)] transition hover:bg-[var(--faint)]"
+                className="inline-flex items-center gap-2 rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
               >
                 Crear mi cuenta <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="/explorar"
-                className="inline-flex rounded-[var(--r-sm)] border border-[var(--dark-4)] px-5 py-3 text-sm font-semibold text-[var(--dark-text)] transition hover:bg-[var(--dark-3)]"
+                className="inline-flex rounded-[var(--r-sm)] border border-[var(--border)] px-5 py-3 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--accent-bg)]"
               >
                 Explorar juntas
               </Link>

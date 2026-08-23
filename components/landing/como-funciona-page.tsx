@@ -500,24 +500,24 @@ export function ComoFuncionaPage() {
       </RevealOnScroll>
 
       {/* ── 6. CTA FINAL ── */}
-      <section className="order-7 bg-[var(--dark-1)]">
+      <section className="order-7 bg-[var(--bg)]">
         <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center md:py-[72px]">
-          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-[var(--text)] md:text-4xl">
             ¿Listo para tu primera junta digital?
           </h2>
-          <p className="mt-3 text-sm text-[var(--dark-text)] md:text-base">
+          <p className="mt-3 text-sm text-[var(--muted)] md:text-base">
             Gratis, sin app, sin burocracia. Tu grupo empieza hoy.
           </p>
           <Link
             href="/register"
-            className="mt-6 inline-flex rounded-[var(--r-sm)] bg-white px-5 py-3 text-sm font-semibold text-[var(--dark-1)] transition hover:bg-[var(--faint)]"
+            className="mt-6 inline-flex rounded-[var(--r-sm)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"
           >
             Crear mi junta →
           </Link>
           <p className="mt-4">
             <a
               href="mailto:hola@juntealo.com"
-              className="text-sm text-[var(--dark-muted)] transition-colors hover:text-white hover:underline hover:underline-offset-2"
+              className="text-sm text-[var(--muted)] transition-colors hover:text-[var(--text)] hover:underline hover:underline-offset-2"
             >
               ¿Tienes dudas? Habla con nosotros
             </a>
