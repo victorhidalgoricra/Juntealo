@@ -236,7 +236,7 @@ export function RegisterPageClient() {
           </label>
           <FieldError message={formState.errors.acceptsTerms?.message} />
         </div>
-        <div className="space-y-1.5 border-t border-border pt-4">
+        <div className="space-y-1.5 pt-4">
           <label className="flex items-start gap-3 text-sm leading-5 text-fg">
             <input
               type="checkbox"
