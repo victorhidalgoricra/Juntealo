@@ -64,7 +64,7 @@ export function RegisterPageClient() {
   }, []);
 
   return (
-    <Card className="w-full space-y-5 p-6 sm:p-7">
+    <Card className="w-full space-y-5 p-6 sm:p-7 lg:w-[42rem] lg:max-w-none lg:flex-none">
       <div className="space-y-1">
         <h1 className="text-xl font-bold text-fg">Crea tu cuenta</h1>
         <p className="text-sm text-muted">Regístrate para crear y unirte a juntas digitales.</p>
@@ -167,43 +167,45 @@ export function RegisterPageClient() {
           }
         })}
       >
-        <div className="space-y-1.5">
-          <label className="text-[13px] font-semibold text-fg">Nombre completo</label>
-          <Input placeholder="Nombre y apellido" {...register('nombre')} />
-          <FieldError message={formState.errors.nombre?.message} />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[13px] font-semibold text-fg">DNI</label>
-          <Input placeholder="12345678" inputMode="numeric" autoComplete="off" {...register('dni')} />
-          <FieldError message={formState.errors.dni?.message} />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[13px] font-semibold text-fg">Celular</label>
-          <Input placeholder="987654321" inputMode="tel" autoComplete="tel" {...register('celular')} />
-          <FieldError message={formState.errors.celular?.message} />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[13px] font-semibold text-fg">Correo</label>
-          <Input placeholder="correo@ejemplo.com" autoComplete="email" {...register('email')} />
-          <FieldError message={formState.errors.email?.message} />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[13px] font-semibold text-fg">Contraseña</label>
-          <Input placeholder="Mínimo 8 caracteres" type="password" autoComplete="new-password" {...register('password')} />
-          <FieldError message={formState.errors.password?.message} />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[13px] font-semibold text-fg">
-            ¿Tienes un código de invitación? <span className="font-normal text-muted">(opcional)</span>
-          </label>
-          <Input
-            placeholder="Ej. VICTOR47"
-            autoComplete="off"
-            autoCapitalize="characters"
-            value={referralCode}
-            onChange={(e) => handleReferralChange(e.target.value)}
-          />
-          <ReferralFeedback status={referralStatus} />
+        <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-x-4 lg:gap-y-4 lg:space-y-0">
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-semibold text-fg">Nombre completo</label>
+            <Input placeholder="Nombre y apellido" {...register('nombre')} />
+            <FieldError message={formState.errors.nombre?.message} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-semibold text-fg">DNI</label>
+            <Input placeholder="12345678" inputMode="numeric" autoComplete="off" {...register('dni')} />
+            <FieldError message={formState.errors.dni?.message} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-semibold text-fg">Celular</label>
+            <Input placeholder="987654321" inputMode="tel" autoComplete="tel" {...register('celular')} />
+            <FieldError message={formState.errors.celular?.message} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-semibold text-fg">Correo</label>
+            <Input placeholder="correo@ejemplo.com" autoComplete="email" {...register('email')} />
+            <FieldError message={formState.errors.email?.message} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-semibold text-fg">Contraseña</label>
+            <Input placeholder="Mínimo 8 caracteres" type="password" autoComplete="new-password" {...register('password')} />
+            <FieldError message={formState.errors.password?.message} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-semibold text-fg">
+              ¿Tienes un código de invitación? <span className="font-normal text-muted">(opcional)</span>
+            </label>
+            <Input
+              placeholder="Ej. VICTOR47"
+              autoComplete="off"
+              autoCapitalize="characters"
+              value={referralCode}
+              onChange={(e) => handleReferralChange(e.target.value)}
+            />
+            <ReferralFeedback status={referralStatus} />
+          </div>
         </div>
         <div className="mt-5 flex flex-col gap-5">
           <div className="space-y-1.5">
