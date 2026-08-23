@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { LEGAL_DOCUMENTS } from '@/lib/legal-documents';
 
 export const metadata: Metadata = {
   title: 'Términos y condiciones | Juntealo',
@@ -29,7 +30,7 @@ export default function TerminosYCondicionesPage() {
         Términos y condiciones
       </h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        Versión 1.0 &mdash; Última actualización: 23 de agosto de 2026
+        Versión {LEGAL_DOCUMENTS.terms.version} &mdash; Última actualización: {LEGAL_DOCUMENTS.terms.updatedAtLabel}
       </p>
 
       {/* Table of contents */}
@@ -271,7 +272,7 @@ export default function TerminosYCondicionesPage() {
       {/* Footer note */}
       <div className="mt-16 border-t border-[var(--border)] pt-6">
         <p className="text-xs text-[var(--muted)]">
-          Versión 1.0 &mdash; 23 de agosto de 2026. Juntealo SACS.
+          Versión {LEGAL_DOCUMENTS.terms.version} &mdash; {LEGAL_DOCUMENTS.terms.updatedAtLabel}. Juntealo SACS.
         </p>
       </div>
 
