@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { Bell } from 'lucide-react';
@@ -34,20 +34,30 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
   const { user, setUser } = useAuthStore();
   const setData = useAppStore((s) => s.setData);
   const setIsDataReady = useAppStore((s) => s.setIsDataReady);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
     const syncFromSession = async () => {
-      if (user) return;
-
       if (hasSupabase && supabase) {
         const { data } = await supabase.auth.getSession();
         const sessionUser = data.session?.user;
         if (sessionUser && mounted) {
-          setUser(await buildProfileFromAuthUser(sessionUser));
+          if (user?.id !== sessionUser.id) {
+            setUser(await buildProfileFromAuthUser(sessionUser));
+          }
+          setSessionChecked(true);
           return;
         }
+
+        if (mounted) {
+          setUser(null);
+          setData({ juntas: [], members: [], schedules: [], payments: [], payouts: [], notifications: [] });
+        }
+      } else if (user && mounted) {
+        setSessionChecked(true);
+        return;
       }
 
       if (mounted) {
@@ -60,10 +70,10 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [user, router, pathname, setUser]);
+  }, [user, router, pathname, setUser, setData]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!sessionChecked || !user?.id) return;
 
     let cancelled = false;
     console.log('[dashboard] loading juntas start');
@@ -109,9 +119,9 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [setData, setIsDataReady, user?.id]);
+  }, [sessionChecked, setData, setIsDataReady, user?.id]);
 
-  if (!user) {
+  if (!sessionChecked || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
         <div className="rounded-lg border bg-white p-6 text-center">

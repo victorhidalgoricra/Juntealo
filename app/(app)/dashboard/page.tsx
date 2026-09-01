@@ -152,7 +152,7 @@ function getActiveJuntas(params: {
 
   return params.juntas
     .filter((junta) => params.myJuntaIds.includes(junta.id))
-    .filter((junta) => junta.estado !== 'cerrada' && junta.estado !== 'eliminada' && !junta.bloqueada)
+    .filter((junta) => !['cerrada', 'eliminada', 'cancelada'].includes(junta.estado) && !junta.bloqueada)
     .map((junta) => {
       const juntaSchedules = params.schedules.filter((schedule) => schedule.junta_id === junta.id);
       const hasPending = juntaSchedules.some((schedule) => schedule.estado === 'vencida');
@@ -184,7 +184,7 @@ function getActiveJuntas(params: {
 function getJuntaHistory(params: { juntas: Junta[]; myJuntaIds: string[] }): JuntaCardData[] {
   return params.juntas
     .filter((junta) => params.myJuntaIds.includes(junta.id))
-    .filter((junta) => junta.estado === 'cerrada' || Boolean(junta.bloqueada))
+    .filter((junta) => ['cerrada', 'cancelada'].includes(junta.estado) || Boolean(junta.bloqueada))
     .map((junta) => ({
       id: junta.id,
       nombre: junta.nombre,
@@ -606,6 +606,10 @@ export default function DashboardPage() {
 
     fetchUserJuntaSnapshot(user.id)
       .then((result) => {
+        if (!result.ok) {
+          console.error('[dashboard:misJuntas] fetch failed', result.message);
+          return;
+        }
         const { juntas: fetchedJuntas, members: fetchedMembers, schedules: fetchedSchedules, payments: fetchedPayments, payouts: fetchedPayouts } = result.data;
 
         setLocalJuntas(fetchedJuntas);
@@ -761,12 +765,8 @@ export default function DashboardPage() {
     myJuntaIds
   });
 
-  // "Mis juntas activas" usa datos del fetch propio (no del store global)
-  // Solo incluye juntas donde el usuario es miembro activo — NO juntas donde solo es admin/creador.
-  const localMyJuntaIds = localMembers
-    .filter((m) => m.profile_id === user.id && m.estado !== 'retirado')
-    .map((m) => m.junta_id)
-    .filter((id, i, arr) => arr.indexOf(id) === i);
+  // Incluye tanto las juntas creadas por el usuario como aquellas en las que participa.
+  const localMyJuntaIds = getMyJuntaIds(user.id, localJuntas, localMembers);
   const memberCountByJunta = getActiveMemberCountByJunta(localJuntas, localMembers);
 
   const activeJuntas = getActiveJuntas({

@@ -449,6 +449,8 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
   } else {
     const err = ownedSettled.status === 'rejected' ? ownedSettled.reason : ownedSettled.value.error;
     console.error('[dashboard-my-juntas] owned query failed:', err);
+    const message = err instanceof Error ? err.message : (err?.message ?? 'Error cargando juntas creadas');
+    return { ok: false as const, message: mapSupabaseErrorMessage(message) };
   }
 
   if (membershipSettled.status === 'fulfilled' && !membershipSettled.value.error) {
@@ -456,6 +458,8 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
   } else {
     const err = membershipSettled.status === 'rejected' ? membershipSettled.reason : membershipSettled.value.error;
     console.error('[dashboard-my-juntas] membership query failed:', err);
+    const message = err instanceof Error ? err.message : (err?.message ?? 'Error cargando participaciones');
+    return { ok: false as const, message: mapSupabaseErrorMessage(message) };
   }
 
   console.log('[dashboard-my-juntas] profileId', profileId);
@@ -487,11 +491,28 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
   if (juntasSettled.status === 'rejected' || (juntasSettled.status === 'fulfilled' && juntasSettled.value.error)) {
     const err = juntasSettled.status === 'rejected' ? juntasSettled.reason : juntasSettled.value.error;
     console.error('[dashboard-my-juntas] error', err);
+    const message = err instanceof Error ? err.message : (err?.message ?? 'Error cargando juntas');
+    return { ok: false as const, message: mapSupabaseErrorMessage(message) };
   }
-  if (membersSettled.status === 'rejected') console.error('[dashboard-my-juntas] members fetch failed:', membersSettled.reason);
-  if (schedulesSettled.status === 'rejected') console.error('[dashboard-my-juntas] schedules fetch failed:', schedulesSettled.reason);
-  if (paymentsSettled.status === 'rejected') console.error('[dashboard-my-juntas] payments fetch failed:', paymentsSettled.reason);
-  if (payoutsSettled.status === 'rejected') console.error('[dashboard-my-juntas] payouts fetch failed:', payoutsSettled.reason);
+  if (membersSettled.status === 'rejected' || (membersSettled.status === 'fulfilled' && membersSettled.value.error)) {
+    const err = membersSettled.status === 'rejected' ? membersSettled.reason : membersSettled.value.error;
+    console.error('[dashboard-my-juntas] members fetch failed:', err);
+    const message = err instanceof Error ? err.message : (err?.message ?? 'Error cargando integrantes');
+    return { ok: false as const, message: mapSupabaseErrorMessage(message) };
+  }
+  const secondaryQueries = [
+    ['cronograma', schedulesSettled],
+    ['pagos', paymentsSettled],
+    ['desembolsos', payoutsSettled]
+  ] as const;
+  for (const [label, settled] of secondaryQueries) {
+    if (settled.status === 'rejected' || (settled.status === 'fulfilled' && settled.value.error)) {
+      const err = settled.status === 'rejected' ? settled.reason : settled.value.error;
+      console.error(`[dashboard-my-juntas] ${label} fetch failed:`, err);
+      const message = err instanceof Error ? err.message : (err?.message ?? `Error cargando ${label}`);
+      return { ok: false as const, message: mapSupabaseErrorMessage(message) };
+    }
+  }
 
   console.log('[dashboard-my-juntas] finalJuntas', juntasData.length);
 
