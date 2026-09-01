@@ -1,7 +1,9 @@
 'use client';
 
 import { ReactNode, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import { Bell } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
 import { useAppStore } from '@/store/app-store';
 import { AppShell } from '@/components/layout/app-shell';
@@ -10,6 +12,21 @@ import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import { fetchUserJuntaSnapshot } from '@/services/juntas.repository';
 import { buildProfileFromAuthUser } from '@/services/auth.service';
+
+function getDisplayName(nombre?: string, email?: string) {
+  const fromNombre = (nombre ?? '').trim();
+  if (fromNombre) return fromNombre;
+  const fromEmail = (email ?? '').split('@')[0]?.replace(/[._-]+/g, ' ').trim();
+  if (fromEmail) return fromEmail.replace(/\b\w/g, (char) => char.toUpperCase());
+  return 'Miembro';
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'JD';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
 
 export default function PrivateLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -104,24 +121,36 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  const displayName = getDisplayName(user.nombre, user.email);
+
   return (
     <AppShell>
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-slate-500">Hola, {user.nombre}</p>
-        <Button
-          variant="outline"
-          onClick={async () => {
-            try {
-              if (hasSupabase && supabase) await supabase.auth.signOut();
-            } finally {
-              setUser(null);
-              setData({ juntas: [], members: [], schedules: [], payments: [], payouts: [], notifications: [] });
-              router.replace('/');
-            }
-          }}
-        >
-          Cerrar sesión
-        </Button>
+      <div className="mx-auto mb-4 flex max-w-6xl items-center justify-between gap-3 px-6">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-white">
+            {getInitials(displayName)}
+          </div>
+          <p className="truncate text-sm font-medium text-fg">Buenos días, {displayName}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link href="/account?tab=notifications" aria-label="Ir a notificaciones" className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-fg">
+            <Bell size={15} strokeWidth={1.8} />
+          </Link>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                if (hasSupabase && supabase) await supabase.auth.signOut();
+              } finally {
+                setUser(null);
+                setData({ juntas: [], members: [], schedules: [], payments: [], payouts: [], notifications: [] });
+                router.replace('/');
+              }
+            }}
+          >
+            Cerrar sesión
+          </Button>
+        </div>
       </div>
       {children}
     </AppShell>

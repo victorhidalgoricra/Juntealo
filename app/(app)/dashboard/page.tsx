@@ -26,7 +26,7 @@ import { parseCalendarDate } from '@/lib/calendar-date';
 import { getActiveMemberCountByJunta } from '@/lib/junta-members';
 import { normalizePaymentStatus } from '@/lib/payment-status';
 import { JuntaAvatar } from '@/components/junta-avatar';
-import { CheckCircle2, RefreshCw, Users as UsersIcon, Star, Copy, MessageCircle, Trophy } from 'lucide-react';
+import { Star, Copy, MessageCircle, Trophy } from 'lucide-react';
 import { RachaCard } from '@/components/ui/racha-card';
 import { computeGlobalRacha } from '@/lib/racha';
 
@@ -70,21 +70,6 @@ type NextLevelData = {
 
 function money(value: number) {
   return `S/ ${Math.round(value).toLocaleString('es-PE')}`;
-}
-
-function getDisplayName(nombre?: string, email?: string) {
-  const fromNombre = (nombre ?? '').trim();
-  if (fromNombre) return fromNombre;
-  const fromEmail = (email ?? '').split('@')[0]?.replace(/[._-]+/g, ' ').trim();
-  if (fromEmail) return fromEmail.replace(/\b\w/g, (char) => char.toUpperCase());
-  return 'Miembro';
-}
-
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'JD';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
 function getMyJuntaIds(userId: string, juntas: Junta[], members: JuntaMember[]) {
@@ -236,27 +221,6 @@ function getNextLevelProgress(
   };
 }
 
-function DashboardHeader({ displayName }: { displayName: string }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
-          {getInitials(displayName)}
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm text-muted">Buenos días</p>
-          <h1 className="break-words text-2xl font-semibold text-fg md:text-lg">{displayName}</h1>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Link href="/account?tab=notifications" aria-label="Ir a notificaciones" className="rounded-full border border-border bg-surface p-2 text-lg">
-          🔔
-        </Link>
-      </div>
-    </div>
-  );
-}
-
 function PendingPaymentBanner({ data }: { data: PaymentAlertState }) {
   if (!data.juntaId) return null;
   const href = `/juntas/${data.juntaId}?tab=pagos`;
@@ -288,7 +252,12 @@ function PendingPaymentBanner({ data }: { data: PaymentAlertState }) {
   );
 }
 
-function JuntaScoreCard({ score }: { score: UserJuntaScoreResult }) {
+function JuntaScoreCard({ score, paymentsOnTime, completedCycles, referredActive }: {
+  score: UserJuntaScoreResult;
+  paymentsOnTime: number;
+  completedCycles: number;
+  referredActive: number;
+}) {
   return (
     <Card dark className="text-white md:rounded-xl md:p-4">
       <div className="grid gap-4 md:grid-cols-[52px_1fr] md:items-start">
@@ -312,30 +281,22 @@ function JuntaScoreCard({ score }: { score: UserJuntaScoreResult }) {
           </p>
         </div>
         {score.warnings[0] && <p className="text-xs text-amber-300 md:col-span-2">{score.warnings[0]}</p>}
+        <div className="grid grid-cols-3 border-t border-white/10 pt-3 md:col-span-2">
+          <div className="px-2 text-center first:pl-0 md:text-left">
+            <p className="text-xs text-[var(--dark-muted)]">Pagos a tiempo</p>
+            <p className="font-mono text-lg font-bold text-emerald-400">{paymentsOnTime}%</p>
+          </div>
+          <div className="border-x border-white/10 px-2 text-center md:text-left">
+            <p className="text-xs text-[var(--dark-muted)]">Ciclos completados</p>
+            <p className="font-mono text-lg font-bold text-white">{completedCycles}</p>
+          </div>
+          <div className="px-2 text-center last:pr-0 md:text-left">
+            <p className="text-xs text-[var(--dark-muted)]">Referidos activos</p>
+            <p className="font-mono text-lg font-bold text-white">{referredActive}</p>
+          </div>
+        </div>
       </div>
     </Card>
-  );
-}
-
-function DashboardKpis({ paymentsOnTime, completedCycles, referredActive }: { paymentsOnTime: number; completedCycles: number; referredActive: number }) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-3 md:gap-2">
-      <Card className="p-4 text-center md:rounded-xl md:p-3 md:text-left">
-        <CheckCircle2 className="mx-auto mb-1 text-emerald-400 md:hidden" size={20} strokeWidth={1.5} />
-        <p className="text-center text-sm text-muted md:text-left md:text-xs">Pagos a tiempo</p>
-        <p className="text-center font-mono text-3xl font-bold text-green md:text-left md:text-lg">{paymentsOnTime}%</p>
-      </Card>
-      <Card className="p-4 text-center md:rounded-xl md:p-3 md:text-left">
-        <RefreshCw className="mx-auto mb-1 text-slate-400 md:hidden" size={20} strokeWidth={1.5} />
-        <p className="text-center text-sm text-muted md:text-left md:text-xs">Ciclos completados</p>
-        <p className="text-center font-mono text-3xl font-bold text-fg md:text-left md:text-lg">{completedCycles}</p>
-      </Card>
-      <Card className="p-4 text-center md:rounded-xl md:p-3 md:text-left">
-        <UsersIcon className="mx-auto mb-1 text-slate-400 md:hidden" size={20} strokeWidth={1.5} />
-        <p className="text-center text-sm text-muted md:text-left md:text-xs">Referidos activos</p>
-        <p className="text-center font-mono text-3xl font-bold text-fg md:text-left md:text-lg">{referredActive}</p>
-      </Card>
-    </div>
   );
 }
 
@@ -455,15 +416,16 @@ function ActiveJuntasSection({ active, history, isLoading }: { active: JuntaCard
   const data = tab === 'activas' ? active : history;
 
   return (
-    <section className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-xl font-semibold text-fg md:text-lg">Mis juntas activas</h2>
-        <Link className="text-sm font-medium text-accent" href="/juntas">Ver todas →</Link>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setTab('activas')} className={`rounded-[var(--r-sm)] border px-4 py-1.5 text-sm transition-colors ${tab === 'activas' ? 'border-accent text-accent' : 'border-border text-muted'}`}>Activas</button>
-        <button type="button" onClick={() => setTab('historial')} className={`rounded-[var(--r-sm)] border px-4 py-1.5 text-sm transition-colors ${tab === 'historial' ? 'border-accent text-accent' : 'border-border text-muted'}`}>Historial</button>
+    <section className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-medium text-fg">Mis juntas activas</h2>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-[var(--r-sm)] border border-border bg-surface p-0.5">
+            <button type="button" onClick={() => setTab('activas')} className={`rounded px-2.5 py-1 text-xs transition-colors ${tab === 'activas' ? 'bg-accent text-white' : 'text-muted'}`}>Activas</button>
+            <button type="button" onClick={() => setTab('historial')} className={`rounded px-2.5 py-1 text-xs transition-colors ${tab === 'historial' ? 'bg-accent text-white' : 'text-muted'}`}>Historial</button>
+          </div>
+          <Link className="text-xs font-medium text-accent" href="/juntas">Ver todas →</Link>
+        </div>
       </div>
 
       {isLoading ? (
@@ -471,7 +433,7 @@ function ActiveJuntasSection({ active, history, isLoading }: { active: JuntaCard
           {[1, 2, 3].map((i) => <JuntaSkeletonItem key={i} />)}
         </div>
       ) : data.length === 0 ? (
-        <Card className="p-5 text-sm text-muted">{tab === 'activas' ? 'Aún no tienes juntas activas. Únete o crea una junta para empezar.' : 'Todavía no tienes historial de juntas finalizadas.'}</Card>
+        <Card className="py-6 text-center text-sm text-muted">{tab === 'activas' ? 'Aún no tienes juntas activas. Únete o crea una junta para empezar.' : 'Todavía no tienes historial de juntas finalizadas.'}</Card>
       ) : (
         <div className="space-y-2">
           {data.map((item) => <JuntaListItem key={`${tab}-${item.id}`} item={item} />)}
@@ -495,8 +457,8 @@ function NextLevelSection({
   const canClaim = data.mission.status === 'completed' && !data.missionClaimedThisWeek;
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-xl font-semibold text-fg md:text-lg">{data.title}</h2>
+    <section className="space-y-2">
+      <h2 className="text-sm font-medium text-fg">{data.title}</h2>
       <Card tint="blue" className="p-4">
         <div className="flex items-start gap-3">
           <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Star size={16} strokeWidth={1.5} /></div>
@@ -586,8 +548,6 @@ export default function DashboardPage() {
     () => (user ? computeGlobalRacha({ userId: user.id, payments: safePayments, schedules: safeSchedules, juntaIds: myJuntaIds }) : null),
     [user, safePayments, safeSchedules, myJuntaIds]
   );
-  const displayName = user ? getDisplayName(user.nombre, user.email) : 'Miembro';
-
   // Fresh fetch for payment notifications — never relies on stale Zustand data.
   // Queries from junta_members (not admin_id) so both creators and participants are covered.
   useEffect(() => {
@@ -830,14 +790,17 @@ export default function DashboardPage() {
   const nextLevel = getNextLevelProgress(score, engagement, claimedThisWeek);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 px-6 md:space-y-4">
-      <DashboardHeader displayName={displayName} />
-
+    <div className="mx-auto max-w-6xl space-y-4 px-6">
       {paymentAlert.status !== 'none' && paymentAlert.status !== 'paid' && <PendingPaymentBanner data={paymentAlert} />}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-5 md:space-y-4">
-          <JuntaScoreCard score={score} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-4">
+          <JuntaScoreCard
+            score={score}
+            paymentsOnTime={paymentRate}
+            completedCycles={completedCycles}
+            referredActive={referralStats.active}
+          />
 
           {globalRacha && (
             <RachaCard
@@ -849,13 +812,9 @@ export default function DashboardPage() {
             />
           )}
 
-          <DashboardKpis paymentsOnTime={paymentRate} completedCycles={completedCycles} referredActive={referralStats.active} />
-
           {upcomingPayout && <UpcomingPayoutCard data={upcomingPayout} />}
 
           <ActiveJuntasSection active={activeJuntas} history={historyJuntas} isLoading={juntasIsLoading} />
-
-          <NextLevelSection data={nextLevel} onClaimMission={handleClaimMission} isClaiming={isClaiming} />
 
           <div className="flex flex-wrap gap-2">
             <Link href="/juntas/new"><Button>Crear nueva junta</Button></Link>
@@ -863,12 +822,14 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <aside className="space-y-5 md:space-y-4">
+        <aside className="space-y-4">
           <ContributionSummaryCards summary={contributionSummary} />
 
           {user.referral_code && (
             <InviteAndEarnCard referralCode={user.referral_code} />
           )}
+
+          <NextLevelSection data={nextLevel} onClaimMission={handleClaimMission} isClaiming={isClaiming} />
         </aside>
       </div>
     </div>
