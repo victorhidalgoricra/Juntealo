@@ -100,11 +100,13 @@ export function getWeekKey(date?: Date): string {
   return monday.toISOString().slice(0, 10);
 }
 
-const MISSION_REWARDS = {
+export const MISSION_REWARDS = {
   payOnTimeThisWeek: 3,
   completeCurrentCycle: 8,
   referOneActiveMember: 5,
-  keepOnTimeStreak: 6
+  keepOnTimeStreak: 6,
+  joinFirstJunta: 10,
+  completeCycle: 15
 };
 
 const DROP_WARNING_BUFFER_POINTS = 5;

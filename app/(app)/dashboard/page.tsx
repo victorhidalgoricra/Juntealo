@@ -8,8 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getPaymentAlertState, type PaymentAlertState } from '@/lib/payment-alert';
-import { getJuntaEngagementLayer, getWeekKey, type JuntaMission, type LevelUnlocks } from '@/services/junta-engagement.service';
-import { fetchProfilesByIds } from '@/services/profile.service';
+import { getWeekKey, MISSION_REWARDS } from '@/services/junta-engagement.service';
 import { fetchUserPaymentNotifications, fetchUserJuntaSnapshot } from '@/services/juntas.repository';
 import {
   buildJuntaScoreStatsFromDomain,
@@ -17,16 +16,16 @@ import {
   type UserJuntaScoreResult,
   getUserJuntaScore
 } from '@/services/junta-score.service';
-import { claimMission, fetchClaimedMissions, recordRachaMilestone, type ClaimedMission } from '@/services/missions.repository';
+import { fetchClaimedMissions, recordRachaMilestone, type ClaimedMission } from '@/services/missions.repository';
 import { fetchReferralStats, type ReferralStats } from '@/services/referral.service';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { Junta, JuntaMember, Payment, PaymentSchedule, Payout, Profile } from '@/types/domain';
+import { Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { getActiveMemberCountByJunta } from '@/lib/junta-members';
 import { normalizePaymentStatus } from '@/lib/payment-status';
 import { JuntaAvatar } from '@/components/junta-avatar';
-import { Star, Copy, MessageCircle, Trophy } from 'lucide-react';
+import { Circle, CheckCircle2, Copy, MessageCircle, Trophy } from 'lucide-react';
 import { RachaCard } from '@/components/ui/racha-card';
 import { computeGlobalRacha } from '@/lib/racha';
 
@@ -55,17 +54,10 @@ type JuntaCardData = {
   status: 'pendiente' | 'al_dia';
 };
 
-type NextLevelData = {
-  title: string;
-  benefitText: string;
-  currentScore: number;
-  targetScore: number;
-  mission: JuntaMission;
-  warning: string | null;
-  unlocks: LevelUnlocks | null;
-  gainText: string;
-  lossText: string;
-  missionClaimedThisWeek: boolean;
+type WeeklyGoal = {
+  label: string;
+  points: number;
+  status: 'pending' | 'completed' | 'unavailable';
 };
 
 function money(value: number) {
@@ -198,28 +190,6 @@ function getJuntaHistory(params: { juntas: Junta[]; myJuntaIds: string[]; member
     }));
 }
 
-function getNextLevelProgress(
-  score: UserJuntaScoreResult,
-  engagement: ReturnType<typeof getJuntaEngagementLayer>,
-  claimedThisWeek: Set<string>
-): NextLevelData {
-  const nextLevel = engagement.nextLevel ?? 'Élite';
-  const unlockCopy = engagement.nextLevelUnlocks
-    ? `Límite ${engagement.nextLevelUnlocks.maxJuntaMembers} miembros · aporte hasta S/ ${engagement.nextLevelUnlocks.maxContributionPerRound.toLocaleString('es-PE')}.`
-    : 'Ya tienes el nivel máximo desbloqueado.';
-  return {
-    title: `Próximo nivel: ${nextLevel}`,
-    benefitText: `+${engagement.pointsRemainingToNextLevel} pts para desbloquear: ${unlockCopy}`,
-    currentScore: score.score,
-    targetScore: score.nextLevel ? score.score + score.pointsToNextLevel : 100,
-    mission: engagement.featuredMission,
-    warning: engagement.levelDropWarning,
-    unlocks: engagement.nextLevelUnlocks,
-    gainText: engagement.causeAndEffect.gainIfPayToday,
-    lossText: engagement.causeAndEffect.lossIfLateToday,
-    missionClaimedThisWeek: claimedThisWeek.has(engagement.featuredMission.id)
-  };
-}
 
 function PendingPaymentBanner({ data }: { data: PaymentAlertState }) {
   if (!data.juntaId) return null;
@@ -272,13 +242,17 @@ function JuntaScoreCard({ score, paymentsOnTime, completedCycles, referredActive
           </div>
           <p className="text-base text-[var(--dark-muted)] md:text-sm">Pagos a tiempo, ciclos completados y referencias acumulan tu reputación financiera en la plataforma.</p>
         </div>
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 md:col-span-2 lg:gap-2">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+        <div className="space-y-1 md:col-span-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] text-[var(--dark-muted)]">Progreso a {score.nextLevel ?? 'Élite'}</p>
+            <p className="text-[11px] text-[var(--dark-muted)]">
+              <span className="text-sm font-medium text-white">{score.score}</span>{' '}
+              / {score.nextLevel ? score.score + score.pointsToNextLevel : 100} pts
+            </p>
+          </div>
+          <div className="h-1 overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-emerald-400 transition-[width] duration-700" style={{ width: `${score.progressToNextLevel}%` }} />
           </div>
-          <p className="text-[11px] text-[var(--dark-muted)]">
-            {score.pointsToNextLevel} pts para <span className="font-semibold text-white">{score.nextLevel ?? 'Élite'}</span>
-          </p>
         </div>
         {score.warnings[0] && <p className="text-xs text-amber-300 md:col-span-2">{score.warnings[0]}</p>}
         <div className="grid grid-cols-3 border-t border-white/10 pt-3 md:col-span-2 lg:pt-2.5">
@@ -433,9 +407,19 @@ function ActiveJuntasSection({ active, history, isLoading, loadError }: { active
           {[1, 2, 3].map((i) => <JuntaSkeletonItem key={i} />)}
         </div>
       ) : loadError ? (
-        <Card className="py-6 text-center text-sm text-destructive lg:py-4">{loadError}</Card>
+        <Card className="py-4 text-center text-sm text-destructive">{loadError}</Card>
       ) : data.length === 0 ? (
-        <Card className="py-6 text-center text-sm text-muted lg:py-4">{tab === 'activas' ? 'Aún no tienes juntas activas. Únete o crea una junta para empezar.' : 'Todavía no tienes historial de juntas finalizadas.'}</Card>
+        tab === 'activas' ? (
+          <Card className="py-4 text-center text-sm text-muted">
+            <p>Aún no tienes juntas activas.</p>
+            <div className="mt-3 flex justify-center gap-2">
+              <Link href="/juntas/new"><Button size="sm">Crear nueva junta</Button></Link>
+              <Link href="/juntas"><Button size="sm" variant="outline">Explorar juntas</Button></Link>
+            </div>
+          </Card>
+        ) : (
+          <Card className="py-4 text-center text-sm text-muted">Todavía no tienes historial de juntas finalizadas.</Card>
+        )
       ) : (
         <div className="space-y-2">
           {data.map((item) => <JuntaListItem key={`${tab}-${item.id}`} item={item} />)}
@@ -445,86 +429,48 @@ function ActiveJuntasSection({ active, history, isLoading, loadError }: { active
   );
 }
 
-function NextLevelSection({
-  data,
-  onClaimMission,
-  isClaiming
-}: {
-  data: NextLevelData;
-  onClaimMission: (mission: JuntaMission) => void;
-  isClaiming: boolean;
-}) {
-  const progressPct = Math.round((data.currentScore / data.targetScore) * 100);
-  const missionPct = Math.round((data.mission.progressCurrent / data.mission.progressTarget) * 100);
-  const canClaim = data.mission.status === 'completed' && !data.missionClaimedThisWeek;
-
+function WeeklyGoalsCard({ goals }: { goals: WeeklyGoal[] }) {
+  const completedCount = goals.filter((g) => g.status === 'completed').length;
   return (
-    <section className="space-y-2">
-      <h2 className="text-sm font-medium text-fg">{data.title}</h2>
-      <Card tint="blue" className="p-4 lg:p-3">
-        <div className="flex items-start gap-3">
-          <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Star size={16} strokeWidth={1.5} /></div>
-          <div className="flex-1">
-            <p className="text-sm text-accent-dark">{data.benefitText}</p>
-            <div className="mt-3 flex items-center gap-3 lg:mt-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent-bg">
-                <div className="h-full rounded-full bg-accent transition-[width] duration-700" style={{ width: `${progressPct}%` }} />
-              </div>
-              <p className="text-[11px] font-medium text-accent">{data.currentScore}/{data.targetScore}</p>
-            </div>
+    <Card className="p-4 lg:p-3">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-sm font-medium text-fg">Objetivos de la semana</p>
+        <p className="leading-none text-muted">
+          <span className="text-sm font-medium text-fg">{completedCount}</span>
+          <span className="text-[11px]">/{goals.length}</span>
+        </p>
+      </div>
+      <div className="flex flex-col">
+        {goals.map((goal, i) => (
+          <div
+            key={goal.label}
+            className={`flex items-center gap-2.5 py-2.5 ${i < goals.length - 1 ? 'border-b border-border' : ''} ${goal.status === 'unavailable' ? 'opacity-40' : ''}`}
+          >
+            {goal.status === 'completed'
+              ? <CheckCircle2 size={16} className="shrink-0 text-green" strokeWidth={1.8} />
+              : <Circle size={16} className="shrink-0 text-muted" strokeWidth={1.8} />
+            }
+            <p className={`flex-1 text-sm ${goal.status === 'completed' ? 'text-muted line-through' : 'text-fg'}`}>
+              {goal.label}
+            </p>
+            {goal.status !== 'unavailable' && (
+              <p className="shrink-0 text-xs font-medium text-green">+{goal.points}</p>
+            )}
           </div>
-        </div>
-      </Card>
-
-      <Card className="p-4 lg:p-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-fg">{data.mission.title}</p>
-            <p className="mt-1 text-sm text-fg/80">{data.mission.description}</p>
-            <p className="mt-1 text-xs text-green">Recompensa: +{data.mission.rewardPoints} pts al score</p>
-          </div>
-          {data.missionClaimedThisWeek && (
-            <span className="mt-0.5 shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">Reclamado</span>
-          )}
-          {canClaim && (
-            <Button
-              size="sm"
-              disabled={isClaiming}
-              onClick={() => onClaimMission(data.mission)}
-              className="shrink-0"
-            >
-              {isClaiming ? 'Reclamando...' : 'Reclamar'}
-            </Button>
-          )}
-        </div>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 lg:mt-2">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
-            <div className="h-full rounded-full bg-muted transition-[width] duration-700" style={{ width: `${missionPct}%` }} />
-          </div>
-          <p className="text-[11px] text-muted">{data.mission.progressCurrent}/{data.mission.progressTarget}</p>
-        </div>
-        <p className="mt-3 text-xs text-accent lg:mt-2">{data.gainText}</p>
-        <p className="mt-1 text-xs text-amber">{data.lossText}</p>
-        {data.warning && <p className="mt-2 text-xs font-medium text-destructive">{data.warning}</p>}
-        {data.unlocks && (
-          <p className="mt-2 text-xs text-muted">
-            Próximos desbloqueos: {data.unlocks.maxJuntaMembers} integrantes · aporte hasta S/ {data.unlocks.maxContributionPerRound.toLocaleString('es-PE')} · {data.unlocks.incentiveJuntasEnabled ? 'juntas con incentivo' : 'sin juntas con incentivo'}.
-          </p>
-        )}
-      </Card>
-    </section>
+        ))}
+      </div>
+    </Card>
   );
 }
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
-  const { juntas, schedules, payments, members, payouts, isDataReady, setData } = useAppStore();
+  const { juntas, schedules, payments, members, payouts, setData } = useAppStore();
   const safeJuntas = useMemo(() => (Array.isArray(juntas) ? juntas : []), [juntas]);
   const safeSchedules = useMemo(() => (Array.isArray(schedules) ? schedules : []), [schedules]);
   const safePayments = useMemo(() => (Array.isArray(payments) ? payments : []), [payments]);
   const safeMembers = useMemo(() => (Array.isArray(members) ? members : []), [members]);
   const safePayouts = useMemo(() => (Array.isArray(payouts) ? payouts : []), [payouts]);
-  const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
   const [notifPayload, setNotifPayload] = useState<{
     juntas: Junta[];
     schedules: PaymentSchedule[];
@@ -540,7 +486,6 @@ export default function DashboardPage() {
   const [localSchedules, setLocalSchedules] = useState<PaymentSchedule[]>([]);
 
   const [claimedMissions, setClaimedMissions] = useState<ClaimedMission[]>([]);
-  const [isClaiming, setIsClaiming] = useState(false);
   const [referralStats, setReferralStats] = useState<ReferralStats>({ total: 0, active: 0 });
 
   const myJuntaIds = useMemo(
@@ -560,24 +505,6 @@ export default function DashboardPage() {
       setNotifPayload(result.data);
     });
   }, [user?.id]);
-
-  useEffect(() => {
-    if (!user) return;
-    const memberProfileIds = safeMembers
-      .filter((member) => myJuntaIds.includes(member.junta_id))
-      .map((member) => member.profile_id);
-    const ids = Array.from(new Set([userId, ...memberProfileIds]));
-
-    fetchProfilesByIds(ids).then((result) => {
-      if (!result.ok) return;
-      const mapped = result.data.reduce<Record<string, Profile>>((acc, profile) => {
-        acc[profile.id] = profile;
-        return acc;
-      }, {});
-      if (!mapped[userId]) mapped[userId] = user;
-      setProfilesById(mapped);
-    });
-  }, [myJuntaIds, safeMembers, user, userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -735,42 +662,11 @@ export default function DashboardPage() {
   });
 
   const currentWeekKey = getWeekKey();
-  const claimedThisWeek = new Set(
-    claimedMissions.filter((m) => m.week_key === currentWeekKey).map((m) => m.mission_id)
-  );
   const missionBonusThisWeek = claimedMissions
     .filter((m) => m.week_key === currentWeekKey)
     .reduce((sum, m) => sum + m.bonus_points, 0);
 
   const score = getUserJuntaScore(user.id, scoreStats, missionBonusThisWeek);
-  const engagement = getJuntaEngagementLayer({
-    userId: user.id,
-    score,
-    stats: scoreStats
-  });
-
-  async function handleClaimMission(mission: JuntaMission) {
-    if (!user || isClaiming) return;
-    setIsClaiming(true);
-    const result = await claimMission({
-      profileId: user.id,
-      missionId: mission.id,
-      weekKey: currentWeekKey,
-      bonusPoints: mission.rewardPoints
-    });
-    if (result.ok) {
-      setClaimedMissions((prev) => [
-        ...prev,
-        {
-          mission_id: mission.id,
-          week_key: currentWeekKey,
-          bonus_points: mission.rewardPoints,
-          claimed_at: new Date().toISOString()
-        }
-      ]);
-    }
-    setIsClaiming(false);
-  }
 
   const upcomingPayout = getUpcomingPayout({
     userId: user.id,
@@ -810,7 +706,23 @@ export default function DashboardPage() {
   const lateCount = scoreStats.latePaymentsRecent + scoreStats.defaultPaymentsRecent;
   const paymentRate = approvedCount + lateCount > 0 ? Math.round((approvedCount / (approvedCount + lateCount)) * 100) : 0;
   const completedCycles = safeJuntas.filter((junta) => myJuntaIds.includes(junta.id) && junta.estado === 'cerrada').length;
-  const nextLevel = getNextLevelProgress(score, engagement, claimedThisWeek);
+
+  const hasActiveJuntas = activeJuntas.length > 0;
+  const weeklyGoals: WeeklyGoal[] = [
+    hasActiveJuntas
+      ? { label: 'Completa un ciclo', points: MISSION_REWARDS.completeCycle, status: completedCycles > 0 ? 'completed' : 'pending' }
+      : { label: 'Únete a tu primera junta', points: MISSION_REWARDS.joinFirstJunta, status: 'pending' },
+    {
+      label: 'Confirma tu cuota',
+      points: MISSION_REWARDS.payOnTimeThisWeek,
+      status: !hasActiveJuntas ? 'unavailable' : (scoreStats.onTimePaymentsThisWeek > 0 ? 'completed' : 'pending')
+    },
+    {
+      label: 'Invita a un amigo',
+      points: MISSION_REWARDS.referOneActiveMember,
+      status: referralStats.active > 0 ? 'completed' : 'pending'
+    }
+  ];
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 px-6 lg:space-y-3">
@@ -848,21 +760,16 @@ export default function DashboardPage() {
           <div className="contents lg:order-2 lg:block">
             <ActiveJuntasSection active={activeJuntas} history={historyJuntas} isLoading={juntasIsLoading} loadError={juntasLoadError} />
           </div>
-
-          <div className="flex flex-wrap gap-2 lg:order-3 lg:-mt-1">
-            <Link href="/juntas/new"><Button>Crear nueva junta</Button></Link>
-            <Link href="/juntas"><Button variant="outline">Explorar juntas</Button></Link>
-          </div>
         </div>
 
         <aside className="space-y-4 lg:space-y-3">
           <ContributionSummaryCards summary={contributionSummary} />
 
+          <WeeklyGoalsCard goals={weeklyGoals} />
+
           {user.referral_code && (
             <InviteAndEarnCard referralCode={user.referral_code} />
           )}
-
-          <NextLevelSection data={nextLevel} onClaimMission={handleClaimMission} isClaiming={isClaiming} />
         </aside>
       </div>
     </div>
