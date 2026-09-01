@@ -444,7 +444,9 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
   }
 
   if (authError || !authenticatedUserId) {
-    console.error('[dashboard-my-juntas] auth user lookup failed', authError);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[dashboard-my-juntas] auth user lookup failed', authError);
+    }
     return {
       ok: false as const,
       message: mapSupabaseErrorMessage(authError?.message ?? 'No hay una sesión autenticada para cargar las juntas')
@@ -452,10 +454,12 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
   }
 
   if (authenticatedUserId !== profileId) {
-    console.error('[dashboard-my-juntas] authenticated user mismatch', {
-      authUid: authenticatedUserId,
-      requestedProfileId: profileId
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[dashboard-my-juntas] authenticated user mismatch', {
+        authUid: authenticatedUserId,
+        requestedProfileId: profileId
+      });
+    }
     return { ok: false as const, message: 'La sesión cambió. Vuelve a iniciar sesión.' };
   }
 
@@ -474,7 +478,9 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
     ownedIds.push(...(ownedSettled.value.data ?? []).map((r) => r.id));
   } else {
     const err = ownedSettled.status === 'rejected' ? ownedSettled.reason : ownedSettled.value.error;
-    console.error('[dashboard-my-juntas] owned query failed:', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[dashboard-my-juntas] owned query failed:', err);
+    }
     const message = err instanceof Error ? err.message : (err?.message ?? 'Error cargando juntas creadas');
     return { ok: false as const, message: mapSupabaseErrorMessage(message) };
   }
@@ -483,7 +489,9 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
     memberIds.push(...(membershipSettled.value.data ?? []).map((r) => r.junta_id));
   } else {
     const err = membershipSettled.status === 'rejected' ? membershipSettled.reason : membershipSettled.value.error;
-    console.error('[dashboard-my-juntas] membership query failed:', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[dashboard-my-juntas] membership query failed:', err);
+    }
     const message = err instanceof Error ? err.message : (err?.message ?? 'Error cargando participaciones');
     return { ok: false as const, message: mapSupabaseErrorMessage(message) };
   }
@@ -509,7 +517,7 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
 
   // Fetch full data for all relevant juntas — every query is non-blocking.
   const [juntasSettled, membersSettled, schedulesSettled, paymentsSettled, payoutsSettled] = await Promise.allSettled([
-    supabase.schema('public').from('juntas').select('id,admin_id,slug,invite_token,access_code,bloqueada,tipo_junta,incentivo_porcentaje,incentivo_regla,turn_assignment_mode,cuota_base,bolsa_base,nombre,descripcion,moneda,participantes_max,monto_cuota,premio_primero_pct,descuento_ultimo_pct,fee_plataforma_pct,frecuencia_pago,fecha_inicio,dia_limite_pago,penalidad_mora,visibilidad,cerrar_inscripciones,estado,created_at,integrantes_actuales').in('id', juntaIds),
+    supabase.schema('public').from('juntas').select('id,admin_id,slug,invite_token,access_code,bloqueada,tipo_junta,incentivo_porcentaje,incentivo_regla,turn_assignment_mode,cuota_base,bolsa_base,nombre,descripcion,moneda,participantes_max,monto_cuota,premio_primero_pct,descuento_ultimo_pct,fee_plataforma_pct,frecuencia_pago,fecha_inicio,dia_limite_pago,penalidad_mora,visibilidad,cerrar_inscripciones,estado,created_at').in('id', juntaIds),
     supabase.schema('public').from('junta_members').select('id,junta_id,profile_id,estado,rol,orden_turno,created_at').in('junta_id', juntaIds),
     supabase.schema('public').from('payment_schedules').select('id,junta_id,cuota_numero,fecha_vencimiento,monto,estado').in('junta_id', juntaIds),
     supabase.schema('public').from('payments').select('id,junta_id,schedule_id,round_id,member_id,profile_id,expected_amount,submitted_amount,monto,estado,receipt_url,comprobante_url,payment_method,operation_number,participant_note,payment_status,submitted_at,internal_note,validated_at,validated_by,rejection_reason,pagado_en').in('junta_id', juntaIds),
@@ -524,13 +532,17 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
 
   if (juntasSettled.status === 'rejected' || (juntasSettled.status === 'fulfilled' && juntasSettled.value.error)) {
     const err = juntasSettled.status === 'rejected' ? juntasSettled.reason : juntasSettled.value.error;
-    console.error('[dashboard-my-juntas] error', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[dashboard-my-juntas] error', err);
+    }
     const message = err instanceof Error ? err.message : (err?.message ?? 'Error cargando juntas');
     return { ok: false as const, message: mapSupabaseErrorMessage(message) };
   }
   if (membersSettled.status === 'rejected' || (membersSettled.status === 'fulfilled' && membersSettled.value.error)) {
     const err = membersSettled.status === 'rejected' ? membersSettled.reason : membersSettled.value.error;
-    console.error('[dashboard-my-juntas] members fetch failed:', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[dashboard-my-juntas] members fetch failed:', err);
+    }
     const message = err instanceof Error ? err.message : (err?.message ?? 'Error cargando integrantes');
     return { ok: false as const, message: mapSupabaseErrorMessage(message) };
   }
@@ -542,7 +554,9 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
   for (const [label, settled] of secondaryQueries) {
     if (settled.status === 'rejected' || (settled.status === 'fulfilled' && settled.value.error)) {
       const err = settled.status === 'rejected' ? settled.reason : settled.value.error;
-      console.error(`[dashboard-my-juntas] ${label} fetch failed:`, err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[dashboard-my-juntas] ${label} fetch failed:`, err);
+      }
       const message = err instanceof Error ? err.message : (err?.message ?? `Error cargando ${label}`);
       return { ok: false as const, message: mapSupabaseErrorMessage(message) };
     }

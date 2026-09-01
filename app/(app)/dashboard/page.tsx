@@ -170,7 +170,7 @@ function getActiveJuntas(params: {
       return {
         id: junta.id,
         nombre: junta.nombre,
-        miembros: params.memberCountByJunta.get(junta.id) ?? Number(junta.integrantes_actuales ?? 0),
+        miembros: params.memberCountByJunta.get(junta.id) ?? 0,
         cuota: Number(junta.cuota_base ?? junta.monto_cuota ?? 0),
         frecuencia: junta.frecuencia_pago,
         tipo: junta.tipo_junta ?? 'normal',
@@ -181,14 +181,14 @@ function getActiveJuntas(params: {
     });
 }
 
-function getJuntaHistory(params: { juntas: Junta[]; myJuntaIds: string[] }): JuntaCardData[] {
+function getJuntaHistory(params: { juntas: Junta[]; myJuntaIds: string[]; memberCountByJunta: Map<string, number> }): JuntaCardData[] {
   return params.juntas
     .filter((junta) => params.myJuntaIds.includes(junta.id))
     .filter((junta) => ['cerrada', 'bloqueada'].includes(junta.estado) || Boolean(junta.bloqueada))
     .map((junta) => ({
       id: junta.id,
       nombre: junta.nombre,
-      miembros: Number(junta.integrantes_actuales ?? junta.participantes_max ?? 0),
+      miembros: params.memberCountByJunta.get(junta.id) ?? 0,
       cuota: Number(junta.cuota_base ?? junta.monto_cuota ?? 0),
       frecuencia: junta.frecuencia_pago,
       tipo: junta.tipo_junta ?? 'normal',
@@ -611,8 +611,10 @@ export default function DashboardPage() {
     fetchUserJuntaSnapshot(user.id)
       .then((result) => {
         if (!result.ok) {
-          console.error('[dashboard:misJuntas] fetch failed', result.message);
-          setJuntasLoadError(result.message);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[dashboard:misJuntas] fetch failed', result.message);
+          }
+          setJuntasLoadError('No pudimos cargar tus juntas. Inténtalo nuevamente.');
           return;
         }
         const { juntas: fetchedJuntas, members: fetchedMembers, schedules: fetchedSchedules, payments: fetchedPayments, payouts: fetchedPayouts } = result.data;
@@ -800,7 +802,8 @@ export default function DashboardPage() {
 
   const historyJuntas = getJuntaHistory({
     juntas: localJuntas,
-    myJuntaIds: localMyJuntaIds
+    myJuntaIds: localMyJuntaIds,
+    memberCountByJunta
   });
 
   const approvedCount = scoreStats.onTimePaymentsRecent + scoreStats.onTimePaymentsLifetime;
