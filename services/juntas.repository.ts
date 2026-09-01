@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { EstadoJunta, EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
+import { EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
 
 const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
 
@@ -433,12 +433,42 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
 
   if (!hasSupabase || !supabase) return empty;
 
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  const authenticatedUserId = authData.user?.id;
+
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[dashboard-my-juntas] authenticated user', {
+      authUid: authenticatedUserId ?? null,
+      requestedProfileId: profileId
+    });
+  }
+
+  if (authError || !authenticatedUserId) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[dashboard-my-juntas] auth user lookup failed', authError);
+    }
+    return {
+      ok: false as const,
+      message: mapSupabaseErrorMessage(authError?.message ?? 'No hay una sesión autenticada para cargar las juntas')
+    };
+  }
+
+  if (authenticatedUserId !== profileId) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[dashboard-my-juntas] authenticated user mismatch', {
+        authUid: authenticatedUserId,
+        requestedProfileId: profileId
+      });
+    }
+    return { ok: false as const, message: 'La sesión cambió. Vuelve a iniciar sesión.' };
+  }
+
   // Query A: juntas owned by user (admin_id)
   // Query B: juntas where user is an active member
   // Both use allSettled — failure of one does not block the other.
   const [ownedSettled, membershipSettled] = await Promise.allSettled([
-    supabase.schema('public').from('juntas').select('id').eq('admin_id', profileId).neq('estado', 'eliminada' as EstadoJunta),
-    supabase.schema('public').from('junta_members').select('junta_id').eq('profile_id', profileId).in('estado', ['activo', 'pendiente', 'moroso', 'invitado'])
+    supabase.schema('public').from('juntas').select('id').eq('admin_id', authenticatedUserId),
+    supabase.schema('public').from('junta_members').select('junta_id').eq('profile_id', authenticatedUserId).neq('estado', 'retirado')
   ]);
 
   const ownedIds: string[] = [];
@@ -448,30 +478,46 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
     ownedIds.push(...(ownedSettled.value.data ?? []).map((r) => r.id));
   } else {
     const err = ownedSettled.status === 'rejected' ? ownedSettled.reason : ownedSettled.value.error;
-    console.error('[dashboard-my-juntas] owned query failed:', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[dashboard-my-juntas] owned query failed:', err);
+    }
+    const message = err instanceof Error ? err.message : (err?.message ?? 'Error cargando juntas creadas');
+    return { ok: false as const, message: mapSupabaseErrorMessage(message) };
   }
 
   if (membershipSettled.status === 'fulfilled' && !membershipSettled.value.error) {
     memberIds.push(...(membershipSettled.value.data ?? []).map((r) => r.junta_id));
   } else {
     const err = membershipSettled.status === 'rejected' ? membershipSettled.reason : membershipSettled.value.error;
-    console.error('[dashboard-my-juntas] membership query failed:', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[dashboard-my-juntas] membership query failed:', err);
+    }
+    const message = err instanceof Error ? err.message : (err?.message ?? 'Error cargando participaciones');
+    return { ok: false as const, message: mapSupabaseErrorMessage(message) };
   }
-
-  console.log('[dashboard-my-juntas] profileId', profileId);
-  console.log('[dashboard-my-juntas] ownerJuntas', ownedIds.length);
-  console.log('[dashboard-my-juntas] memberJuntas', memberIds.length);
 
   const juntaIds = Array.from(new Set([...ownedIds, ...memberIds]));
 
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[dashboard-my-juntas] discovery result', {
+      authUid: authenticatedUserId,
+      ownedIds,
+      memberIds,
+      beforeDeduplication: ownedIds.length + memberIds.length,
+      afterDeduplication: juntaIds.length
+    });
+  }
+
   if (juntaIds.length === 0) {
-    console.log('[dashboard-my-juntas] finalJuntas', 0);
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[dashboard-my-juntas] query result', { data: [], error: null, count: 0 });
+    }
     return empty;
   }
 
   // Fetch full data for all relevant juntas — every query is non-blocking.
   const [juntasSettled, membersSettled, schedulesSettled, paymentsSettled, payoutsSettled] = await Promise.allSettled([
-    supabase.schema('public').from('juntas').select('id,admin_id,slug,invite_token,access_code,bloqueada,tipo_junta,incentivo_porcentaje,incentivo_regla,turn_assignment_mode,cuota_base,bolsa_base,nombre,descripcion,moneda,participantes_max,monto_cuota,premio_primero_pct,descuento_ultimo_pct,fee_plataforma_pct,frecuencia_pago,fecha_inicio,dia_limite_pago,penalidad_mora,visibilidad,cerrar_inscripciones,estado,created_at,integrantes_actuales').in('id', juntaIds),
+    supabase.schema('public').from('juntas').select('id,admin_id,slug,invite_token,access_code,bloqueada,tipo_junta,incentivo_porcentaje,incentivo_regla,turn_assignment_mode,cuota_base,bolsa_base,nombre,descripcion,moneda,participantes_max,monto_cuota,premio_primero_pct,descuento_ultimo_pct,fee_plataforma_pct,frecuencia_pago,fecha_inicio,dia_limite_pago,penalidad_mora,visibilidad,cerrar_inscripciones,estado,created_at').in('id', juntaIds),
     supabase.schema('public').from('junta_members').select('id,junta_id,profile_id,estado,rol,orden_turno,created_at').in('junta_id', juntaIds),
     supabase.schema('public').from('payment_schedules').select('id,junta_id,cuota_numero,fecha_vencimiento,monto,estado').in('junta_id', juntaIds),
     supabase.schema('public').from('payments').select('id,junta_id,schedule_id,round_id,member_id,profile_id,expected_amount,submitted_amount,monto,estado,receipt_url,comprobante_url,payment_method,operation_number,participant_note,payment_status,submitted_at,internal_note,validated_at,validated_by,rejection_reason,pagado_en').in('junta_id', juntaIds),
@@ -486,14 +532,43 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
 
   if (juntasSettled.status === 'rejected' || (juntasSettled.status === 'fulfilled' && juntasSettled.value.error)) {
     const err = juntasSettled.status === 'rejected' ? juntasSettled.reason : juntasSettled.value.error;
-    console.error('[dashboard-my-juntas] error', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[dashboard-my-juntas] error', err);
+    }
+    const message = err instanceof Error ? err.message : (err?.message ?? 'Error cargando juntas');
+    return { ok: false as const, message: mapSupabaseErrorMessage(message) };
   }
-  if (membersSettled.status === 'rejected') console.error('[dashboard-my-juntas] members fetch failed:', membersSettled.reason);
-  if (schedulesSettled.status === 'rejected') console.error('[dashboard-my-juntas] schedules fetch failed:', schedulesSettled.reason);
-  if (paymentsSettled.status === 'rejected') console.error('[dashboard-my-juntas] payments fetch failed:', paymentsSettled.reason);
-  if (payoutsSettled.status === 'rejected') console.error('[dashboard-my-juntas] payouts fetch failed:', payoutsSettled.reason);
+  if (membersSettled.status === 'rejected' || (membersSettled.status === 'fulfilled' && membersSettled.value.error)) {
+    const err = membersSettled.status === 'rejected' ? membersSettled.reason : membersSettled.value.error;
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[dashboard-my-juntas] members fetch failed:', err);
+    }
+    const message = err instanceof Error ? err.message : (err?.message ?? 'Error cargando integrantes');
+    return { ok: false as const, message: mapSupabaseErrorMessage(message) };
+  }
+  const secondaryQueries = [
+    ['cronograma', schedulesSettled],
+    ['pagos', paymentsSettled],
+    ['desembolsos', payoutsSettled]
+  ] as const;
+  for (const [label, settled] of secondaryQueries) {
+    if (settled.status === 'rejected' || (settled.status === 'fulfilled' && settled.value.error)) {
+      const err = settled.status === 'rejected' ? settled.reason : settled.value.error;
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[dashboard-my-juntas] ${label} fetch failed:`, err);
+      }
+      const message = err instanceof Error ? err.message : (err?.message ?? `Error cargando ${label}`);
+      return { ok: false as const, message: mapSupabaseErrorMessage(message) };
+    }
+  }
 
-  console.log('[dashboard-my-juntas] finalJuntas', juntasData.length);
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[dashboard-my-juntas] query result', {
+      data: juntasData,
+      error: null,
+      count: juntasData.length
+    });
+  }
 
   return {
     ok: true as const,

@@ -26,7 +26,7 @@ import { parseCalendarDate } from '@/lib/calendar-date';
 import { getActiveMemberCountByJunta } from '@/lib/junta-members';
 import { normalizePaymentStatus } from '@/lib/payment-status';
 import { JuntaAvatar } from '@/components/junta-avatar';
-import { CheckCircle2, RefreshCw, Users as UsersIcon, Star, Copy, MessageCircle, Trophy } from 'lucide-react';
+import { Star, Copy, MessageCircle, Trophy } from 'lucide-react';
 import { RachaCard } from '@/components/ui/racha-card';
 import { computeGlobalRacha } from '@/lib/racha';
 
@@ -70,21 +70,6 @@ type NextLevelData = {
 
 function money(value: number) {
   return `S/ ${Math.round(value).toLocaleString('es-PE')}`;
-}
-
-function getDisplayName(nombre?: string, email?: string) {
-  const fromNombre = (nombre ?? '').trim();
-  if (fromNombre) return fromNombre;
-  const fromEmail = (email ?? '').split('@')[0]?.replace(/[._-]+/g, ' ').trim();
-  if (fromEmail) return fromEmail.replace(/\b\w/g, (char) => char.toUpperCase());
-  return 'Miembro';
-}
-
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'JD';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
 function getMyJuntaIds(userId: string, juntas: Junta[], members: JuntaMember[]) {
@@ -167,7 +152,7 @@ function getActiveJuntas(params: {
 
   return params.juntas
     .filter((junta) => params.myJuntaIds.includes(junta.id))
-    .filter((junta) => junta.estado !== 'cerrada' && junta.estado !== 'eliminada' && !junta.bloqueada)
+    .filter((junta) => !['cerrada', 'bloqueada', 'eliminada'].includes(junta.estado) && !junta.bloqueada && !junta.deleted_at)
     .map((junta) => {
       const juntaSchedules = params.schedules.filter((schedule) => schedule.junta_id === junta.id);
       const hasPending = juntaSchedules.some((schedule) => schedule.estado === 'vencida');
@@ -185,7 +170,7 @@ function getActiveJuntas(params: {
       return {
         id: junta.id,
         nombre: junta.nombre,
-        miembros: params.memberCountByJunta.get(junta.id) ?? Number(junta.integrantes_actuales ?? 0),
+        miembros: params.memberCountByJunta.get(junta.id) ?? 0,
         cuota: Number(junta.cuota_base ?? junta.monto_cuota ?? 0),
         frecuencia: junta.frecuencia_pago,
         tipo: junta.tipo_junta ?? 'normal',
@@ -196,14 +181,14 @@ function getActiveJuntas(params: {
     });
 }
 
-function getJuntaHistory(params: { juntas: Junta[]; myJuntaIds: string[] }): JuntaCardData[] {
+function getJuntaHistory(params: { juntas: Junta[]; myJuntaIds: string[]; memberCountByJunta: Map<string, number> }): JuntaCardData[] {
   return params.juntas
     .filter((junta) => params.myJuntaIds.includes(junta.id))
-    .filter((junta) => junta.estado === 'cerrada' || Boolean(junta.bloqueada))
+    .filter((junta) => ['cerrada', 'bloqueada'].includes(junta.estado) || Boolean(junta.bloqueada))
     .map((junta) => ({
       id: junta.id,
       nombre: junta.nombre,
-      miembros: Number(junta.integrantes_actuales ?? junta.participantes_max ?? 0),
+      miembros: params.memberCountByJunta.get(junta.id) ?? 0,
       cuota: Number(junta.cuota_base ?? junta.monto_cuota ?? 0),
       frecuencia: junta.frecuencia_pago,
       tipo: junta.tipo_junta ?? 'normal',
@@ -234,27 +219,6 @@ function getNextLevelProgress(
     lossText: engagement.causeAndEffect.lossIfLateToday,
     missionClaimedThisWeek: claimedThisWeek.has(engagement.featuredMission.id)
   };
-}
-
-function DashboardHeader({ displayName }: { displayName: string }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
-          {getInitials(displayName)}
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm text-muted">Buenos días</p>
-          <h1 className="break-words text-2xl font-semibold text-fg">{displayName}</h1>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Link href="/account?tab=notifications" aria-label="Ir a notificaciones" className="rounded-full border border-border bg-surface p-2 text-lg">
-          🔔
-        </Link>
-      </div>
-    </div>
-  );
 }
 
 function PendingPaymentBanner({ data }: { data: PaymentAlertState }) {
@@ -288,52 +252,51 @@ function PendingPaymentBanner({ data }: { data: PaymentAlertState }) {
   );
 }
 
-function JuntaScoreCard({ score }: { score: UserJuntaScoreResult }) {
+function JuntaScoreCard({ score, paymentsOnTime, completedCycles, referredActive }: {
+  score: UserJuntaScoreResult;
+  paymentsOnTime: number;
+  completedCycles: number;
+  referredActive: number;
+}) {
   return (
-    <Card dark className="text-white">
-      <div className="grid gap-4 md:grid-cols-[100px_1fr] md:items-center">
-        <div className="mx-auto flex h-24 w-24 flex-col items-center justify-center rounded-full border-[5px] border-emerald-400">
-          <p className="font-mono text-4xl font-bold leading-none">{score.score}</p>
+    <Card dark className="text-white md:rounded-xl md:p-4 lg:p-3.5">
+      <div className="grid gap-4 md:grid-cols-[52px_1fr] md:items-start lg:gap-x-3 lg:gap-y-2">
+        <div className="mx-auto flex h-24 w-24 flex-col items-center justify-center rounded-full border-[5px] border-emerald-400 md:h-[52px] md:w-[52px] md:border-[3px]">
+          <p className="font-mono text-4xl font-bold leading-none md:text-xl">{score.score}</p>
           <p className="text-[10px] text-[var(--dark-muted)]">/100</p>
         </div>
-        <div className="space-y-2">
-          <Badge variant="dark">{getScoreBadge(score.level)}</Badge>
-          <h2 className="text-2xl font-bold">Tu score de junta</h2>
-          <p className="text-sm text-[var(--dark-muted)]">Pagos a tiempo, ciclos completados y referencias acumulan tu reputación financiera en la plataforma.</p>
-          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-emerald-400 transition-[width] duration-700" style={{ width: `${score.progressToNextLevel}%` }} />
-            </div>
-            <p className="text-[11px] text-[var(--dark-muted)]">
-              {score.pointsToNextLevel} pts para <span className="font-semibold text-white">{score.nextLevel ?? 'Élite'}</span>
-            </p>
+        <div className="space-y-2 lg:space-y-1">
+          <div className="md:flex md:items-center md:gap-2 lg:gap-1.5">
+            <Badge variant="dark">{getScoreBadge(score.level)}</Badge>
+            <h2 className="text-3xl font-bold md:text-xl">Tu score de junta</h2>
           </div>
-          {score.warnings[0] && <p className="text-xs text-amber-300">{score.warnings[0]}</p>}
+          <p className="text-base text-[var(--dark-muted)] md:text-sm">Pagos a tiempo, ciclos completados y referencias acumulan tu reputación financiera en la plataforma.</p>
+        </div>
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 md:col-span-2 lg:gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+            <div className="h-full rounded-full bg-emerald-400 transition-[width] duration-700" style={{ width: `${score.progressToNextLevel}%` }} />
+          </div>
+          <p className="text-[11px] text-[var(--dark-muted)]">
+            {score.pointsToNextLevel} pts para <span className="font-semibold text-white">{score.nextLevel ?? 'Élite'}</span>
+          </p>
+        </div>
+        {score.warnings[0] && <p className="text-xs text-amber-300 md:col-span-2">{score.warnings[0]}</p>}
+        <div className="grid grid-cols-3 border-t border-white/10 pt-3 md:col-span-2 lg:pt-2.5">
+          <div className="px-2 text-center first:pl-0 md:text-left lg:text-center">
+            <p className="text-xs text-[var(--dark-muted)]">Pagos a tiempo</p>
+            <p className="font-mono text-lg font-bold text-emerald-400">{paymentsOnTime}%</p>
+          </div>
+          <div className="border-x border-white/10 px-2 text-center md:text-left lg:text-center">
+            <p className="text-xs text-[var(--dark-muted)]">Ciclos completados</p>
+            <p className="font-mono text-lg font-bold text-white">{completedCycles}</p>
+          </div>
+          <div className="px-2 text-center last:pr-0 md:text-left lg:text-center">
+            <p className="text-xs text-[var(--dark-muted)]">Referidos activos</p>
+            <p className="font-mono text-lg font-bold text-white">{referredActive}</p>
+          </div>
         </div>
       </div>
     </Card>
-  );
-}
-
-function DashboardKpis({ paymentsOnTime, completedCycles, referredActive }: { paymentsOnTime: number; completedCycles: number; referredActive: number }) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      <Card className="p-4 text-center">
-        <CheckCircle2 className="mx-auto mb-1 text-emerald-400" size={20} strokeWidth={1.5} />
-        <p className="font-mono text-3xl font-bold text-green">{paymentsOnTime}%</p>
-        <p className="text-sm text-muted">Pagos a tiempo</p>
-      </Card>
-      <Card className="p-4 text-center">
-        <RefreshCw className="mx-auto mb-1 text-slate-400" size={20} strokeWidth={1.5} />
-        <p className="font-mono text-3xl font-bold text-fg">{completedCycles}</p>
-        <p className="text-sm text-muted">Ciclos completados</p>
-      </Card>
-      <Card className="p-4 text-center">
-        <UsersIcon className="mx-auto mb-1 text-slate-400" size={20} strokeWidth={1.5} />
-        <p className="font-mono text-3xl font-bold text-fg">{referredActive}</p>
-        <p className="text-sm text-muted">Referidos activos</p>
-      </Card>
-    </div>
   );
 }
 
@@ -342,7 +305,7 @@ function UpcomingPayoutCard({ data }: { data: UpcomingPayoutData }) {
     <Link href={`/juntas/${data.juntaId}`}>
       <Card tint="green" hover className="p-4">
         <p className="text-sm font-semibold text-[#065f46]">Tu próximo cobro</p>
-        <p className="break-words font-mono text-4xl font-bold text-[#065f46]">{money(data.amount)}</p>
+        <p className="break-words font-mono text-4xl font-bold text-[#065f46] md:text-xl">{money(data.amount)}</p>
         <p className="text-sm text-[#065f46]/80">
           Turno #{data.ronda} · {data.juntaNombre} · {data.fecha ? format(data.fecha, 'dd MMM yyyy', { locale: es }) : 'fecha por confirmar'}
         </p>
@@ -399,9 +362,9 @@ function InviteAndEarnCard({ referralCode }: { referralCode: string }) {
 
 function ContributionSummaryCards({ summary }: { summary: ContributionSummaryData }) {
   return (
-    <Card className="border-0 bg-accent p-5 text-white">
+    <Card className="border-0 bg-accent p-5 text-white md:rounded-xl md:p-4 lg:p-3.5">
       <p className="text-sm text-white/70">Total aportado</p>
-      <p className="break-words font-mono text-4xl font-bold">{money(summary.totalAportado)}</p>
+      <p className="break-words font-mono text-4xl font-bold md:text-xl">{money(summary.totalAportado)}</p>
       <p className="text-sm text-white/70">{summary.periodLabel}</p>
     </Card>
   );
@@ -448,28 +411,31 @@ function JuntaListItem({ item }: { item: JuntaCardData }) {
   );
 }
 
-function ActiveJuntasSection({ active, history, isLoading }: { active: JuntaCardData[]; history: JuntaCardData[]; isLoading: boolean }) {
+function ActiveJuntasSection({ active, history, isLoading, loadError }: { active: JuntaCardData[]; history: JuntaCardData[]; isLoading: boolean; loadError: string | null }) {
   const [tab, setTab] = useState<'activas' | 'historial'>('activas');
   const data = tab === 'activas' ? active : history;
 
   return (
-    <section className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-xl font-semibold text-fg">Mis juntas activas</h2>
-        <Link className="text-sm font-medium text-accent" href="/juntas">Ver todas →</Link>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setTab('activas')} className={`rounded-[var(--r-sm)] border px-4 py-1.5 text-sm transition-colors ${tab === 'activas' ? 'border-accent text-accent' : 'border-border text-muted'}`}>Activas</button>
-        <button type="button" onClick={() => setTab('historial')} className={`rounded-[var(--r-sm)] border px-4 py-1.5 text-sm transition-colors ${tab === 'historial' ? 'border-accent text-accent' : 'border-border text-muted'}`}>Historial</button>
+    <section className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 lg:flex-nowrap">
+        <h2 className="text-sm font-medium text-fg">Mis juntas activas</h2>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-[var(--r-sm)] border border-border bg-surface p-0.5">
+            <button type="button" onClick={() => setTab('activas')} className={`rounded px-2.5 py-1 text-xs transition-colors ${tab === 'activas' ? 'bg-accent text-white' : 'text-muted'}`}>Activas</button>
+            <button type="button" onClick={() => setTab('historial')} className={`rounded px-2.5 py-1 text-xs transition-colors ${tab === 'historial' ? 'bg-accent text-white' : 'text-muted'}`}>Historial</button>
+          </div>
+          <Link className="text-xs font-medium text-accent" href="/juntas">Ver todas →</Link>
+        </div>
       </div>
 
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => <JuntaSkeletonItem key={i} />)}
         </div>
+      ) : loadError ? (
+        <Card className="py-6 text-center text-sm text-destructive lg:py-4">{loadError}</Card>
       ) : data.length === 0 ? (
-        <Card className="p-5 text-sm text-muted">{tab === 'activas' ? 'Aún no tienes juntas activas. Únete o crea una junta para empezar.' : 'Todavía no tienes historial de juntas finalizadas.'}</Card>
+        <Card className="py-6 text-center text-sm text-muted lg:py-4">{tab === 'activas' ? 'Aún no tienes juntas activas. Únete o crea una junta para empezar.' : 'Todavía no tienes historial de juntas finalizadas.'}</Card>
       ) : (
         <div className="space-y-2">
           {data.map((item) => <JuntaListItem key={`${tab}-${item.id}`} item={item} />)}
@@ -493,14 +459,14 @@ function NextLevelSection({
   const canClaim = data.mission.status === 'completed' && !data.missionClaimedThisWeek;
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-xl font-semibold text-fg">{data.title}</h2>
-      <Card tint="blue" className="p-4">
+    <section className="space-y-2">
+      <h2 className="text-sm font-medium text-fg">{data.title}</h2>
+      <Card tint="blue" className="p-4 lg:p-3">
         <div className="flex items-start gap-3">
           <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Star size={16} strokeWidth={1.5} /></div>
           <div className="flex-1">
             <p className="text-sm text-accent-dark">{data.benefitText}</p>
-            <div className="mt-3 flex items-center gap-3">
+            <div className="mt-3 flex items-center gap-3 lg:mt-2">
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent-bg">
                 <div className="h-full rounded-full bg-accent transition-[width] duration-700" style={{ width: `${progressPct}%` }} />
               </div>
@@ -510,7 +476,7 @@ function NextLevelSection({
         </div>
       </Card>
 
-      <Card className="p-4">
+      <Card className="p-4 lg:p-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-fg">{data.mission.title}</p>
@@ -531,13 +497,13 @@ function NextLevelSection({
             </Button>
           )}
         </div>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 lg:mt-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
             <div className="h-full rounded-full bg-muted transition-[width] duration-700" style={{ width: `${missionPct}%` }} />
           </div>
           <p className="text-[11px] text-muted">{data.mission.progressCurrent}/{data.mission.progressTarget}</p>
         </div>
-        <p className="mt-3 text-xs text-accent">{data.gainText}</p>
+        <p className="mt-3 text-xs text-accent lg:mt-2">{data.gainText}</p>
         <p className="mt-1 text-xs text-amber">{data.lossText}</p>
         {data.warning && <p className="mt-2 text-xs font-medium text-destructive">{data.warning}</p>}
         {data.unlocks && (
@@ -568,6 +534,7 @@ export default function DashboardPage() {
   const userId = user?.id ?? '';
 
   const [juntasIsLoading, setJuntasIsLoading] = useState(true);
+  const [juntasLoadError, setJuntasLoadError] = useState<string | null>(null);
   const [localJuntas, setLocalJuntas] = useState<Junta[]>([]);
   const [localMembers, setLocalMembers] = useState<JuntaMember[]>([]);
   const [localSchedules, setLocalSchedules] = useState<PaymentSchedule[]>([]);
@@ -584,8 +551,6 @@ export default function DashboardPage() {
     () => (user ? computeGlobalRacha({ userId: user.id, payments: safePayments, schedules: safeSchedules, juntaIds: myJuntaIds }) : null),
     [user, safePayments, safeSchedules, myJuntaIds]
   );
-  const displayName = user ? getDisplayName(user.nombre, user.email) : 'Miembro';
-
   // Fresh fetch for payment notifications — never relies on stale Zustand data.
   // Queries from junta_members (not admin_id) so both creators and participants are covered.
   useEffect(() => {
@@ -641,10 +606,33 @@ export default function DashboardPage() {
     if (!user?.id) return;
 
     setJuntasIsLoading(true);
+    setJuntasLoadError(null);
 
     fetchUserJuntaSnapshot(user.id)
       .then((result) => {
+        if (!result.ok) {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[dashboard:misJuntas] fetch failed', result.message);
+          }
+          setJuntasLoadError('No pudimos cargar tus juntas. Inténtalo nuevamente.');
+          return;
+        }
         const { juntas: fetchedJuntas, members: fetchedMembers, schedules: fetchedSchedules, payments: fetchedPayments, payouts: fetchedPayouts } = result.data;
+
+        if (process.env.NODE_ENV === 'development') {
+          const activeAfterFilters = fetchedJuntas.filter(
+            (junta) => !['cerrada', 'bloqueada', 'eliminada'].includes(junta.estado)
+              && !junta.bloqueada
+              && !junta.deleted_at
+          );
+          console.debug('[dashboard:misJuntas] query and filters', {
+            authenticatedUser: user.id,
+            result: fetchedJuntas,
+            error: null,
+            beforeFilters: fetchedJuntas.length,
+            afterActiveFilters: activeAfterFilters.length
+          });
+        }
 
         setLocalJuntas(fetchedJuntas);
         setLocalMembers(fetchedMembers);
@@ -799,12 +787,8 @@ export default function DashboardPage() {
     myJuntaIds
   });
 
-  // "Mis juntas activas" usa datos del fetch propio (no del store global)
-  // Solo incluye juntas donde el usuario es miembro activo — NO juntas donde solo es admin/creador.
-  const localMyJuntaIds = localMembers
-    .filter((m) => m.profile_id === user.id && m.estado !== 'retirado')
-    .map((m) => m.junta_id)
-    .filter((id, i, arr) => arr.indexOf(id) === i);
+  // Incluye tanto las juntas creadas por el usuario como aquellas en las que participa.
+  const localMyJuntaIds = getMyJuntaIds(user.id, localJuntas, localMembers);
   const memberCountByJunta = getActiveMemberCountByJunta(localJuntas, localMembers);
 
   const activeJuntas = getActiveJuntas({
@@ -818,7 +802,8 @@ export default function DashboardPage() {
 
   const historyJuntas = getJuntaHistory({
     juntas: localJuntas,
-    myJuntaIds: localMyJuntaIds
+    myJuntaIds: localMyJuntaIds,
+    memberCountByJunta
   });
 
   const approvedCount = scoreStats.onTimePaymentsRecent + scoreStats.onTimePaymentsLifetime;
@@ -828,40 +813,57 @@ export default function DashboardPage() {
   const nextLevel = getNextLevelProgress(score, engagement, claimedThisWeek);
 
   return (
-    <div className="space-y-5">
-      <DashboardHeader displayName={displayName} />
-
+    <div className="mx-auto max-w-6xl space-y-4 px-6 lg:space-y-3">
       {paymentAlert.status !== 'none' && paymentAlert.status !== 'paid' && <PendingPaymentBanner data={paymentAlert} />}
 
-      <JuntaScoreCard score={score} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)] lg:items-start lg:gap-3">
+        <div className="space-y-4 lg:flex lg:flex-col lg:gap-3 lg:space-y-0">
+          <div className="contents lg:order-1 lg:block">
+            <JuntaScoreCard
+              score={score}
+              paymentsOnTime={paymentRate}
+              completedCycles={completedCycles}
+              referredActive={referralStats.active}
+            />
+          </div>
 
-      {globalRacha && (
-        <RachaCard
-          semanasActual={globalRacha.semanasActual}
-          recordPersonal={globalRacha.recordPersonal}
-          proximoHito={globalRacha.proximoHito}
-          estado={globalRacha.estado}
-          horasRestantes={globalRacha.horasRestantes}
-        />
-      )}
+          {globalRacha && (
+            <div className="contents lg:order-4 lg:block">
+              <RachaCard
+                semanasActual={globalRacha.semanasActual}
+                recordPersonal={globalRacha.recordPersonal}
+                proximoHito={globalRacha.proximoHito}
+                estado={globalRacha.estado}
+                horasRestantes={globalRacha.horasRestantes}
+              />
+            </div>
+          )}
 
-      <DashboardKpis paymentsOnTime={paymentRate} completedCycles={completedCycles} referredActive={referralStats.active} />
+          {upcomingPayout && (
+            <div className="contents lg:order-5 lg:block">
+              <UpcomingPayoutCard data={upcomingPayout} />
+            </div>
+          )}
 
-      {user.referral_code && (
-        <InviteAndEarnCard referralCode={user.referral_code} />
-      )}
+          <div className="contents lg:order-2 lg:block">
+            <ActiveJuntasSection active={activeJuntas} history={historyJuntas} isLoading={juntasIsLoading} loadError={juntasLoadError} />
+          </div>
 
-      {upcomingPayout && <UpcomingPayoutCard data={upcomingPayout} />}
+          <div className="flex flex-wrap gap-2 lg:order-3 lg:-mt-1">
+            <Link href="/juntas/new"><Button>Crear nueva junta</Button></Link>
+            <Link href="/juntas"><Button variant="outline">Explorar juntas</Button></Link>
+          </div>
+        </div>
 
-      <ContributionSummaryCards summary={contributionSummary} />
+        <aside className="space-y-4 lg:space-y-3">
+          <ContributionSummaryCards summary={contributionSummary} />
 
-      <ActiveJuntasSection active={activeJuntas} history={historyJuntas} isLoading={juntasIsLoading} />
+          {user.referral_code && (
+            <InviteAndEarnCard referralCode={user.referral_code} />
+          )}
 
-      <NextLevelSection data={nextLevel} onClaimMission={handleClaimMission} isClaiming={isClaiming} />
-
-      <div className="flex flex-wrap gap-2">
-        <Link href="/juntas/new"><Button>Crear nueva junta</Button></Link>
-        <Link href="/juntas"><Button variant="outline">Explorar juntas</Button></Link>
+          <NextLevelSection data={nextLevel} onClaimMission={handleClaimMission} isClaiming={isClaiming} />
+        </aside>
       </div>
     </div>
   );
