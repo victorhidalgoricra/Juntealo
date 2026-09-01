@@ -259,20 +259,20 @@ function JuntaScoreCard({ score, paymentsOnTime, completedCycles, referredActive
   referredActive: number;
 }) {
   return (
-    <Card dark className="text-white md:rounded-xl md:p-4">
-      <div className="grid gap-4 md:grid-cols-[52px_1fr] md:items-start">
+    <Card dark className="text-white md:rounded-xl md:p-4 lg:p-3.5">
+      <div className="grid gap-4 md:grid-cols-[52px_1fr] md:items-start lg:gap-x-3 lg:gap-y-2">
         <div className="mx-auto flex h-24 w-24 flex-col items-center justify-center rounded-full border-[5px] border-emerald-400 md:h-[52px] md:w-[52px] md:border-[3px]">
           <p className="font-mono text-4xl font-bold leading-none md:text-xl">{score.score}</p>
           <p className="text-[10px] text-[var(--dark-muted)]">/100</p>
         </div>
-        <div className="space-y-2">
-          <div className="md:flex md:items-center md:gap-2">
+        <div className="space-y-2 lg:space-y-1">
+          <div className="md:flex md:items-center md:gap-2 lg:gap-1.5">
             <Badge variant="dark">{getScoreBadge(score.level)}</Badge>
             <h2 className="text-3xl font-bold md:text-xl">Tu score de junta</h2>
           </div>
           <p className="text-base text-[var(--dark-muted)] md:text-sm">Pagos a tiempo, ciclos completados y referencias acumulan tu reputación financiera en la plataforma.</p>
         </div>
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 md:col-span-2">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 md:col-span-2 lg:gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-emerald-400 transition-[width] duration-700" style={{ width: `${score.progressToNextLevel}%` }} />
           </div>
@@ -281,16 +281,16 @@ function JuntaScoreCard({ score, paymentsOnTime, completedCycles, referredActive
           </p>
         </div>
         {score.warnings[0] && <p className="text-xs text-amber-300 md:col-span-2">{score.warnings[0]}</p>}
-        <div className="grid grid-cols-3 border-t border-white/10 pt-3 md:col-span-2">
-          <div className="px-2 text-center first:pl-0 md:text-left">
+        <div className="grid grid-cols-3 border-t border-white/10 pt-3 md:col-span-2 lg:pt-2.5">
+          <div className="px-2 text-center first:pl-0 md:text-left lg:text-center">
             <p className="text-xs text-[var(--dark-muted)]">Pagos a tiempo</p>
             <p className="font-mono text-lg font-bold text-emerald-400">{paymentsOnTime}%</p>
           </div>
-          <div className="border-x border-white/10 px-2 text-center md:text-left">
+          <div className="border-x border-white/10 px-2 text-center md:text-left lg:text-center">
             <p className="text-xs text-[var(--dark-muted)]">Ciclos completados</p>
             <p className="font-mono text-lg font-bold text-white">{completedCycles}</p>
           </div>
-          <div className="px-2 text-center last:pr-0 md:text-left">
+          <div className="px-2 text-center last:pr-0 md:text-left lg:text-center">
             <p className="text-xs text-[var(--dark-muted)]">Referidos activos</p>
             <p className="font-mono text-lg font-bold text-white">{referredActive}</p>
           </div>
@@ -362,7 +362,7 @@ function InviteAndEarnCard({ referralCode }: { referralCode: string }) {
 
 function ContributionSummaryCards({ summary }: { summary: ContributionSummaryData }) {
   return (
-    <Card className="border-0 bg-accent p-5 text-white md:rounded-xl md:p-4">
+    <Card className="border-0 bg-accent p-5 text-white md:rounded-xl md:p-4 lg:p-3.5">
       <p className="text-sm text-white/70">Total aportado</p>
       <p className="break-words font-mono text-4xl font-bold md:text-xl">{money(summary.totalAportado)}</p>
       <p className="text-sm text-white/70">{summary.periodLabel}</p>
@@ -417,7 +417,7 @@ function ActiveJuntasSection({ active, history, isLoading }: { active: JuntaCard
 
   return (
     <section className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 lg:flex-nowrap">
         <h2 className="text-sm font-medium text-fg">Mis juntas activas</h2>
         <div className="flex items-center gap-2">
           <div className="flex rounded-[var(--r-sm)] border border-border bg-surface p-0.5">
@@ -433,7 +433,7 @@ function ActiveJuntasSection({ active, history, isLoading }: { active: JuntaCard
           {[1, 2, 3].map((i) => <JuntaSkeletonItem key={i} />)}
         </div>
       ) : data.length === 0 ? (
-        <Card className="py-6 text-center text-sm text-muted">{tab === 'activas' ? 'Aún no tienes juntas activas. Únete o crea una junta para empezar.' : 'Todavía no tienes historial de juntas finalizadas.'}</Card>
+        <Card className="py-6 text-center text-sm text-muted lg:py-4">{tab === 'activas' ? 'Aún no tienes juntas activas. Únete o crea una junta para empezar.' : 'Todavía no tienes historial de juntas finalizadas.'}</Card>
       ) : (
         <div className="space-y-2">
           {data.map((item) => <JuntaListItem key={`${tab}-${item.id}`} item={item} />)}
@@ -459,12 +459,12 @@ function NextLevelSection({
   return (
     <section className="space-y-2">
       <h2 className="text-sm font-medium text-fg">{data.title}</h2>
-      <Card tint="blue" className="p-4">
+      <Card tint="blue" className="p-4 lg:p-3">
         <div className="flex items-start gap-3">
           <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Star size={16} strokeWidth={1.5} /></div>
           <div className="flex-1">
             <p className="text-sm text-accent-dark">{data.benefitText}</p>
-            <div className="mt-3 flex items-center gap-3">
+            <div className="mt-3 flex items-center gap-3 lg:mt-2">
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent-bg">
                 <div className="h-full rounded-full bg-accent transition-[width] duration-700" style={{ width: `${progressPct}%` }} />
               </div>
@@ -474,7 +474,7 @@ function NextLevelSection({
         </div>
       </Card>
 
-      <Card className="p-4">
+      <Card className="p-4 lg:p-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-fg">{data.mission.title}</p>
@@ -495,13 +495,13 @@ function NextLevelSection({
             </Button>
           )}
         </div>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 lg:mt-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
             <div className="h-full rounded-full bg-muted transition-[width] duration-700" style={{ width: `${missionPct}%` }} />
           </div>
           <p className="text-[11px] text-muted">{data.mission.progressCurrent}/{data.mission.progressTarget}</p>
         </div>
-        <p className="mt-3 text-xs text-accent">{data.gainText}</p>
+        <p className="mt-3 text-xs text-accent lg:mt-2">{data.gainText}</p>
         <p className="mt-1 text-xs text-amber">{data.lossText}</p>
         {data.warning && <p className="mt-2 text-xs font-medium text-destructive">{data.warning}</p>}
         {data.unlocks && (
@@ -790,39 +790,49 @@ export default function DashboardPage() {
   const nextLevel = getNextLevelProgress(score, engagement, claimedThisWeek);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-6">
+    <div className="mx-auto max-w-6xl space-y-4 px-6 lg:space-y-3">
       {paymentAlert.status !== 'none' && paymentAlert.status !== 'paid' && <PendingPaymentBanner data={paymentAlert} />}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-4">
-          <JuntaScoreCard
-            score={score}
-            paymentsOnTime={paymentRate}
-            completedCycles={completedCycles}
-            referredActive={referralStats.active}
-          />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)] lg:items-start lg:gap-3">
+        <div className="space-y-4 lg:flex lg:flex-col lg:gap-3 lg:space-y-0">
+          <div className="contents lg:order-1 lg:block">
+            <JuntaScoreCard
+              score={score}
+              paymentsOnTime={paymentRate}
+              completedCycles={completedCycles}
+              referredActive={referralStats.active}
+            />
+          </div>
 
           {globalRacha && (
-            <RachaCard
-              semanasActual={globalRacha.semanasActual}
-              recordPersonal={globalRacha.recordPersonal}
-              proximoHito={globalRacha.proximoHito}
-              estado={globalRacha.estado}
-              horasRestantes={globalRacha.horasRestantes}
-            />
+            <div className="contents lg:order-4 lg:block">
+              <RachaCard
+                semanasActual={globalRacha.semanasActual}
+                recordPersonal={globalRacha.recordPersonal}
+                proximoHito={globalRacha.proximoHito}
+                estado={globalRacha.estado}
+                horasRestantes={globalRacha.horasRestantes}
+              />
+            </div>
           )}
 
-          {upcomingPayout && <UpcomingPayoutCard data={upcomingPayout} />}
+          {upcomingPayout && (
+            <div className="contents lg:order-5 lg:block">
+              <UpcomingPayoutCard data={upcomingPayout} />
+            </div>
+          )}
 
-          <ActiveJuntasSection active={activeJuntas} history={historyJuntas} isLoading={juntasIsLoading} />
+          <div className="contents lg:order-2 lg:block">
+            <ActiveJuntasSection active={activeJuntas} history={historyJuntas} isLoading={juntasIsLoading} />
+          </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 lg:order-3 lg:-mt-1">
             <Link href="/juntas/new"><Button>Crear nueva junta</Button></Link>
             <Link href="/juntas"><Button variant="outline">Explorar juntas</Button></Link>
           </div>
         </div>
 
-        <aside className="space-y-4">
+        <aside className="space-y-4 lg:space-y-3">
           <ContributionSummaryCards summary={contributionSummary} />
 
           {user.referral_code && (

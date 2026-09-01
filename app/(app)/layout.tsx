@@ -122,22 +122,24 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
   }
 
   const displayName = getDisplayName(user.nombre, user.email);
+  const isDashboard = pathname === '/dashboard';
 
   return (
     <AppShell>
-      <div className="mx-auto mb-4 flex max-w-6xl items-center justify-between gap-3 px-6">
+      <div className={`mx-auto mb-4 flex max-w-6xl items-center justify-between gap-3 px-6 ${isDashboard ? 'lg:mb-3 lg:min-h-0' : ''}`}>
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-white">
+          <div className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-white ${isDashboard ? 'lg:h-7 lg:w-7' : ''}`}>
             {getInitials(displayName)}
           </div>
           <p className="truncate text-sm font-medium text-fg">Buenos días, {displayName}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Link href="/account?tab=notifications" aria-label="Ir a notificaciones" className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-fg">
+          <Link href="/account?tab=notifications" aria-label="Ir a notificaciones" className={`inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-fg ${isDashboard ? 'lg:h-7 lg:w-7' : ''}`}>
             <Bell size={15} strokeWidth={1.8} />
           </Link>
           <Button
             variant="outline"
+            className={isDashboard ? 'lg:h-8 lg:px-3' : undefined}
             onClick={async () => {
               try {
                 if (hasSupabase && supabase) await supabase.auth.signOut();
