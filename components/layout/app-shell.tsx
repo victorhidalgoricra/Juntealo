@@ -73,7 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen md:grid md:grid-cols-[240px_1fr]">
+    <div className="min-h-screen md:grid md:grid-cols-[224px_1fr]">
 
       {/* ── Mobile top bar ── */}
       <div className="sticky top-0 z-[100] flex h-[56px] items-center justify-between border-b border-border bg-surface px-4 md:hidden">
@@ -147,7 +147,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
 
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden flex-col border-r border-border bg-surface px-3 py-5 md:flex md:min-h-screen">
+      <aside className="hidden w-56 flex-col border-r border-border bg-surface px-3 py-5 md:flex md:min-h-screen">
         {/* Brand */}
         <div className="mb-6 px-2">
           <JuntealoLogo size="sm" />
@@ -164,10 +164,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               key={link.href}
               href={link.href}
               className={cn(
-                'rounded-[var(--r-sm)] px-3 py-[9px] text-sm transition-colors duration-150',
+                'rounded-[var(--r-sm)] px-3 py-2 text-sm transition-colors duration-150',
                 isActive(link)
                   ? 'bg-[var(--dark-1)] font-semibold text-white'
-                  : 'font-medium bg-slate-100 text-slate-600 hover:bg-accent-bg hover:text-accent'
+                  : 'font-medium text-slate-600 hover:bg-accent-bg hover:text-accent'
               )}
             >
               {link.href === '/ranking' ? (
