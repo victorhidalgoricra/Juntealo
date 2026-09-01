@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { EstadoJunta, EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
+import { EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
 
 const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
 
@@ -433,12 +433,38 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
 
   if (!hasSupabase || !supabase) return empty;
 
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  const authenticatedUserId = authData.user?.id;
+
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[dashboard-my-juntas] authenticated user', {
+      authUid: authenticatedUserId ?? null,
+      requestedProfileId: profileId
+    });
+  }
+
+  if (authError || !authenticatedUserId) {
+    console.error('[dashboard-my-juntas] auth user lookup failed', authError);
+    return {
+      ok: false as const,
+      message: mapSupabaseErrorMessage(authError?.message ?? 'No hay una sesión autenticada para cargar las juntas')
+    };
+  }
+
+  if (authenticatedUserId !== profileId) {
+    console.error('[dashboard-my-juntas] authenticated user mismatch', {
+      authUid: authenticatedUserId,
+      requestedProfileId: profileId
+    });
+    return { ok: false as const, message: 'La sesión cambió. Vuelve a iniciar sesión.' };
+  }
+
   // Query A: juntas owned by user (admin_id)
   // Query B: juntas where user is an active member
   // Both use allSettled — failure of one does not block the other.
   const [ownedSettled, membershipSettled] = await Promise.allSettled([
-    supabase.schema('public').from('juntas').select('id').eq('admin_id', profileId).neq('estado', 'eliminada' as EstadoJunta),
-    supabase.schema('public').from('junta_members').select('junta_id').eq('profile_id', profileId).in('estado', ['activo', 'pendiente', 'moroso', 'invitado'])
+    supabase.schema('public').from('juntas').select('id').eq('admin_id', authenticatedUserId),
+    supabase.schema('public').from('junta_members').select('junta_id').eq('profile_id', authenticatedUserId).neq('estado', 'retirado')
   ]);
 
   const ownedIds: string[] = [];
@@ -462,14 +488,22 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
     return { ok: false as const, message: mapSupabaseErrorMessage(message) };
   }
 
-  console.log('[dashboard-my-juntas] profileId', profileId);
-  console.log('[dashboard-my-juntas] ownerJuntas', ownedIds.length);
-  console.log('[dashboard-my-juntas] memberJuntas', memberIds.length);
-
   const juntaIds = Array.from(new Set([...ownedIds, ...memberIds]));
 
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[dashboard-my-juntas] discovery result', {
+      authUid: authenticatedUserId,
+      ownedIds,
+      memberIds,
+      beforeDeduplication: ownedIds.length + memberIds.length,
+      afterDeduplication: juntaIds.length
+    });
+  }
+
   if (juntaIds.length === 0) {
-    console.log('[dashboard-my-juntas] finalJuntas', 0);
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[dashboard-my-juntas] query result', { data: [], error: null, count: 0 });
+    }
     return empty;
   }
 
@@ -514,7 +548,13 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
     }
   }
 
-  console.log('[dashboard-my-juntas] finalJuntas', juntasData.length);
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[dashboard-my-juntas] query result', {
+      data: juntasData,
+      error: null,
+      count: juntasData.length
+    });
+  }
 
   return {
     ok: true as const,

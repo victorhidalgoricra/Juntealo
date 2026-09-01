@@ -152,7 +152,7 @@ function getActiveJuntas(params: {
 
   return params.juntas
     .filter((junta) => params.myJuntaIds.includes(junta.id))
-    .filter((junta) => !['cerrada', 'eliminada', 'cancelada'].includes(junta.estado) && !junta.bloqueada)
+    .filter((junta) => !['cerrada', 'bloqueada', 'eliminada'].includes(junta.estado) && !junta.bloqueada && !junta.deleted_at)
     .map((junta) => {
       const juntaSchedules = params.schedules.filter((schedule) => schedule.junta_id === junta.id);
       const hasPending = juntaSchedules.some((schedule) => schedule.estado === 'vencida');
@@ -184,7 +184,7 @@ function getActiveJuntas(params: {
 function getJuntaHistory(params: { juntas: Junta[]; myJuntaIds: string[] }): JuntaCardData[] {
   return params.juntas
     .filter((junta) => params.myJuntaIds.includes(junta.id))
-    .filter((junta) => ['cerrada', 'cancelada'].includes(junta.estado) || Boolean(junta.bloqueada))
+    .filter((junta) => ['cerrada', 'bloqueada'].includes(junta.estado) || Boolean(junta.bloqueada))
     .map((junta) => ({
       id: junta.id,
       nombre: junta.nombre,
@@ -411,7 +411,7 @@ function JuntaListItem({ item }: { item: JuntaCardData }) {
   );
 }
 
-function ActiveJuntasSection({ active, history, isLoading }: { active: JuntaCardData[]; history: JuntaCardData[]; isLoading: boolean }) {
+function ActiveJuntasSection({ active, history, isLoading, loadError }: { active: JuntaCardData[]; history: JuntaCardData[]; isLoading: boolean; loadError: string | null }) {
   const [tab, setTab] = useState<'activas' | 'historial'>('activas');
   const data = tab === 'activas' ? active : history;
 
@@ -432,6 +432,8 @@ function ActiveJuntasSection({ active, history, isLoading }: { active: JuntaCard
         <div className="space-y-2">
           {[1, 2, 3].map((i) => <JuntaSkeletonItem key={i} />)}
         </div>
+      ) : loadError ? (
+        <Card className="py-6 text-center text-sm text-destructive lg:py-4">{loadError}</Card>
       ) : data.length === 0 ? (
         <Card className="py-6 text-center text-sm text-muted lg:py-4">{tab === 'activas' ? 'Aún no tienes juntas activas. Únete o crea una junta para empezar.' : 'Todavía no tienes historial de juntas finalizadas.'}</Card>
       ) : (
@@ -532,6 +534,7 @@ export default function DashboardPage() {
   const userId = user?.id ?? '';
 
   const [juntasIsLoading, setJuntasIsLoading] = useState(true);
+  const [juntasLoadError, setJuntasLoadError] = useState<string | null>(null);
   const [localJuntas, setLocalJuntas] = useState<Junta[]>([]);
   const [localMembers, setLocalMembers] = useState<JuntaMember[]>([]);
   const [localSchedules, setLocalSchedules] = useState<PaymentSchedule[]>([]);
@@ -603,14 +606,31 @@ export default function DashboardPage() {
     if (!user?.id) return;
 
     setJuntasIsLoading(true);
+    setJuntasLoadError(null);
 
     fetchUserJuntaSnapshot(user.id)
       .then((result) => {
         if (!result.ok) {
           console.error('[dashboard:misJuntas] fetch failed', result.message);
+          setJuntasLoadError(result.message);
           return;
         }
         const { juntas: fetchedJuntas, members: fetchedMembers, schedules: fetchedSchedules, payments: fetchedPayments, payouts: fetchedPayouts } = result.data;
+
+        if (process.env.NODE_ENV === 'development') {
+          const activeAfterFilters = fetchedJuntas.filter(
+            (junta) => !['cerrada', 'bloqueada', 'eliminada'].includes(junta.estado)
+              && !junta.bloqueada
+              && !junta.deleted_at
+          );
+          console.debug('[dashboard:misJuntas] query and filters', {
+            authenticatedUser: user.id,
+            result: fetchedJuntas,
+            error: null,
+            beforeFilters: fetchedJuntas.length,
+            afterActiveFilters: activeAfterFilters.length
+          });
+        }
 
         setLocalJuntas(fetchedJuntas);
         setLocalMembers(fetchedMembers);
@@ -823,7 +843,7 @@ export default function DashboardPage() {
           )}
 
           <div className="contents lg:order-2 lg:block">
-            <ActiveJuntasSection active={activeJuntas} history={historyJuntas} isLoading={juntasIsLoading} />
+            <ActiveJuntasSection active={activeJuntas} history={historyJuntas} isLoading={juntasIsLoading} loadError={juntasLoadError} />
           </div>
 
           <div className="flex flex-wrap gap-2 lg:order-3 lg:-mt-1">

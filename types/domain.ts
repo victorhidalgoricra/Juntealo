@@ -1,5 +1,5 @@
 export type Frecuencia = 'semanal' | 'quincenal' | 'mensual';
-export type EstadoJunta = 'borrador' | 'activa' | 'cerrada' | 'eliminada';
+export type EstadoJunta = 'borrador' | 'activa' | 'cerrada' | 'bloqueada' | 'eliminada';
 export type TipoJunta = 'normal' | 'incentivo';
 export type IncentivoRegla = 'primero_ultimo' | 'escalonado';
 export type EstadoMiembro = 'invitado' | 'activo' | 'pendiente' | 'moroso' | 'retirado';
