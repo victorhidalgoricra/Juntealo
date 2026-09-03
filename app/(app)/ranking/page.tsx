@@ -1,13 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Trophy } from 'lucide-react';
-import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { fetchPublicProfilesForRanking } from '@/services/profile.service';
-import { computeRanking, type RankingEntry } from '@/services/ranking.service';
+import { fetchGlobalRanking, type GlobalRankingEntry } from '@/services/ranking.service';
 import { type JuntaScoreLevel } from '@/services/junta-score.service';
-import { PublicProfile } from '@/types/domain';
 import { cn } from '@/lib/utils';
 
 const LEVEL_BADGE: Record<JuntaScoreLevel, { bg: string; text: string }> = {
@@ -52,7 +49,7 @@ function PositionCell({ position }: { position: number }) {
   );
 }
 
-function LeaderboardRow({ entry, position }: { entry: RankingEntry; position: number }) {
+function LeaderboardRow({ entry, position }: { entry: GlobalRankingEntry; position: number }) {
   const isTop3 = position <= 3;
 
   return (
@@ -134,7 +131,7 @@ function LeaderboardRow({ entry, position }: { entry: RankingEntry; position: nu
   );
 }
 
-function LeaderboardTable({ ranking }: { ranking: RankingEntry[] }) {
+function LeaderboardTable({ ranking }: { ranking: GlobalRankingEntry[] }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-surface shadow-sm">
       <div className="overflow-x-auto">
@@ -150,8 +147,8 @@ function LeaderboardTable({ ranking }: { ranking: RankingEntry[] }) {
             </tr>
           </thead>
           <tbody>
-            {ranking.map((entry, index) => (
-              <LeaderboardRow key={entry.profileId} entry={entry} position={index + 1} />
+            {ranking.map((entry) => (
+              <LeaderboardRow key={entry.profileId} entry={entry} position={entry.position} />
             ))}
           </tbody>
         </table>
@@ -229,65 +226,30 @@ function EmptyState() {
 
 export default function RankingPage() {
   const user = useAuthStore((s) => s.user);
-  const { juntas, members, schedules, payments, isDataReady } = useAppStore();
-
-  const safeJuntas   = useMemo(() => (Array.isArray(juntas)    ? juntas    : []), [juntas]);
-  const safeMembers  = useMemo(() => (Array.isArray(members)   ? members   : []), [members]);
-  const safeSchedules= useMemo(() => (Array.isArray(schedules) ? schedules : []), [schedules]);
-  const safePayments = useMemo(() => (Array.isArray(payments)  ? payments  : []), [payments]);
-
-  const [profilesById, setProfilesById] = useState<Record<string, PublicProfile>>({});
-  const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const [ranking, setRanking] = useState<GlobalRankingEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoadingProfiles(true);
-    fetchPublicProfilesForRanking()
+    setIsLoading(true);
+    setLoadError(null);
+    fetchGlobalRanking()
       .then((result) => {
-        if (!result.ok) return;
-        const mapped = result.data.reduce<Record<string, PublicProfile>>((acc, p) => {
-          acc[p.id] = p;
-          return acc;
-        }, {});
-        if (user && !mapped[user.id]) {
-          mapped[user.id] = { id: user.id, nombre: (user as unknown as PublicProfile).nombre ?? '' };
+        if (!result.ok) {
+          setLoadError(result.message);
+          return;
         }
-        if (process.env.NODE_ENV === 'development') {
-          console.debug('[ranking] perfiles recibidos:', result.data.length);
-          console.debug('[ranking] IDs en mapa:', Object.keys(mapped).length);
-        }
-        setProfilesById(mapped);
+        setRanking(result.data);
       })
-      .finally(() => setLoadingProfiles(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      .finally(() => setIsLoading(false));
   }, [user?.id]);
-
-  const ranking = useMemo(() => {
-    if (!user || Object.keys(profilesById).length === 0) return [];
-    const entries = computeRanking({
-      currentUserId: user.id,
-      juntas:    safeJuntas,
-      members:   safeMembers,
-      schedules: safeSchedules,
-      payments:  safePayments,
-      profilesById,
-    });
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('[ranking] entries calculados:', entries.length);
-    }
-    return entries;
-  }, [user, safeJuntas, safeMembers, safeSchedules, safePayments, profilesById]);
-
-  const isLoading = !isDataReady || loadingProfiles;
 
   if (!user) return null;
 
   return (
     <div className="space-y-6">
       <div>
-        <div className="mb-1 flex items-center gap-2">
-          <Trophy className="text-accent" size={20} strokeWidth={1.5} />
-          <h1 className="text-2xl font-semibold text-fg">Ranking</h1>
-        </div>
+        <h1 className="mb-1 text-2xl font-semibold text-fg">Ranking</h1>
         <p className="text-sm text-muted">
           Reputación financiera de todos los miembros de Juntealo.
         </p>
@@ -295,6 +257,10 @@ export default function RankingPage() {
 
       {isLoading ? (
         <LeaderboardSkeleton />
+      ) : loadError ? (
+        <div role="alert" className="rounded-xl border border-destructive/30 bg-surface p-6 text-center text-sm text-destructive">
+          No pudimos cargar el ranking. Inténtalo nuevamente en unos minutos.
+        </div>
       ) : ranking.length === 0 ? (
         <EmptyState />
       ) : (
@@ -303,7 +269,7 @@ export default function RankingPage() {
 
       {!isLoading && ranking.length > 0 && (
         <p className="text-center text-xs text-muted">
-          Ordenado por score, ciclos y antigüedad · {ranking.length} miembro{ranking.length !== 1 ? 's' : ''}
+          Ordenado por score, ciclos y antigüedad · {ranking.length} miembro{ranking.length !== 1 ? 's' : ''} con actividad
         </p>
       )}
     </div>

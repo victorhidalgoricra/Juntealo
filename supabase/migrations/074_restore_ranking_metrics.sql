@@ -1,0 +1,71 @@
+-- Restore the punctual-payment and completed-cycle metrics displayed by the
+-- ranking before it moved to the global RPC.
+
+drop function if exists public.get_global_ranking();
+
+create function public.get_global_ranking()
+returns table (
+  profile_id uuid, display_name text, initials text, score integer,
+  level text, on_time_payments bigint, completed_cycles bigint,
+  position bigint, is_current_user boolean
+)
+language sql stable security definer set search_path = public as $$
+  with score_inputs as (
+    select
+      p.id,
+      case
+        when nullif(trim(p.first_name), '') is not null then trim(p.first_name) ||
+          case when nullif(trim(p.paternal_last_name), '') is not null
+            then ' ' || upper(left(trim(p.paternal_last_name), 1)) || '.' else '' end
+        when array_length(regexp_split_to_array(trim(p.nombre), '\s+'), 1) > 1 then
+          split_part(trim(p.nombre), ' ', 1) || ' ' ||
+          upper(left((regexp_split_to_array(trim(p.nombre), '\s+'))[
+            array_length(regexp_split_to_array(trim(p.nombre), '\s+'), 1)
+          ], 1)) || '.'
+        else coalesce(nullif(trim(p.nombre), ''), 'Miembro')
+      end as public_name,
+      public.current_junta_score(p.id) as base_score,
+      least((select count(*) from public.referrals r
+        where r.referrer_id = p.id and r.status = 'active'), 4) as active_referrals,
+      (select count(*) from public.juntas j where j.estado::text = 'cerrada' and
+        (j.admin_id = p.id or exists (
+          select 1 from public.junta_members jm
+          where jm.junta_id = j.id and jm.profile_id = p.id
+            and jm.estado::text in ('activo', 'moroso')
+        ))) as completed_cycles,
+      (select count(*)
+        from public.payment_schedules ps
+        join public.payments pay on pay.junta_id = ps.junta_id
+          and pay.schedule_id = ps.id and pay.profile_id = p.id
+        where (pay.payment_status = 'approved' or pay.estado::text = 'aprobado')
+          and coalesce(pay.submitted_at, pay.pagado_en, pay.validated_at)
+            <= ps.fecha_vencimiento::timestamptz
+      ) as on_time_payments,
+      p.created_at
+    from public.profiles p
+  ), scored as (
+    select *, greatest(0, least(100, round(
+      base_score + ((active_referrals::numeric / 7) * 10)
+    )))::integer as user_score
+    from score_inputs
+  ), ranked as (
+    select *, row_number() over (
+      order by user_score desc, completed_cycles desc, created_at asc, public_name asc
+    ) as rank_position
+    from scored
+  )
+  select id, public_name,
+    upper(left(split_part(public_name, ' ', 1), 1) ||
+      left(coalesce(nullif(split_part(public_name, ' ', 2), ''),
+      split_part(public_name, ' ', 1)), 1)),
+    user_score,
+    case when user_score >= 85 then 'Élite'
+      when user_score >= 70 then 'Oro'
+      when user_score >= 50 then 'Plata'
+      when user_score >= 30 then 'Bronce' else 'Nuevo' end,
+    on_time_payments, completed_cycles, rank_position, id = auth.uid()
+  from ranked order by rank_position;
+$$;
+
+revoke all on function public.get_global_ranking() from public, anon;
+grant execute on function public.get_global_ranking() to authenticated;
