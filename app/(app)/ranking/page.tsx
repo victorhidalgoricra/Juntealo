@@ -249,10 +249,7 @@ export default function RankingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <div className="mb-1 flex items-center gap-2">
-          <Trophy className="text-accent" size={20} strokeWidth={1.5} />
-          <h1 className="text-2xl font-semibold text-fg">Ranking</h1>
-        </div>
+        <h1 className="mb-1 text-2xl font-semibold text-fg">Ranking</h1>
         <p className="text-sm text-muted">
           Reputación financiera de todos los miembros de Juntealo.
         </p>
