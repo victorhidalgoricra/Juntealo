@@ -1,13 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Trophy } from 'lucide-react';
-import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { fetchPublicProfilesForRanking } from '@/services/profile.service';
-import { computeRanking, type RankingEntry } from '@/services/ranking.service';
+import { fetchGlobalRanking, type GlobalRankingEntry } from '@/services/ranking.service';
 import { type JuntaScoreLevel } from '@/services/junta-score.service';
-import { PublicProfile } from '@/types/domain';
 import { cn } from '@/lib/utils';
 
 const LEVEL_BADGE: Record<JuntaScoreLevel, { bg: string; text: string }> = {
@@ -52,7 +49,7 @@ function PositionCell({ position }: { position: number }) {
   );
 }
 
-function LeaderboardRow({ entry, position }: { entry: RankingEntry; position: number }) {
+function LeaderboardRow({ entry, position }: { entry: GlobalRankingEntry; position: number }) {
   const isTop3 = position <= 3;
 
   return (
@@ -111,21 +108,6 @@ function LeaderboardRow({ entry, position }: { entry: RankingEntry; position: nu
       </td>
 
       {/* Puntuales */}
-      <td className="hidden px-4 py-4 text-right sm:table-cell">
-        {entry.onTimePayments > 0 ? (
-          <span className="text-sm font-medium tabular-nums text-fg">{entry.onTimePayments}</span>
-        ) : (
-          <span className="text-sm text-muted">—</span>
-        )}
-      </td>
-
-      {/* Ciclos */}
-      <td className="hidden px-4 py-4 text-right sm:table-cell">
-        <span className="text-sm font-medium tabular-nums text-fg">
-          {entry.juntasCompletadas}
-        </span>
-      </td>
-
       {/* Nivel */}
       <td className="px-2 py-4 text-right sm:px-4">
         <LevelBadge level={entry.level} size="sm" />
@@ -134,7 +116,7 @@ function LeaderboardRow({ entry, position }: { entry: RankingEntry; position: nu
   );
 }
 
-function LeaderboardTable({ ranking }: { ranking: RankingEntry[] }) {
+function LeaderboardTable({ ranking }: { ranking: GlobalRankingEntry[] }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-surface shadow-sm">
       <div className="overflow-x-auto">
@@ -144,14 +126,12 @@ function LeaderboardTable({ ranking }: { ranking: RankingEntry[] }) {
               <th className={cn(COL_HEADER, 'w-12 text-center')} scope="col">#</th>
               <th className={cn(COL_HEADER, 'text-left')} scope="col">Miembro</th>
               <th className={cn(COL_HEADER, 'text-right')} scope="col">Score</th>
-              <th className={cn(COL_HEADER, 'hidden text-right sm:table-cell')} scope="col">Puntuales</th>
-              <th className={cn(COL_HEADER, 'hidden text-right sm:table-cell')} scope="col">Ciclos</th>
               <th className={cn(COL_HEADER, 'text-right')} scope="col">Nivel</th>
             </tr>
           </thead>
           <tbody>
-            {ranking.map((entry, index) => (
-              <LeaderboardRow key={entry.profileId} entry={entry} position={index + 1} />
+            {ranking.map((entry) => (
+              <LeaderboardRow key={entry.profileId} entry={entry} position={entry.position} />
             ))}
           </tbody>
         </table>
@@ -170,8 +150,6 @@ function LeaderboardSkeleton() {
               <th className={cn(COL_HEADER, 'w-12 text-center')}>#</th>
               <th className={cn(COL_HEADER, 'text-left')}>Miembro</th>
               <th className={cn(COL_HEADER, 'text-right')}>Score</th>
-              <th className={cn(COL_HEADER, 'hidden text-right sm:table-cell')}>Puntuales</th>
-              <th className={cn(COL_HEADER, 'hidden text-right sm:table-cell')}>Ciclos</th>
               <th className={cn(COL_HEADER, 'text-right')}>Nivel</th>
             </tr>
           </thead>
@@ -192,12 +170,6 @@ function LeaderboardSkeleton() {
                 </td>
                 <td className="px-2 py-4 text-right sm:px-4">
                   <div className="ml-auto h-6 w-8 animate-pulse rounded bg-muted/20" />
-                </td>
-                <td className="hidden px-4 py-4 sm:table-cell">
-                  <div className="ml-auto h-4 w-5 animate-pulse rounded bg-muted/20" />
-                </td>
-                <td className="hidden px-4 py-4 sm:table-cell">
-                  <div className="ml-auto h-4 w-4 animate-pulse rounded bg-muted/20" />
                 </td>
                 <td className="px-2 py-4 text-right sm:px-4">
                   <div className="ml-auto h-5 w-14 animate-pulse rounded-md bg-muted/20" />
@@ -229,55 +201,18 @@ function EmptyState() {
 
 export default function RankingPage() {
   const user = useAuthStore((s) => s.user);
-  const { juntas, members, schedules, payments, isDataReady } = useAppStore();
-
-  const safeJuntas   = useMemo(() => (Array.isArray(juntas)    ? juntas    : []), [juntas]);
-  const safeMembers  = useMemo(() => (Array.isArray(members)   ? members   : []), [members]);
-  const safeSchedules= useMemo(() => (Array.isArray(schedules) ? schedules : []), [schedules]);
-  const safePayments = useMemo(() => (Array.isArray(payments)  ? payments  : []), [payments]);
-
-  const [profilesById, setProfilesById] = useState<Record<string, PublicProfile>>({});
-  const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const [ranking, setRanking] = useState<GlobalRankingEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setLoadingProfiles(true);
-    fetchPublicProfilesForRanking()
+    setIsLoading(true);
+    fetchGlobalRanking()
       .then((result) => {
         if (!result.ok) return;
-        const mapped = result.data.reduce<Record<string, PublicProfile>>((acc, p) => {
-          acc[p.id] = p;
-          return acc;
-        }, {});
-        if (user && !mapped[user.id]) {
-          mapped[user.id] = { id: user.id, nombre: (user as unknown as PublicProfile).nombre ?? '' };
-        }
-        if (process.env.NODE_ENV === 'development') {
-          console.debug('[ranking] perfiles recibidos:', result.data.length);
-          console.debug('[ranking] IDs en mapa:', Object.keys(mapped).length);
-        }
-        setProfilesById(mapped);
+        setRanking(result.data);
       })
-      .finally(() => setLoadingProfiles(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      .finally(() => setIsLoading(false));
   }, [user?.id]);
-
-  const ranking = useMemo(() => {
-    if (!user || Object.keys(profilesById).length === 0) return [];
-    const entries = computeRanking({
-      currentUserId: user.id,
-      juntas:    safeJuntas,
-      members:   safeMembers,
-      schedules: safeSchedules,
-      payments:  safePayments,
-      profilesById,
-    });
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('[ranking] entries calculados:', entries.length);
-    }
-    return entries;
-  }, [user, safeJuntas, safeMembers, safeSchedules, safePayments, profilesById]);
-
-  const isLoading = !isDataReady || loadingProfiles;
 
   if (!user) return null;
 
@@ -303,7 +238,7 @@ export default function RankingPage() {
 
       {!isLoading && ranking.length > 0 && (
         <p className="text-center text-xs text-muted">
-          Ordenado por score, ciclos y antigüedad · {ranking.length} miembro{ranking.length !== 1 ? 's' : ''}
+          Ordenado por score, ciclos y antigüedad · {ranking.length} miembro{ranking.length !== 1 ? 's' : ''} con actividad
         </p>
       )}
     </div>

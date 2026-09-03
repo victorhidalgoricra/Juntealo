@@ -5,6 +5,8 @@ import {
   getScoreBadge,
   type JuntaScoreLevel,
 } from './junta-score.service';
+import { supabase } from '@/lib/supabase';
+import { hasSupabase } from '@/lib/env';
 
 export type RankingEntry = {
   profileId: string;
@@ -19,6 +21,31 @@ export type RankingEntry = {
   paymentsOnTimePct: number | null;
   isCurrentUser: boolean;
 };
+
+export type GlobalRankingEntry = Pick<RankingEntry, 'profileId' | 'displayName' | 'initials' | 'score' | 'level' | 'isCurrentUser'> & {
+  position: number;
+};
+
+export async function fetchGlobalRanking() {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as GlobalRankingEntry[] };
+  const { data, error } = await supabase.schema('public').rpc('get_global_ranking');
+  if (error) return { ok: false as const, message: error.message };
+  return {
+    ok: true as const,
+    data: ((data ?? []) as Array<{
+      profile_id: string; display_name: string; initials: string; score: number;
+      level: JuntaScoreLevel; position: number; is_current_user: boolean;
+    }>).map((row) => ({
+      profileId: row.profile_id,
+      displayName: row.display_name,
+      initials: row.initials,
+      score: Number(row.score),
+      level: row.level,
+      position: Number(row.position),
+      isCurrentUser: row.is_current_user,
+    })),
+  };
+}
 
 function getShortDisplayName(profile?: PublicProfile): string {
   const firstName = (profile?.first_name ?? '').trim();

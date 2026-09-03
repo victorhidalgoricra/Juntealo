@@ -152,3 +152,16 @@ export interface Notification {
   leida: boolean;
   created_at: string;
 }
+
+export type UserActivityEventType = 'payment_confirmed' | 'joined_junta' | 'cycle_completed';
+
+export interface UserActivityEvent {
+  id: string;
+  profile_id: string;
+  event_type: UserActivityEventType;
+  junta_id?: string | null;
+  payment_id?: string | null;
+  description: string;
+  metadata: { junta_name?: string };
+  occurred_at: string;
+}

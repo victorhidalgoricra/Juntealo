@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,10 @@ import { JuntaAvatar } from '@/components/junta-avatar';
 import { Circle, CheckCircle2, Copy, MessageCircle, Trophy } from 'lucide-react';
 import { RachaCard } from '@/components/ui/racha-card';
 import { computeGlobalRacha } from '@/lib/racha';
+import { fetchRecentUserActivity } from '@/services/activity.service';
+import { fetchGlobalRanking, type GlobalRankingEntry } from '@/services/ranking.service';
+import type { UserActivityEvent } from '@/types/domain';
+import { ArrowRight, CreditCard, History, Medal, PartyPopper, UserPlus } from 'lucide-react';
 
 type UpcomingPayoutData = {
   juntaId: string;
@@ -463,6 +467,90 @@ function WeeklyGoalsCard({ goals }: { goals: WeeklyGoal[] }) {
   );
 }
 
+const ACTIVITY_ICON = {
+  payment_confirmed: CreditCard,
+  joined_junta: UserPlus,
+  cycle_completed: PartyPopper,
+} as const;
+
+function RecentActivityCard({ events }: { events: UserActivityEvent[] }) {
+  return (
+    <Card className="p-4 lg:p-3">
+      <p className="mb-3 text-sm font-medium text-fg">Actividad reciente</p>
+      {events.length === 0 ? (
+        <div className="flex flex-col items-center px-3 py-5 text-center">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent-bg text-accent">
+            <History size={18} strokeWidth={1.7} />
+          </div>
+          <p className="text-sm font-semibold text-fg">Aún no hay movimientos</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">Cuando pagues tu cuota o te unas a una junta, lo verás aquí.</p>
+        </div>
+      ) : (
+        <div>
+          {events.map((event, index) => {
+            const Icon = ACTIVITY_ICON[event.event_type];
+            return (
+              <div key={event.id} className={`flex gap-2.5 py-2.5 ${index < events.length - 1 ? 'border-b border-border' : ''}`}>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-bg text-accent">
+                  <Icon size={15} strokeWidth={1.8} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm leading-snug text-fg">{event.description}</p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {formatDistanceToNow(new Date(event.occurred_at), { addSuffix: true, locale: es })}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function RankingPreviewCard({ ranking }: { ranking: GlobalRankingEntry[] }) {
+  const current = ranking.find((entry) => entry.isCurrentUser);
+  const topThree = ranking.filter((entry) => entry.position <= 3 && !entry.isCurrentUser);
+  return (
+    <Card className="p-4 lg:p-3">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-sm font-medium text-fg">Ranking</p>
+        <Link href="/ranking" className="inline-flex items-center gap-1 text-xs font-medium text-accent">
+          Ver todo <ArrowRight size={12} />
+        </Link>
+      </div>
+      {current ? (
+        <div className="mb-2.5 rounded-[var(--r-sm)] bg-accent px-3 py-2.5 text-white">
+          <p className="text-xs text-white/70">Tu posición</p>
+          <div className="flex items-end justify-between gap-2">
+            <p className="font-mono text-2xl font-bold leading-none">#{current.position}</p>
+            <p className="font-mono text-sm font-semibold">{current.score} pts</p>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-2.5 flex flex-col items-center rounded-[var(--r-sm)] bg-accent-bg px-3 py-4 text-center">
+          <Medal className="mb-2 text-accent" size={19} strokeWidth={1.7} />
+          <p className="text-sm font-semibold text-fg">Aún no tienes posición en el ranking</p>
+          <p className="mt-1 text-xs text-muted">Completa actividad para comenzar a sumar puntos.</p>
+        </div>
+      )}
+      {topThree.length > 0 && (
+        <div>
+          {topThree.map((entry, index) => (
+            <div key={entry.profileId} className={`flex items-center gap-2 py-2 ${index < topThree.length - 1 ? 'border-b border-border' : ''}`}>
+              <span className="w-5 text-center font-mono text-xs font-semibold text-muted">{entry.position}</span>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-bg text-[10px] font-semibold text-accent">{entry.initials}</span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{entry.displayName}</span>
+              <span className="font-mono text-xs font-semibold text-fg">{entry.score} pts</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const { juntas, schedules, payments, members, payouts, setData } = useAppStore();
@@ -487,6 +575,8 @@ export default function DashboardPage() {
 
   const [claimedMissions, setClaimedMissions] = useState<ClaimedMission[]>([]);
   const [referralStats, setReferralStats] = useState<ReferralStats>({ total: 0, active: 0 });
+  const [recentActivity, setRecentActivity] = useState<UserActivityEvent[]>([]);
+  const [globalRanking, setGlobalRanking] = useState<GlobalRankingEntry[]>([]);
 
   const myJuntaIds = useMemo(
     () => (user ? getMyJuntaIds(user.id, safeJuntas, safeMembers) : []),
@@ -514,6 +604,14 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!userId) return;
     fetchReferralStats(userId).then(setReferralStats);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    Promise.all([fetchRecentUserActivity(5), fetchGlobalRanking()]).then(([activity, ranking]) => {
+      if (activity.ok) setRecentActivity(activity.data);
+      if (ranking.ok) setGlobalRanking(ranking.data);
+    });
   }, [userId]);
 
   useEffect(() => {
@@ -766,6 +864,10 @@ export default function DashboardPage() {
           <ContributionSummaryCards summary={contributionSummary} />
 
           <WeeklyGoalsCard goals={weeklyGoals} />
+
+          <RecentActivityCard events={recentActivity} />
+
+          <RankingPreviewCard ranking={globalRanking} />
 
           {user.referral_code && (
             <InviteAndEarnCard referralCode={user.referral_code} />
