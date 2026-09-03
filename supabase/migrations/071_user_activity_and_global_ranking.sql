@@ -136,7 +136,9 @@ language sql stable security definer set search_path = public as $$
           (j.admin_id = scored.id or exists (select 1 from public.junta_members jm where jm.junta_id = j.id and jm.profile_id = scored.id and jm.estado::text in ('activo','moroso')))) desc,
         created_at asc, public_name asc
     ) as rank_position
-    from scored where user_score > 0
+    -- Keep the leaderboard focused on active profiles, but never hide the
+    -- authenticated user while they are building their first points.
+    from scored where user_score > 0 or id = auth.uid()
   )
   select id, public_name,
     upper(left(split_part(public_name, ' ', 1), 1) || left(coalesce(nullif(split_part(public_name, ' ', 2), ''), split_part(public_name, ' ', 1)), 1)),

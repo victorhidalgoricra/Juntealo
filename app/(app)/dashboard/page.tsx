@@ -509,7 +509,7 @@ function RecentActivityCard({ events }: { events: UserActivityEvent[] }) {
   );
 }
 
-function RankingPreviewCard({ ranking }: { ranking: GlobalRankingEntry[] }) {
+function RankingPreviewCard({ ranking, loadError }: { ranking: GlobalRankingEntry[]; loadError: boolean }) {
   const current = ranking.find((entry) => entry.isCurrentUser);
   const topThree = ranking.filter((entry) => entry.position <= 3 && !entry.isCurrentUser);
   return (
@@ -520,7 +520,11 @@ function RankingPreviewCard({ ranking }: { ranking: GlobalRankingEntry[] }) {
           Ver todo <ArrowRight size={12} />
         </Link>
       </div>
-      {current ? (
+      {loadError ? (
+        <div role="alert" className="rounded-[var(--r-sm)] bg-accent-bg px-3 py-4 text-center text-xs text-destructive">
+          No pudimos cargar tu posición.
+        </div>
+      ) : current ? (
         <div className="mb-2.5 rounded-[var(--r-sm)] bg-accent px-3 py-2.5 text-white">
           <p className="text-xs text-white/70">Tu posición</p>
           <div className="flex items-end justify-between gap-2">
@@ -577,6 +581,7 @@ export default function DashboardPage() {
   const [referralStats, setReferralStats] = useState<ReferralStats>({ total: 0, active: 0 });
   const [recentActivity, setRecentActivity] = useState<UserActivityEvent[]>([]);
   const [globalRanking, setGlobalRanking] = useState<GlobalRankingEntry[]>([]);
+  const [rankingLoadError, setRankingLoadError] = useState(false);
 
   const myJuntaIds = useMemo(
     () => (user ? getMyJuntaIds(user.id, safeJuntas, safeMembers) : []),
@@ -608,9 +613,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!userId) return;
+    setRankingLoadError(false);
     Promise.all([fetchRecentUserActivity(5), fetchGlobalRanking()]).then(([activity, ranking]) => {
       if (activity.ok) setRecentActivity(activity.data);
       if (ranking.ok) setGlobalRanking(ranking.data);
+      else setRankingLoadError(true);
     });
   }, [userId]);
 
@@ -867,7 +874,7 @@ export default function DashboardPage() {
 
           <RecentActivityCard events={recentActivity} />
 
-          <RankingPreviewCard ranking={globalRanking} />
+          <RankingPreviewCard ranking={globalRanking} loadError={rankingLoadError} />
 
           {user.referral_code && (
             <InviteAndEarnCard referralCode={user.referral_code} />

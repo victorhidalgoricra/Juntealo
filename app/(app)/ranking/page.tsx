@@ -203,12 +203,17 @@ export default function RankingPage() {
   const user = useAuthStore((s) => s.user);
   const [ranking, setRanking] = useState<GlobalRankingEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsLoading(true);
+    setLoadError(null);
     fetchGlobalRanking()
       .then((result) => {
-        if (!result.ok) return;
+        if (!result.ok) {
+          setLoadError(result.message);
+          return;
+        }
         setRanking(result.data);
       })
       .finally(() => setIsLoading(false));
@@ -230,6 +235,10 @@ export default function RankingPage() {
 
       {isLoading ? (
         <LeaderboardSkeleton />
+      ) : loadError ? (
+        <div role="alert" className="rounded-xl border border-destructive/30 bg-surface p-6 text-center text-sm text-destructive">
+          No pudimos cargar el ranking. Inténtalo nuevamente en unos minutos.
+        </div>
       ) : ranking.length === 0 ? (
         <EmptyState />
       ) : (
