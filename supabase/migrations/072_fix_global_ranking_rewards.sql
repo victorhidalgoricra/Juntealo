@@ -24,13 +24,6 @@ language sql stable security definer set search_path = public as $$
       public.current_junta_score(p.id) as base_score,
       least((select count(*) from public.referrals r
         where r.referrer_id = p.id and r.status = 'active'), 4) as active_referrals,
-      coalesce((select sum(cm.bonus_points) from public.claimed_missions cm
-        where cm.profile_id = p.id
-          and cm.week_key = to_char(
-            (current_timestamp at time zone 'UTC')::date
-              - (extract(isodow from current_timestamp at time zone 'UTC')::integer - 1),
-            'YYYY-MM-DD'
-          )), 0) as mission_bonus,
       (select count(*) from public.juntas j where j.estado::text = 'cerrada' and
         (j.admin_id = p.id or exists (
           select 1 from public.junta_members jm
@@ -41,7 +34,7 @@ language sql stable security definer set search_path = public as $$
     from public.profiles p
   ), scored as (
     select *, greatest(0, least(100, round(
-      base_score + ((active_referrals::numeric / 7) * 10) + mission_bonus
+      base_score + ((active_referrals::numeric / 7) * 10)
     )))::integer as user_score
     from score_inputs
   ), visible as (
