@@ -108,6 +108,21 @@ function LeaderboardRow({ entry, position }: { entry: GlobalRankingEntry; positi
       </td>
 
       {/* Puntuales */}
+      <td className="hidden px-4 py-4 text-right sm:table-cell">
+        {entry.onTimePayments > 0 ? (
+          <span className="text-sm font-medium tabular-nums text-fg">{entry.onTimePayments}</span>
+        ) : (
+          <span className="text-sm text-muted">—</span>
+        )}
+      </td>
+
+      {/* Ciclos */}
+      <td className="hidden px-4 py-4 text-right sm:table-cell">
+        <span className="text-sm font-medium tabular-nums text-fg">
+          {entry.juntasCompletadas}
+        </span>
+      </td>
+
       {/* Nivel */}
       <td className="px-2 py-4 text-right sm:px-4">
         <LevelBadge level={entry.level} size="sm" />
@@ -126,6 +141,8 @@ function LeaderboardTable({ ranking }: { ranking: GlobalRankingEntry[] }) {
               <th className={cn(COL_HEADER, 'w-12 text-center')} scope="col">#</th>
               <th className={cn(COL_HEADER, 'text-left')} scope="col">Miembro</th>
               <th className={cn(COL_HEADER, 'text-right')} scope="col">Score</th>
+              <th className={cn(COL_HEADER, 'hidden text-right sm:table-cell')} scope="col">Puntuales</th>
+              <th className={cn(COL_HEADER, 'hidden text-right sm:table-cell')} scope="col">Ciclos</th>
               <th className={cn(COL_HEADER, 'text-right')} scope="col">Nivel</th>
             </tr>
           </thead>
@@ -150,6 +167,8 @@ function LeaderboardSkeleton() {
               <th className={cn(COL_HEADER, 'w-12 text-center')}>#</th>
               <th className={cn(COL_HEADER, 'text-left')}>Miembro</th>
               <th className={cn(COL_HEADER, 'text-right')}>Score</th>
+              <th className={cn(COL_HEADER, 'hidden text-right sm:table-cell')}>Puntuales</th>
+              <th className={cn(COL_HEADER, 'hidden text-right sm:table-cell')}>Ciclos</th>
               <th className={cn(COL_HEADER, 'text-right')}>Nivel</th>
             </tr>
           </thead>
@@ -170,6 +189,12 @@ function LeaderboardSkeleton() {
                 </td>
                 <td className="px-2 py-4 text-right sm:px-4">
                   <div className="ml-auto h-6 w-8 animate-pulse rounded bg-muted/20" />
+                </td>
+                <td className="hidden px-4 py-4 sm:table-cell">
+                  <div className="ml-auto h-4 w-5 animate-pulse rounded bg-muted/20" />
+                </td>
+                <td className="hidden px-4 py-4 sm:table-cell">
+                  <div className="ml-auto h-4 w-4 animate-pulse rounded bg-muted/20" />
                 </td>
                 <td className="px-2 py-4 text-right sm:px-4">
                   <div className="ml-auto h-5 w-14 animate-pulse rounded-md bg-muted/20" />

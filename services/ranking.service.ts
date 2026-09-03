@@ -22,7 +22,7 @@ export type RankingEntry = {
   isCurrentUser: boolean;
 };
 
-export type GlobalRankingEntry = Pick<RankingEntry, 'profileId' | 'displayName' | 'initials' | 'score' | 'level' | 'isCurrentUser'> & {
+export type GlobalRankingEntry = Pick<RankingEntry, 'profileId' | 'displayName' | 'initials' | 'score' | 'level' | 'juntasCompletadas' | 'onTimePayments' | 'isCurrentUser'> & {
   position: number;
 };
 
@@ -34,13 +34,16 @@ export async function fetchGlobalRanking() {
     ok: true as const,
     data: ((data ?? []) as Array<{
       profile_id: string; display_name: string; initials: string; score: number;
-      level: JuntaScoreLevel; position: number; is_current_user: boolean;
+      level: JuntaScoreLevel; on_time_payments: number; completed_cycles: number;
+      position: number; is_current_user: boolean;
     }>).map((row) => ({
       profileId: row.profile_id,
       displayName: row.display_name,
       initials: row.initials,
       score: Number(row.score),
       level: row.level,
+      onTimePayments: Number(row.on_time_payments),
+      juntasCompletadas: Number(row.completed_cycles),
       position: Number(row.position),
       isCurrentUser: row.is_current_user,
     })),
