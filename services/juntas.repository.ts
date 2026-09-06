@@ -716,6 +716,7 @@ export async function confirmPayout(params: {
 export type AdminJuntaListItem = {
   id: string;
   nombre: string;
+  access_code?: string | null;
   slug: string;
   estado: Junta['estado'] | 'deleted' | 'soft_deleted' | 'bloqueada';
   estado_visual?: string;
