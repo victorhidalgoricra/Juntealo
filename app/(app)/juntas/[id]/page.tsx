@@ -656,7 +656,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       )}
 
       {mainView === 'general' && (
-        <div className="space-y-4">
+        <div className="grid gap-4 min-[900px]:grid-cols-[1.55fr_1fr]">
+          <div className="min-w-0 space-y-4">
           {phaseTwoLoading && <Card className="border-0 p-3 text-[13px] text-slate-500 shadow-none">Cargando pagos, cronograma e integrantes…</Card>}
           <Card className="grid overflow-hidden p-0 shadow-none sm:grid-cols-3">
             <div className="p-4 sm:border-r sm:border-slate-200">
@@ -916,6 +917,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               )}
             </Card>
           )}
+          </div>
+          <aside className="min-w-0 space-y-4" />
         </div>
       )}
 
