@@ -33,6 +33,13 @@ function JuntaScoreBadge({ score }: { score: number }) {
   return <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">Score {score}</span>;
 }
 
+function formatReadableDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return value;
+  const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  return `${day} ${months[month - 1]} ${year}`;
+}
+
 function statusClass(status: string) {
   if (status === 'Pagado' || status === 'Entregado') return 'bg-emerald-100 text-emerald-700';
   if (status === 'Validando' || status === 'En curso') return 'bg-blue-100 text-blue-700';
@@ -41,21 +48,23 @@ function statusClass(status: string) {
   return 'bg-amber-100 text-amber-700';
 }
 
-function JuntaPaymentStatusRow({ row, showPayAction, onPay }: { row: WeeklyMemberRow; showPayAction?: boolean; onPay?: () => void }) {
+function JuntaPaymentStatusRow({ row, showPayAction, onPay, hideFormationStatus }: { row: WeeklyMemberRow; showPayAction?: boolean; onPay?: () => void; hideFormationStatus?: boolean }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-center gap-3">
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${getAvatarColor(row.displayName)}`}>{getInitial(row.displayName)}</div>
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[13px] font-medium ${getAvatarColor(row.displayName)}`}>{getInitial(row.displayName)}</div>
         <div className="min-w-0">
-          <p className="break-words text-sm font-medium">{row.displayName}</p>
-          <p className="text-xs text-slate-500">Turno #{row.turno} · S/{row.amount.toFixed(0)}</p>
+          <p className="break-words text-[13px] font-medium">{row.displayName}</p>
+          <p className="text-[11px] text-slate-500">Turno #{row.turno} · S/{row.amount.toFixed(0)}</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2 sm:items-center sm:justify-end">
         <JuntaScoreBadge score={row.score} />
-        <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass(row.status)}`}>{row.status}</span>
+        {!(hideFormationStatus && row.status === 'En formación') && (
+          <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass(row.status)}`}>{row.status}</span>
+        )}
         {showPayAction && row.isCurrentUser && (row.status === 'Pendiente' || row.status === 'Rechazado' || row.status === 'Vencido') && (
-          <Button onClick={onPay}>Pagar S/{row.amount.toFixed(0)} →</Button>
+          <Button className="font-medium" onClick={onPay}>Pagar S/{row.amount.toFixed(0)} →</Button>
         )}
       </div>
     </div>
@@ -403,11 +412,6 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     incentivoRegla: junta.incentivo_regla
   });
 
-  // When finalizada, override counters so the UI reflects full completion
-  // regardless of any historical data inconsistencies.
-  const displayPaid = juntaFinalizada ? summary.rows.length : summary.paid;
-  const displayPending = juntaFinalizada ? 0 : summary.pending;
-
   const handleDeleteJunta = async () => {
     if (!isOwner || !junta || isDeletingJunta) return;
     const confirmed = window.confirm('¿Seguro que deseas eliminar esta junta? Esta acción no se puede deshacer.');
@@ -573,16 +577,15 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const headerSubtitle = `Semana ${currentWeek} · ${junta.frecuencia_pago} · ${junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}`;
 
   return (
-    <div className="space-y-4 pb-6">
-      <Card className="space-y-4 p-4">
+    <div className="space-y-5 pb-6 text-[13px] font-normal [&_.font-bold]:font-medium [&_.font-semibold]:font-medium [&_button]:font-medium">
+      <Card className="space-y-4 border-0 bg-transparent p-0 shadow-none">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <h1 className="break-words text-2xl font-semibold">{junta.nombre}</h1>
-            <p className="text-sm text-slate-500">{headerSubtitle}</p>
+            <h1 className="break-words text-xl font-medium">{junta.nombre}</h1>
+            <p className="text-[13px] text-slate-500">{headerSubtitle}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <Badge>{juntaFinalizada ? 'Finalizada' : juntaActiva ? 'Activa' : 'En formación'}</Badge>
               {blockedByDeadline && <Badge>Bloqueada</Badge>}
-              <Badge>{junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</Badge>
               <Badge>{memberCount}/{junta.participantes_max} integrantes</Badge>
             </div>
           </div>
@@ -605,62 +608,62 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           </div>
         </div>
 
-        <div className="grid w-full grid-cols-1 gap-1 rounded-xl bg-slate-100 p-1 text-sm sm:grid-cols-2">
-          <button type="button" className={`min-w-0 rounded-lg px-3 py-2 ${mainView === 'general' ? 'bg-white font-semibold text-slate-900 shadow' : 'text-slate-600'}`} onClick={() => setMainView('general')}>Vista general</button>
-          <button type="button" className={`min-w-0 rounded-lg px-3 py-2 ${mainView === 'personal' ? 'bg-white font-semibold text-slate-900 shadow' : 'text-slate-600'}`} onClick={() => setMainView('personal')}>Mi vista ({currentUserName})</button>
+        <div className="grid w-full grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 text-[13px]">
+          <button type="button" className={`min-w-0 rounded-lg px-3 py-2 ${mainView === 'general' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`} onClick={() => setMainView('general')}>Vista general</button>
+          <button type="button" className={`min-w-0 rounded-lg px-3 py-2 ${mainView === 'personal' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`} onClick={() => setMainView('personal')}>Mi vista ({currentUserName})</button>
         </div>
       </Card>
 
       {juntaFinalizada && (
-        <Card className="border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-sm font-semibold text-emerald-800">Esta junta ha finalizado</p>
-          <p className="mt-1 text-xs text-emerald-700">Todos los turnos fueron completados. El historial queda disponible en modo solo lectura.</p>
+        <Card className="rounded-none border-0 border-l-2 border-emerald-500 bg-emerald-50 p-3 shadow-none">
+          <p className="font-medium text-emerald-800">Esta junta ha finalizado</p>
+          <p className="mt-1 text-[11px] text-emerald-700">Todos los turnos fueron completados. El historial queda disponible en modo solo lectura.</p>
         </Card>
       )}
 
       {mainView === 'general' && (
         <div className="space-y-4">
-          {phaseTwoLoading && <Card className="p-3 text-sm text-slate-500">Cargando pagos, cronograma e integrantes…</Card>}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            <Card className="p-3"><p className="text-xs text-slate-500">Bolsa semana</p><p className="text-2xl font-semibold">S/{((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}</p></Card>
-            <Card className="p-3"><p className="text-xs text-slate-500">Pagos esta semana</p><p className="text-2xl font-semibold">{displayPaid}/{summary.rows.length}</p></Card>
-            <Card className="p-3"><p className="text-xs text-slate-500">Turno actual</p><p className="text-2xl font-semibold">#{currentWeek}</p></Card>
-            <Card className="p-3"><p className="text-xs text-slate-500">Pendientes</p><p className="text-2xl font-semibold">{displayPending}</p></Card>
-            <Card className="p-3"><p className="text-xs text-slate-500">Fecha límite de pago</p><p className="text-2xl font-semibold">{currentRoundDueDate}</p></Card>
-          </div>
-
-          <Card className="space-y-2 p-3">
-            <div className="flex flex-col gap-1 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"><span>Progreso del ciclo</span><span>Semana {currentWeek}/{simulation.rows.length}</span></div>
-            <div className="h-2 rounded-full bg-slate-200"><div className="h-2 rounded-full bg-blue-600" style={{ width: `${(currentWeek / Math.max(simulation.rows.length, 1)) * 100}%` }} /></div>
+          {phaseTwoLoading && <Card className="border-0 p-3 text-[13px] text-slate-500 shadow-none">Cargando pagos, cronograma e integrantes…</Card>}
+          <Card className="grid overflow-hidden p-0 shadow-none sm:grid-cols-[1fr_1fr_2fr]">
+            <div className="p-4 sm:border-r sm:border-slate-200">
+              <p className="text-[11px] text-slate-500">Bolsa semana</p>
+              <p className="text-base font-medium">S/{((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}</p>
+            </div>
+            <div className="border-t border-slate-200 p-4 sm:border-r sm:border-t-0">
+              <p className="text-[11px] text-slate-500">Fecha límite de pago</p>
+              <p className="text-base font-medium">{currentRoundDueDate}</p>
+            </div>
+            <div className="space-y-2 border-t border-slate-200 p-4 sm:border-t-0">
+              <div className="flex items-center justify-between text-[13px] text-slate-600"><span>Progreso del ciclo</span><span>Semana {currentWeek}/{simulation.rows.length}</span></div>
+              <div className="h-1 overflow-hidden rounded-full bg-slate-200"><div className="h-1 rounded-full bg-blue-600" style={{ width: `${(currentWeek / Math.max(simulation.rows.length, 1)) * 100}%` }} /></div>
+            </div>
           </Card>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex overflow-x-auto border-b border-slate-200">
             {([
               ['integrantes', 'Integrantes'],
               ['cronograma', 'Cronograma'],
               ['pagos', 'Pagos'],
               ['turnos', 'Asignar turnos']
             ] as const).map(([id, label]) => (
-              <button key={id} type="button" onClick={() => setGeneralTab(id)} className={`rounded-full px-3 py-1.5 text-sm ${generalTab === id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              <button key={id} type="button" onClick={() => setGeneralTab(id)} className={`shrink-0 border-b-2 px-3 py-2 text-[13px] ${generalTab === id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-600'}`}>
                 {label}
               </button>
             ))}
           </div>
 
           {generalTab === 'integrantes' && (
-            <Card className="space-y-3 p-4">
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                Esta semana recibe {summary.receiver?.displayName ?? '—'} (turno #{currentWeek}). Faltan {summary.pending} pagos para liberar la bolsa.
-              </div>
+            <Card className="space-y-4 p-4 shadow-none">
+              <p className="text-[13px] text-slate-500">Faltan {summary.pending} pagos para liberar la bolsa.</p>
 
-              <div className="rounded-xl border p-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Receptor actual</p>
+              <div className="border-b border-slate-200 pb-4">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">Receptor actual</p>
                 <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold ${getAvatarColor(summary.receiver?.displayName ?? 'Receptor')}`}>{getInitial(summary.receiver?.displayName ?? 'R')}</div>
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-medium ${getAvatarColor(summary.receiver?.displayName ?? 'Receptor')}`}>{getInitial(summary.receiver?.displayName ?? 'R')}</div>
                     <div className="min-w-0">
-                      <p className="break-words font-semibold">{summary.receiver?.displayName ?? 'Pendiente'}</p>
-                      <p className="text-sm text-slate-500">Turno #{currentWeek} · recibe esta semana</p>
+                      <p className="break-words font-medium">{summary.receiver?.displayName ?? 'Pendiente'}</p>
+                      <p className="text-[13px] text-slate-500">Turno #{currentWeek} · recibe esta semana</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 sm:items-center sm:justify-end">
@@ -675,9 +678,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                 </div>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <Card className="space-y-2 p-3">
-                  <p className="text-sm font-medium">Pagaron esta semana ({paidParticipants.length}/{summary.rows.length})</p>
+              <div className="grid md:grid-cols-2 md:divide-x md:divide-slate-200">
+                <section className="md:pr-4">
+                  <p className="font-medium">Pagaron esta semana ({paidParticipants.length}/{summary.rows.length})</p>
+                  <div className="divide-y divide-slate-200">
                   {paidParticipants.map((row) => (
                     <div key={row.id} className="space-y-1">
                       <JuntaPaymentStatusRow row={row} />
@@ -689,13 +693,15 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                       )}
                     </div>
                   ))}
+                  </div>
                   {paymentInfo && <p className="text-xs text-rose-700">{paymentInfo}</p>}
-                </Card>
-                <Card className="space-y-2 p-3">
-                  <p className="text-sm font-medium">Pendientes ({pendingPayers.length}/{summary.rows.length})</p>
+                </section>
+                <section className="border-t border-slate-200 pt-4 md:border-t-0 md:pl-4 md:pt-0">
+                  <p className="font-medium">Pendientes ({pendingPayers.length}/{summary.rows.length})</p>
+                  <div className="divide-y divide-slate-200">
                   {pendingPayers.map((row) => (
                     <div key={row.id} className="space-y-2">
-                      <JuntaPaymentStatusRow row={row} />
+                      <JuntaPaymentStatusRow row={row} hideFormationStatus />
                       {!juntaFinalizada && (
                         <div className="flex flex-wrap gap-2 pl-0 sm:pl-2">
                           <Button variant="ghost" onClick={() => alert('Las notificaciones automáticas estarán disponibles próximamente. Por ahora usa WhatsApp para contactar al integrante.')}>Reenviar recordatorio</Button>
@@ -704,22 +710,23 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                       )}
                     </div>
                   ))}
-                </Card>
+                  </div>
+                </section>
               </div>
             </Card>
           )}
 
           {generalTab === 'cronograma' && (
-            <Card className="overflow-x-auto p-0">
-              <table className="w-full min-w-[560px] text-sm">
-                <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2 text-left">Turno</th><th className="px-3 py-2 text-left">Participante</th><th className="px-3 py-2 text-left">Fecha</th><th className="px-3 py-2 text-left">Recibe</th><th className="px-3 py-2 text-left">Estado</th></tr></thead>
+            <Card className="overflow-x-auto p-0 shadow-none">
+              <table className="w-full min-w-[560px] text-[13px]">
+                <thead className="border-b border-slate-200 text-[11px] text-slate-600"><tr><th className="px-3 py-2 text-left font-medium">Turno</th><th className="px-3 py-2 text-left font-medium">Participante</th><th className="px-3 py-2 text-left font-medium">Fecha</th><th className="px-3 py-2 text-right font-medium">Recibe</th><th className="px-3 py-2 text-left font-medium">Estado</th></tr></thead>
                 <tbody>
                   {scheduleRows.map((row) => (
                     <tr key={row.turno} className={`border-t ${row.isCurrentWeek ? 'bg-blue-50' : ''}`}>
                       <td className="px-3 py-2">#{row.turno}</td>
                       <td className="px-3 py-2">{row.isUserTurn ? 'Tú' : (juntaMembers.find((m) => m.orden_turno === row.turno)?.nombre ?? `Integrante ${row.turno}`)}</td>
-                      <td className="px-3 py-2">{row.fechaRonda}</td>
-                      <td className="px-3 py-2">S/{row.montoRecibido.toFixed(2)}</td>
+                      <td className="px-3 py-2">{formatReadableDate(row.fechaRonda)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">S/{row.montoRecibido.toFixed(2)}</td>
                       <td className="px-3 py-2"><span className={`rounded-full px-2 py-1 text-xs ${statusClass(row.weekStatus)}`}>{row.weekStatus}</span></td>
                     </tr>
                   ))}
@@ -730,12 +737,12 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           )}
 
           {generalTab === 'pagos' && (
-            <Card className="space-y-3 p-4">
+            <Card className="space-y-3 p-4 shadow-none">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <h3 className="text-lg font-semibold">Semana {currentWeek} — {summary.receiver?.displayName ?? 'Receptor'} recibe</h3>
+                <h3 className="text-base font-medium">Semana {currentWeek} — {summary.receiver?.displayName ?? 'Receptor'} recibe</h3>
                 <Badge>{juntaFinalizada ? 'Completada' : 'En curso'}</Badge>
               </div>
-              <div className="space-y-2">
+              <div className="divide-y divide-slate-200">
                 {summary.rows.map((row) => (
                   <JuntaPaymentStatusRow key={row.id} row={row} showPayAction={!juntaFinalizada} onPay={() => router.push(`/juntas/${junta.id}/registrar-pago`)} />
                 ))}
@@ -744,9 +751,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           )}
 
           {generalTab === 'turnos' && (
-            <Card className="space-y-3 p-4">
+            <Card className="space-y-3 p-4 shadow-none">
               {juntaActiva || juntaFinalizada || blockedByDeadline ? (
-                <p className="rounded-md bg-slate-100 p-3 text-sm text-slate-600">
+                <p className="rounded-none border-l-2 border-slate-400 bg-slate-100 p-3 text-[13px] text-slate-600">
                   {juntaFinalizada
                     ? 'La junta ha finalizado. Los turnos están en modo solo lectura.'
                     : blockedByDeadline
@@ -756,22 +763,22 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               ) : (
                 <>
                   {memberCount < junta.participantes_max && (
-                    <p className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+                    <p className="rounded-none border-l-2 border-amber-500 bg-amber-50 p-3 text-[13px] text-amber-800">
                       Faltan {junta.participantes_max - memberCount} integrante(s) para completar la junta. Los turnos se podrán asignar cuando el grupo esté completo.
                     </p>
                   )}
-                  <div className="space-y-2">
+                  <div className="divide-y divide-slate-200">
                     {juntaMembers.map((member, index) => {
                       const displayName = member.profile_id === user?.id
                         ? `Tú${member.nombre ? ` (${member.nombre.split(' ')[0]})` : ''}`
                         : member.nombre ?? (member.profile_id === junta.admin_id ? 'Creador' : `Integrante ${index + 1}`);
                       return (
-                        <div key={member.id} className="flex flex-col gap-2 rounded-md border p-2 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="break-words text-sm">{displayName}</p>
+                        <div key={member.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="break-words text-[13px]">{displayName}</p>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-500">Turno</span>
+                            <span className="text-[11px] text-slate-500">Turno</span>
                             <select
-                              className="rounded-md border px-2 py-1 text-sm"
+                              className="rounded-md border px-2 py-1 text-[13px]"
                               value={manualTurns[member.profile_id] ?? member.orden_turno ?? ''}
                               onChange={(event) => setManualTurns((prev) => ({ ...prev, [member.profile_id]: Number(event.target.value) }))}
                               disabled={!canManualAssign}
@@ -878,12 +885,48 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
       {mainView === 'personal' && (
         <div className="space-y-4">
-          <Card className="space-y-3 border-0 bg-slate-900 p-5 text-white">
-            <p className="text-xs uppercase tracking-wide text-slate-300">Tu turno</p>
-            <p className="text-5xl font-bold">#{personal.myTurnRow?.turno ?? '-'}</p>
-            <p className="text-sm text-slate-200">{junta.nombre} · Recibes S/{(personal.myTurnRow?.montoRecibido ?? simulation.bolsaBase).toFixed(2)}</p>
-            <p className="text-sm text-slate-300">Fecha estimada: {personal.myTurnRow?.fechaRonda ?? 'Pendiente'} · {personal.myTurnRow ? `en ${Math.max(personal.myTurnRow.turno - currentWeek, 0)} semanas` : 'sin turno asignado'}</p>
-            <div className="flex flex-wrap items-center gap-2"><JuntaScoreBadge score={personal.myRow?.score ?? 70} /><span className="text-xs text-slate-300">Confianza visible para el grupo</span></div>
+          <Card className="grid gap-5 p-5 shadow-none sm:grid-cols-2 sm:divide-x sm:divide-slate-200">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-slate-500">Tu turno</p>
+              <p className="mt-1 text-3xl font-medium text-slate-900">#{personal.myTurnRow?.turno ?? '-'}</p>
+              <p className="mt-2 text-[13px] text-slate-500">{personal.myTurnRow ? formatReadableDate(personal.myTurnRow.fechaRonda) : 'Pendiente'}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2"><JuntaScoreBadge score={personal.myRow?.score ?? 70} /><span className="text-[11px] text-slate-500">Confianza visible para el grupo</span></div>
+            </div>
+            <div className="border-t border-slate-200 pt-5 sm:border-t-0 sm:pl-5 sm:pt-0">
+              <h3 className="font-medium">{isCurrentReceiver && !juntaFinalizada ? 'Esta semana · recibes el pozo' : `Esta semana · turno de ${summary.receiver?.displayName ?? '—'}`}</h3>
+              <p className={`mt-2 text-3xl font-medium tabular-nums ${isCurrentReceiver && !juntaFinalizada ? 'text-emerald-600' : 'text-slate-900'}`}>
+                S/{(isCurrentReceiver && !juntaFinalizada
+                  ? personal.myTurnRow?.montoRecibido ?? (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length
+                  : personal.myRow?.amount ?? (junta.cuota_base ?? junta.monto_cuota)).toFixed(2)}
+              </p>
+              {isCurrentReceiver && !juntaFinalizada ? (
+                <div className="mt-3">
+                  {canConfirmReceipt ? (
+                    <Button className="font-medium" onClick={handleConfirmPayout} disabled={isConfirmingReceipt}>
+                      {isConfirmingReceipt ? 'Confirmando…' : 'Confirmar recibo →'}
+                    </Button>
+                  ) : (
+                    <p className="text-[13px] text-slate-500">
+                      {requiredPayers.some((r) => r.status === 'Validando')
+                        ? `Hay ${requiredPayers.filter((r) => r.status === 'Validando').length} pago(s) pendientes de aprobación.`
+                        : `Esperando ${summary.pending} pago(s) para liberar la bolsa.`}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-3 space-y-1 text-[13px] text-slate-600">
+                  <p>Base: S/{(junta.cuota_base ?? junta.monto_cuota).toFixed(2)}</p>
+                  <p>Ajuste: {junta.tipo_junta === 'incentivo' ? incentiveLabel : 'No aplica'}</p>
+                  <p>{personal.progressLabel}</p>
+                  {!juntaFinalizada && personal.myRow?.status !== 'Pagado' && personal.myRow?.status !== 'Validando' && (
+                    <Button className="mt-2 font-medium" onClick={() => router.push(`/juntas/${junta.id}/registrar-pago`)}>Pagar ahora →</Button>
+                  )}
+                  {personal.myRow?.status === 'Pagado' && <p className="font-medium text-emerald-600">Ya enviaste tu pago.</p>}
+                  {personal.myRow?.status === 'Validando' && <p className="font-medium text-blue-600">Tu pago está en validación.</p>}
+                </div>
+              )}
+              {paymentInfo && <p className="mt-2 text-[11px] text-amber-700">{paymentInfo}</p>}
+            </div>
           </Card>
 
           {juntaRacha && (
@@ -897,58 +940,22 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           )}
 
           {!juntaFinalizada && personal.myRow && personal.myRow.status !== 'Pagado' && personal.myRow.status !== 'Recibe' && (
-            <Card className="border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <Card className="rounded-none border-0 border-l-2 border-amber-500 bg-amber-50 p-3 text-[13px] text-amber-800 shadow-none">
               Esta semana debes pagar S/{personal.myRow.amount.toFixed(2)}{junta.tipo_junta === 'incentivo' ? ' (incluye ajustes por incentivos).' : '.'}
             </Card>
           )}
 
-          {isCurrentReceiver && !juntaFinalizada ? (
-            <Card className="space-y-3 p-4">
-              <h3 className="text-lg font-semibold">Esta semana · recibes el pozo</h3>
-              <p className="text-4xl font-bold text-emerald-600">S/{(personal.myTurnRow?.montoRecibido ?? (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(2)}</p>
-              <div className="text-sm text-slate-600">
-                <p>{summary.paid}/{juntaMembers.length - 1} pagos recibidos</p>
-              </div>
-              {canConfirmReceipt ? (
-                <Button onClick={handleConfirmPayout} disabled={isConfirmingReceipt}>
-                  {isConfirmingReceipt ? 'Confirmando…' : 'Confirmar recibo →'}
-                </Button>
-              ) : (
-                <p className="text-sm text-slate-500">
-                  {requiredPayers.some((r) => r.status === 'Validando')
-                    ? `Hay ${requiredPayers.filter((r) => r.status === 'Validando').length} pago(s) pendientes de aprobación.`
-                    : `Esperando ${summary.pending} pago(s) para liberar la bolsa.`}
-                </p>
-              )}
-              {paymentInfo && <p className="text-xs text-amber-700">{paymentInfo}</p>}
-            </Card>
-          ) : (
-            <Card className="space-y-3 p-4">
-              <h3 className="text-lg font-semibold">Esta semana · turno de {summary.receiver?.displayName ?? '—'}</h3>
-              <p className="text-4xl font-bold">S/{(personal.myRow?.amount ?? (junta.cuota_base ?? junta.monto_cuota)).toFixed(2)}</p>
-              <div className="text-sm text-slate-600">
-                <p>Base: S/{(junta.cuota_base ?? junta.monto_cuota).toFixed(2)}</p>
-                <p>Ajuste: {junta.tipo_junta === 'incentivo' ? incentiveLabel : 'No aplica'}</p>
-                <p>{personal.progressLabel}</p>
-              </div>
-              {!juntaFinalizada && personal.myRow?.status !== 'Pagado' && personal.myRow?.status !== 'Validando' && (
-                <Button onClick={() => router.push(`/juntas/${junta.id}/registrar-pago`)}>Pagar ahora →</Button>
-              )}
-              {personal.myRow?.status === 'Pagado' && <p className="text-sm font-medium text-emerald-600">Ya enviaste tu pago.</p>}
-              {personal.myRow?.status === 'Validando' && <p className="text-sm font-medium text-blue-600">Tu pago está en validación.</p>}
-              {paymentInfo && <p className="text-xs text-amber-700">{paymentInfo}</p>}
-            </Card>
-          )}
-
-          <Card className="space-y-2 p-4">
-            <h4 className="text-sm font-semibold">Estado del grupo esta semana</h4>
-            {summary.rows.slice(0, 4).map((row) => <JuntaPaymentStatusRow key={row.id} row={row} />)}
-            <p className="text-xs text-slate-500">{summary.paid} pagaron de {summary.rows.length}</p>
+          <Card className="p-4 shadow-none">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-2">
+              <h4 className="font-medium">Estado del grupo esta semana</h4>
+              <p className="text-[11px] text-slate-500">{summary.paid} pagaron de {summary.rows.length}</p>
+            </div>
+            <div className="divide-y divide-slate-200">{summary.rows.slice(0, 4).map((row) => <JuntaPaymentStatusRow key={row.id} row={row} />)}</div>
           </Card>
 
-          <Card className="overflow-x-auto p-0">
-            <table className="w-full min-w-[560px] text-sm">
-              <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2 text-left">Semana</th><th className="px-3 py-2 text-left">Fecha</th><th className="px-3 py-2 text-left">Recibe</th><th className="px-3 py-2 text-left">Tu aporte</th><th className="px-3 py-2 text-left">Estado</th></tr></thead>
+          <Card className="overflow-x-auto p-0 shadow-none">
+            <table className="w-full min-w-[560px] text-[13px]">
+              <thead className="border-b border-slate-200 text-[11px] text-slate-600"><tr><th className="px-3 py-2 text-left font-medium">Semana</th><th className="px-3 py-2 text-left font-medium">Fecha</th><th className="px-3 py-2 text-left font-medium">Recibe</th><th className="px-3 py-2 text-right font-medium">Tu aporte</th><th className="px-3 py-2 text-left font-medium">Estado</th></tr></thead>
               <tbody>
                 {scheduleRows.map((row) => {
                   const isCurrent = row.turno === currentWeek;
@@ -957,9 +964,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   return (
                     <tr key={row.turno} className="border-t">
                       <td className="px-3 py-2">Semana {row.turno}</td>
-                      <td className="px-3 py-2">{row.fechaRonda}</td>
+                      <td className="px-3 py-2">{formatReadableDate(row.fechaRonda)}</td>
                       <td className="px-3 py-2">{isMine ? 'Tú' : (juntaMembers.find((m) => m.orden_turno === row.turno)?.nombre ?? `Integrante ${row.turno}`)}</td>
-                      <td className="px-3 py-2">S/{row.cuotaPorRonda.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">S/{row.cuotaPorRonda.toFixed(2)}</td>
                       <td className="px-3 py-2"><span className={`rounded-full px-2 py-1 text-xs ${statusClass(status)}`}>{status}</span></td>
                     </tr>
                   );
