@@ -94,6 +94,7 @@ export interface JuntaMember {
   id: string;
   junta_id: string;
   profile_id: string;
+  created_at?: string;
   estado: EstadoMiembro;
   rol?: 'admin' | 'participante';
   orden_turno: number;

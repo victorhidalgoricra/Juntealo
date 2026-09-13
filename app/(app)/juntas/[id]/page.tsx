@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { CheckCircle2, Circle, CreditCard, History, Plus, UserPlus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +33,12 @@ import { JuntaAvatar } from '@/components/junta-avatar';
 
 type MainView = 'general' | 'personal';
 type GeneralTab = 'integrantes' | 'cronograma' | 'pagos' | 'turnos';
+type JuntaActivity = {
+  id: string;
+  type: 'created' | 'joined' | 'payment';
+  description: string;
+  occurredAt: string;
+};
 
 function JuntaScoreBadge({ score }: { score: number }) {
   return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">Score {score}</span>;
@@ -609,6 +618,38 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const myTurnDate = personal.myTurnRow?.fechaRonda
     ? formatReadableDate(personal.myTurnRow.fechaRonda)
     : currentRoundDueDate;
+  const freeSlots = Math.max(junta.participantes_max - memberCount, 0);
+  const persistedTurns = juntaMembers.map((member) => member.orden_turno).filter((turn) => turn > 0);
+  const turnsAreAssigned = juntaMembers.length > 0
+    && persistedTurns.length === juntaMembers.length
+    && new Set(persistedTurns).size === juntaMembers.length;
+  const juntaActivity: JuntaActivity[] = [
+    {
+      id: `created-${junta.id}`,
+      type: 'created' as const,
+      description: 'Junta creada',
+      occurredAt: junta.created_at
+    },
+    ...juntaMembers
+      .filter((member) => member.rol !== 'admin' && member.join_source !== 'creator' && Boolean(member.created_at))
+      .map((member, index): JuntaActivity => ({
+        id: `joined-${member.id}`,
+        type: 'joined',
+        description: `${member.nombre ?? `Integrante ${index + 1}`} se unió a la junta`,
+        occurredAt: member.created_at!
+      })),
+    ...detailPayments
+      .filter((payment) => Boolean(payment.submitted_at ?? payment.pagado_en))
+      .map((payment): JuntaActivity => ({
+        id: `payment-${payment.id}`,
+        type: 'payment',
+        description: `${juntaMembers.find((member) => member.profile_id === payment.profile_id)?.nombre ?? 'Un integrante'} registró un pago`,
+        occurredAt: (payment.submitted_at ?? payment.pagado_en)!
+      }))
+  ]
+    .filter((event) => !Number.isNaN(new Date(event.occurredAt).getTime()))
+    .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
+    .slice(0, 5);
 
   return (
     <div className="mx-auto w-full max-w-[1120px] space-y-5 pb-6 text-[13px] font-normal [&_.font-bold]:font-medium [&_.font-semibold]:font-medium [&_button]:font-medium">
@@ -717,9 +758,6 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             <button type="button" className="min-w-0 rounded-lg px-3 py-2 text-slate-600" onClick={() => setMainView('personal')}>Mi vista ({currentUserName})</button>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={handleCopyLink}>
-              {copyStatus === 'copied' ? 'Enlace copiado' : copyStatus === 'error' ? 'Error al copiar' : 'Copiar enlace'}
-            </Button>
             {isOwner && junta.visibilidad === 'privada' && junta.access_code && (
               <Button variant="outline" onClick={handleCopyAccessCode}>
                 {codeCopyStatus === 'copied' ? 'Código copiado' : codeCopyStatus === 'error' ? 'Error al copiar' : 'Copiar código'}
@@ -820,6 +858,17 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   ))}
                   </div>
                 </section>
+                {freeSlots > 0 && (
+                  <div className="flex items-center justify-between gap-3 pt-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-dashed border-slate-400 text-slate-400">
+                        <Plus size={16} strokeWidth={1.8} />
+                      </div>
+                      <p className="text-[13px] text-slate-600">{freeSlots} cupos libres</p>
+                    </div>
+                    <Button size="sm" onClick={handleCopyLink}>Invitar</Button>
+                  </div>
+                )}
               </div>
             </Card>
           )}
@@ -994,6 +1043,49 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               <p className="text-[11px] text-blue-100">Recibirás en tu turno</p>
               <p className="mt-2 text-[30px] font-medium leading-none tabular-nums">S/ {myTurnAmount.toFixed(0)}</p>
               <p className="mt-3 text-[13px] text-blue-100">{myTurnDate} · aportas S/ {(junta.cuota_base ?? junta.monto_cuota).toFixed(0)}</p>
+            </Card>
+
+            <Card className="p-4 shadow-none">
+              <p className="text-[13px] font-medium text-slate-900">Para activar</p>
+              <div className="mt-3 divide-y divide-slate-200">
+                {[
+                  { label: 'Junta creada', complete: true },
+                  { label: `Completa ${junta.participantes_max} integrantes`, complete: memberCount >= junta.participantes_max },
+                  { label: 'Asigna los turnos', complete: turnsAreAssigned }
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-2.5 py-2.5">
+                    {item.complete
+                      ? <CheckCircle2 size={16} className="shrink-0 text-emerald-600" strokeWidth={1.8} />
+                      : <Circle size={16} className="shrink-0 text-slate-400" strokeWidth={1.8} />}
+                    <span className={item.complete ? 'text-slate-500' : 'text-slate-800'}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+              <Button className="mt-3 w-full" onClick={handleCopyLink}>
+                {copyStatus === 'copied' ? 'Enlace copiado' : copyStatus === 'error' ? 'Error al copiar' : 'Copiar enlace de invitación'}
+              </Button>
+            </Card>
+
+            <Card className="p-4 shadow-none">
+              <p className="mb-2 text-[13px] font-medium text-slate-900">Actividad reciente</p>
+              <div className="divide-y divide-slate-200">
+                {juntaActivity.map((event) => {
+                  const Icon = event.type === 'payment' ? CreditCard : event.type === 'joined' ? UserPlus : History;
+                  return (
+                    <div key={event.id} className="flex gap-2.5 py-2.5">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                        <Icon size={15} strokeWidth={1.8} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] leading-snug text-slate-800">{event.description}</p>
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          {formatDistanceToNow(new Date(event.occurredAt), { addSuffix: true, locale: es })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </Card>
           </aside>
         </div>
