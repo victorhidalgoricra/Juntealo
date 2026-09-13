@@ -577,8 +577,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const headerSubtitle = `Semana ${currentWeek} · ${junta.frecuencia_pago} · ${junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}`;
 
   return (
-    <div className="space-y-5 pb-6 text-[13px] font-normal [&_.font-bold]:font-medium [&_.font-semibold]:font-medium [&_button]:font-medium">
-      <Card className="space-y-4 border-0 bg-transparent p-0 shadow-none">
+    <div className="mx-auto w-full max-w-[1120px] space-y-5 pb-6 text-[13px] font-normal [&_.font-bold]:font-medium [&_.font-semibold]:font-medium [&_button]:font-medium">
+      <Card className="space-y-4 rounded-xl border-[0.5px] p-4 shadow-none">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="break-words text-xl font-medium">{junta.nombre}</h1>
@@ -624,7 +624,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       {mainView === 'general' && (
         <div className="space-y-4">
           {phaseTwoLoading && <Card className="border-0 p-3 text-[13px] text-slate-500 shadow-none">Cargando pagos, cronograma e integrantes…</Card>}
-          <Card className="grid overflow-hidden p-0 shadow-none sm:grid-cols-[1fr_1fr_2fr]">
+          <Card className="grid overflow-hidden p-0 shadow-none sm:grid-cols-3">
             <div className="p-4 sm:border-r sm:border-slate-200">
               <p className="text-[11px] text-slate-500">Bolsa semana</p>
               <p className="text-base font-medium">S/{((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}</p>
@@ -634,8 +634,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               <p className="text-base font-medium">{currentRoundDueDate}</p>
             </div>
             <div className="space-y-2 border-t border-slate-200 p-4 sm:border-t-0">
-              <div className="flex items-center justify-between text-[13px] text-slate-600"><span>Progreso del ciclo</span><span>Semana {currentWeek}/{simulation.rows.length}</span></div>
-              <div className="h-1 overflow-hidden rounded-full bg-slate-200"><div className="h-1 rounded-full bg-blue-600" style={{ width: `${(currentWeek / Math.max(simulation.rows.length, 1)) * 100}%` }} /></div>
+              <div className="w-full max-w-[320px] space-y-2">
+                <div className="flex items-center justify-between text-[13px] text-slate-600"><span>Progreso del ciclo</span><span>Semana {currentWeek}/{simulation.rows.length}</span></div>
+                <div className="h-1 overflow-hidden rounded-full bg-slate-200"><div className="h-1 rounded-full bg-blue-600" style={{ width: `${(currentWeek / Math.max(simulation.rows.length, 1)) * 100}%` }} /></div>
+              </div>
             </div>
           </Card>
 
@@ -646,7 +648,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
               ['pagos', 'Pagos'],
               ['turnos', 'Asignar turnos']
             ] as const).map(([id, label]) => (
-              <button key={id} type="button" onClick={() => setGeneralTab(id)} className={`shrink-0 border-b-2 px-3 py-2 text-[13px] ${generalTab === id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-600'}`}>
+              <button key={id} type="button" onClick={() => setGeneralTab(id)} className={`shrink-0 border-b-2 px-3 py-2 text-[13px] ${generalTab === id ? 'border-slate-900 !font-medium text-slate-900' : 'border-transparent !font-normal text-slate-500'}`}>
                 {label}
               </button>
             ))}
@@ -751,7 +753,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           )}
 
           {generalTab === 'turnos' && (
-            <Card className="space-y-3 p-4 shadow-none">
+            <Card className="w-full max-w-[640px] space-y-3 p-4 shadow-none">
               {juntaActiva || juntaFinalizada || blockedByDeadline ? (
                 <p className="rounded-none border-l-2 border-slate-400 bg-slate-100 p-3 text-[13px] text-slate-600">
                   {juntaFinalizada
