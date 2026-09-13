@@ -15,6 +15,8 @@ import { useState, useRef, useCallback } from 'react';
 import { checkProfileConflicts, ensureProfileExists } from '@/services/profile.service';
 import { validateReferralCode, useReferralCode as redeemReferralCode } from '@/services/referral.service';
 import { LEGAL_DOCUMENTS } from '@/lib/legal-documents';
+import { markJuntaInviteSignupPending, readJuntaInviteIntent, clearJuntaInviteSignupPending } from '@/lib/junta-invite-intent';
+import { recordSignupFromInvite } from '@/services/activity.service';
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
@@ -95,7 +97,7 @@ export function RegisterPageClient() {
                 return;
               }
 
-              const emailRedirectTo = `${window.location.origin}/login?confirmed=1`;
+              const emailRedirectTo = `${window.location.origin}/login?confirmed=1&redirect=${encodeURIComponent(redirect)}`;
               const { data, error } = await supabase.auth.signUp({
                 email: normalized.email,
                 password: normalized.password,
@@ -140,12 +142,20 @@ export function RegisterPageClient() {
                   await redeemReferralCode(referralCode.trim());
                 }
 
+                const inviteIntent = readJuntaInviteIntent();
+                if (inviteIntent) {
+                  const activityResult = await recordSignupFromInvite(inviteIntent);
+                  if (activityResult.ok) clearJuntaInviteSignupPending();
+                }
+
                 try {
                   await supabase.auth.signOut();
                 } catch {
                   // no-op defensivo: igual redirigimos al login
                 }
               }
+
+              if (requiresEmailConfirmation) markJuntaInviteSignupPending();
 
               if (!conversionSentRef.current) {
                 conversionSentRef.current = true;

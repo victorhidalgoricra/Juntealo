@@ -467,7 +467,7 @@ function WeeklyGoalsCard({ goals }: { goals: WeeklyGoal[] }) {
   );
 }
 
-const ACTIVITY_ICON = {
+const ACTIVITY_ICON: Partial<Record<UserActivityEvent['event_type'], typeof CreditCard>> = {
   payment_confirmed: CreditCard,
   joined_junta: UserPlus,
   cycle_completed: PartyPopper,
@@ -488,7 +488,7 @@ function RecentActivityCard({ events }: { events: UserActivityEvent[] }) {
       ) : (
         <div>
           {events.map((event, index) => {
-            const Icon = ACTIVITY_ICON[event.event_type];
+            const Icon = ACTIVITY_ICON[event.event_type] ?? History;
             return (
               <div key={event.id} className={`flex gap-2.5 py-2.5 ${index < events.length - 1 ? 'border-b border-border' : ''}`}>
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-bg text-accent">

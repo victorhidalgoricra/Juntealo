@@ -4,7 +4,7 @@ import { EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule, Payout } from
 
 const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
 
-function getInviteTokenByJuntaId(juntaId: string) {
+export function getInviteTokenByJuntaId(juntaId: string) {
   if (typeof window === 'undefined') return null;
   try {
     const raw = window.localStorage.getItem(PRIVATE_TOKEN_STORAGE_KEY);
@@ -14,6 +14,18 @@ function getInviteTokenByJuntaId(juntaId: string) {
   } catch {
     return null;
   }
+}
+
+export async function openJuntaInvite(params: { inviteToken: string; openId: string }) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: null as Junta | null };
+  const { data, error } = await supabase.schema('public').rpc('open_junta_invite', {
+    p_invite_token: params.inviteToken,
+    p_open_id: params.openId
+  });
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  const row = (Array.isArray(data) ? data[0] : data) as (Partial<Junta> & { junta_id?: string }) | null;
+  if (!row?.junta_id) return { ok: true as const, data: null as Junta | null };
+  return { ok: true as const, data: { ...row, id: row.junta_id } as Junta };
 }
 
 export function saveInviteTokenForJunta(params: { juntaId: string; inviteToken: string }) {
@@ -130,7 +142,8 @@ export async function createJuntaRecord(junta: Junta) {
     profile_id: junta.admin_id,
     estado: 'activo',
     rol: 'admin',
-    orden_turno: 1
+    orden_turno: 1,
+    join_source: 'creator'
   };
   if (process.env.NODE_ENV === 'development') {
     console.log('[createJuntaRecord] step=insert_owner_member payload', ownerMemberPayload);
@@ -288,7 +301,7 @@ export async function fetchJuntaActiveMembers(juntaId: string) {
     const fallback = await supabase
       .schema('public')
       .from('junta_members')
-      .select('id,junta_id,profile_id,estado,rol,orden_turno,created_at')
+      .select('id,junta_id,profile_id,estado,rol,orden_turno,join_source,created_at')
       .eq('junta_id', juntaId)
       .eq('estado', 'activo')
       .order('orden_turno', { ascending: true, nullsFirst: false });
@@ -345,7 +358,8 @@ export async function joinJuntaAsParticipant(params: { juntaId: string; profileI
         profile_id: params.profileId,
         estado: 'activo' as const,
         rol: 'participante' as const,
-        orden_turno: 1
+        orden_turno: 1,
+        join_source: params.accessCode ? 'access_code' as const : 'unknown' as const
       }
     };
   }
@@ -518,7 +532,7 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
   // Fetch full data for all relevant juntas — every query is non-blocking.
   const [juntasSettled, membersSettled, schedulesSettled, paymentsSettled, payoutsSettled] = await Promise.allSettled([
     supabase.schema('public').from('juntas').select('id,admin_id,slug,invite_token,access_code,bloqueada,tipo_junta,incentivo_porcentaje,incentivo_regla,turn_assignment_mode,cuota_base,bolsa_base,nombre,descripcion,moneda,participantes_max,monto_cuota,premio_primero_pct,descuento_ultimo_pct,fee_plataforma_pct,frecuencia_pago,fecha_inicio,dia_limite_pago,penalidad_mora,visibilidad,cerrar_inscripciones,estado,created_at').in('id', juntaIds),
-    supabase.schema('public').from('junta_members').select('id,junta_id,profile_id,estado,rol,orden_turno,created_at').in('junta_id', juntaIds),
+    supabase.schema('public').from('junta_members').select('id,junta_id,profile_id,estado,rol,orden_turno,join_source,created_at').in('junta_id', juntaIds),
     supabase.schema('public').from('payment_schedules').select('id,junta_id,cuota_numero,fecha_vencimiento,monto,estado').in('junta_id', juntaIds),
     supabase.schema('public').from('payments').select('id,junta_id,schedule_id,round_id,member_id,profile_id,expected_amount,submitted_amount,monto,estado,receipt_url,comprobante_url,payment_method,operation_number,participant_note,payment_status,submitted_at,internal_note,validated_at,validated_by,rejection_reason,pagado_en').in('junta_id', juntaIds),
     supabase.schema('public').from('payouts').select('id,junta_id,ronda_numero,profile_id,monto_pozo,entregado_en,observaciones').in('junta_id', juntaIds)

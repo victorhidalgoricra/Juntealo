@@ -17,6 +17,8 @@ import { buildProfileFromAuthUser, mapAuthErrorMessage } from '@/services/auth.s
 import { ensureProfileExists, fetchProfileById } from '@/services/profile.service';
 import { clearExploreJoinIntent, readExploreJoinIntent } from '@/lib/explore-join-intent';
 import { fetchMyActiveMembership } from '@/services/juntas.repository';
+import { clearJuntaInviteSignupPending, readJuntaInviteIntent } from '@/lib/junta-invite-intent';
+import { recordSignupFromInvite } from '@/services/activity.service';
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
@@ -98,6 +100,11 @@ export function LoginPageClient() {
         }
 
         setUser(await buildProfileFromAuthUser(user, values.email));
+        const inviteIntent = readJuntaInviteIntent();
+        if (inviteIntent?.signupPending) {
+          const activityResult = await recordSignupFromInvite(inviteIntent);
+          if (activityResult.ok) clearJuntaInviteSignupPending();
+        }
         const nextPath = await resolvePostLoginRoute({
           profileId: user.id,
           fallbackRedirect: redirect

@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, confirmPayout, deleteDraftJunta, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, joinJuntaAsParticipant, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, deleteDraftJunta, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, getInviteTokenByJuntaId, joinJuntaAsParticipant, openJuntaInvite, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
+import { recordInviteInteraction } from '@/services/activity.service';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -98,6 +99,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [manualTurns, setManualTurns] = useState<Record<string, number>>({});
   const [activating, setActivating] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [codeCopyStatus, setCodeCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [isConfirmingReceipt, setIsConfirmingReceipt] = useState(false);
   const [isDeletingJunta, setIsDeletingJunta] = useState(false);
 
@@ -115,8 +117,17 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       try {
         const storedJunta = juntas.find((j) => j.id === params.id) ?? null;
         const hasFullData = storedJunta != null && storedJunta.turn_assignment_mode != null;
+        const inviteToken = searchParams.get('invite') === '1' ? getInviteTokenByJuntaId(params.id) : null;
+        const inviteResult = inviteToken
+          ? await openJuntaInvite({
+              inviteToken,
+              openId: window.sessionStorage.getItem(`jd-invite-open:${inviteToken}`) ?? crypto.randomUUID()
+            })
+          : null;
         const [detailResult, membersResult, membershipResult] = await Promise.all([
-          hasFullData ? Promise.resolve({ ok: true as const, data: storedJunta! }) : fetchJuntaById(params.id),
+          inviteResult?.ok && inviteResult.data
+            ? Promise.resolve({ ok: true as const, data: inviteResult.data })
+            : hasFullData ? Promise.resolve({ ok: true as const, data: storedJunta! }) : fetchJuntaById(params.id),
           fetchJuntaActiveMembers(params.id),
           fetchMyActiveMembership({ juntaId: params.id, profileId: user.id })
         ]);
@@ -152,7 +163,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
         if (!hasAccess) {
           const codeParam = searchParams.get('code');
-          if (resolvedJunta.visibilidad === 'privada' && codeParam) {
+          if (resolvedJunta.visibilidad === 'privada' && (codeParam || inviteToken)) {
             setAccessState('can_join');
           } else {
             setAccessState('unauthorized');
@@ -428,17 +439,34 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
   const handleCopyLink = async () => {
     const origin = window.location.origin;
-    const url =
-      junta.visibilidad === 'publica'
-        ? `${origin}/junta/${junta.slug}`
-        : `${origin}/juntas?code=${junta.access_code ?? ''}`;
+    const url = `${origin}/invite/${junta.invite_token}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopyStatus('copied');
+      void recordInviteInteraction({ juntaId: junta.id, eventType: 'invite_link_copied' });
     } catch {
       setCopyStatus('error');
     }
     setTimeout(() => setCopyStatus('idle'), 2000);
+  };
+
+  const handleCopyAccessCode = async () => {
+    if (!junta.access_code) return;
+    try {
+      await navigator.clipboard.writeText(junta.access_code);
+      setCodeCopyStatus('copied');
+      void recordInviteInteraction({ juntaId: junta.id, eventType: 'access_code_copied' });
+    } catch {
+      setCodeCopyStatus('error');
+    }
+    setTimeout(() => setCodeCopyStatus('idle'), 2000);
+  };
+
+  const handleWhatsAppShare = () => {
+    const inviteUrl = `${window.location.origin}/invite/${junta.invite_token}`;
+    void recordInviteInteraction({ juntaId: junta.id, eventType: 'whatsapp_share_clicked' });
+    const text = encodeURIComponent(`Únete a ${junta.nombre} en Juntealo: ${inviteUrl}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
   };
 
   const isOwner = user?.id === junta.admin_id;
@@ -596,6 +624,12 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             >
               {copyStatus === 'copied' ? 'Enlace copiado' : copyStatus === 'error' ? 'Error al copiar' : 'Copiar enlace'}
             </Button>
+            {isOwner && junta.visibilidad === 'privada' && junta.access_code && (
+              <Button variant="outline" onClick={handleCopyAccessCode}>
+                {codeCopyStatus === 'copied' ? 'Código copiado' : codeCopyStatus === 'error' ? 'Error al copiar' : 'Copiar código'}
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleWhatsAppShare}>Compartir por WhatsApp</Button>
             {isOwner && juntaFinalizada && (
               <Button
                 variant="outline"

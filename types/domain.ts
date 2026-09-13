@@ -12,6 +12,7 @@ export type EstadoPago =
   | 'rejected'
   | 'overdue';
 export type GlobalRole = 'user' | 'admin' | 'backoffice_admin';
+export type JuntaJoinSource = 'creator' | 'invite_link' | 'access_code' | 'public_catalog' | 'direct' | 'unknown';
 
 export interface Profile {
   id: string;
@@ -96,6 +97,7 @@ export interface JuntaMember {
   estado: EstadoMiembro;
   rol?: 'admin' | 'participante';
   orden_turno: number;
+  join_source?: JuntaJoinSource | null;
   nombre?: string;
   celular?: string;
 }
@@ -153,15 +155,25 @@ export interface Notification {
   created_at: string;
 }
 
-export type UserActivityEventType = 'payment_confirmed' | 'joined_junta' | 'cycle_completed';
+export type UserActivityEventType =
+  | 'junta_created'
+  | 'invite_link_copied'
+  | 'access_code_copied'
+  | 'whatsapp_share_clicked'
+  | 'invite_opened'
+  | 'signup_completed'
+  | 'joined_junta'
+  | 'junta_full'
+  | 'payment_confirmed'
+  | 'cycle_completed';
 
 export interface UserActivityEvent {
   id: string;
-  profile_id: string;
+  profile_id?: string | null;
   event_type: UserActivityEventType;
   junta_id?: string | null;
   payment_id?: string | null;
   description: string;
-  metadata: { junta_name?: string };
+  metadata: { junta_name?: string; source?: string; join_source?: JuntaJoinSource; junta_id?: string };
   occurred_at: string;
 }
