@@ -644,9 +644,36 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       </Card>
 
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <div className="inline-flex min-w-max gap-1.5 rounded-xl bg-slate-100 p-1.5 text-[15px]" role="tablist" aria-label="Vista de la junta">
-          <button type="button" role="tab" aria-selected={mainView === 'general'} className={`rounded-lg px-4 py-2 transition-colors ${mainView === 'general' ? 'bg-white font-semibold text-blue-700 shadow-sm' : 'font-medium text-slate-600 hover:text-slate-900'}`} onClick={() => setMainView('general')}>Vista general</button>
-          <button type="button" role="tab" aria-selected={mainView === 'personal'} className={`rounded-lg px-4 py-2 transition-colors ${mainView === 'personal' ? 'bg-white font-semibold text-blue-700 shadow-sm' : 'font-medium text-slate-600 hover:text-slate-900'}`} onClick={() => setMainView('personal')}>Mi vista ({currentUserName})</button>
+        <div className="inline-flex min-w-max gap-1 rounded-full border border-slate-200 bg-white p-1 text-xs" role="tablist" aria-label="Secciones de la junta">
+          {([
+            ['integrantes', 'Vista general'],
+            ['cronograma', 'Cronograma'],
+            ['pagos', 'Pagos'],
+            ['turnos', 'Asignar turnos']
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={mainView === 'general' && generalTab === id}
+              onClick={() => {
+                setMainView('general');
+                setGeneralTab(id);
+              }}
+              className={`rounded-full px-3 py-1.5 transition-colors ${mainView === 'general' && generalTab === id ? 'bg-blue-100 font-semibold text-blue-700' : 'font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mainView === 'personal'}
+            onClick={() => setMainView('personal')}
+            className={`rounded-full px-3 py-1.5 transition-colors ${mainView === 'personal' ? 'bg-blue-100 font-semibold text-blue-700' : 'font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+          >
+            Mi vista ({currentUserName})
+          </button>
         </div>
       </div>
 
@@ -660,14 +687,6 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       {mainView === 'general' && (
         <div className="space-y-4">
           {phaseTwoLoading && <Card className="p-3 text-sm text-slate-500">Cargando pagos, cronograma e integrantes…</Card>}
-
-          <div className="-mx-1 overflow-x-auto px-1 pb-1">
-            <div className="inline-flex min-w-max gap-1 rounded-full border border-slate-200 bg-white p-1 text-xs" role="tablist" aria-label="Secciones de vista general">
-              {([['integrantes', 'Integrantes'], ['cronograma', 'Cronograma'], ['pagos', 'Pagos'], ['turnos', 'Asignar turnos']] as const).map(([id, label]) => (
-                <button key={id} type="button" role="tab" aria-selected={generalTab === id} onClick={() => setGeneralTab(id)} className={`rounded-full px-3 py-1.5 transition-colors ${generalTab === id ? 'bg-blue-100 font-semibold text-blue-700' : 'font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}>{label}</button>
-              ))}
-            </div>
-          </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             <KpiCard icon={Landmark} label="Bolsa semana" value={`S/${((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}`} />
