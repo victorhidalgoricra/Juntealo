@@ -14,6 +14,13 @@ function payment(estado: Payment['estado'], paymentStatus?: Payment['payment_sta
 }
 
 describe('junta detail payment status', () => {
+  it('does not count the receiver as pending while the junta is still forming', () => {
+    const summary = getCurrentWeekSummary({ junta, members, payments: [], schedules: [schedule], currentWeek: 1, juntaActiva: false });
+
+    expect(summary.rows.find((row) => row.profileId === 'receiver')?.status).toBe('Recibe');
+    expect(summary).toMatchObject({ paid: 0, validating: 0, pending: 1 });
+  });
+
   it('uses payment_status before the legacy estado field', () => {
     const rows = getCurrentWeekPaymentRows({ junta, members, payments: [payment('approved', 'rejected')], currentWeek: 1, currentSchedule: schedule, receiverProfileId: 'receiver', juntaActiva: true });
     expect(rows.find((row) => row.profileId === 'payer')?.status).toBe('Rechazado');

@@ -30,8 +30,8 @@ function resolvePaymentStatus(params: {
   payment?: Payment;
   isReceiver?: boolean;
 }): WeeklyPaymentStatus {
-  if (!params.juntaActiva) return 'En formación';
   if (params.isReceiver) return 'Recibe';
+  if (!params.juntaActiva) return 'En formación';
   if (params.schedule?.estado === 'vencida' && !params.payment) return 'Vencido';
   // Check both `estado` and `payment_status` — the DB stores Spanish values in `estado`
   // while the local store may use the TypeScript enum in either field.
@@ -93,7 +93,7 @@ export function getCurrentWeekSummary(params: {
   });
   const paid = rows.filter((row) => row.status === 'Pagado').length;
   const validating = rows.filter((row) => row.status === 'Validando').length;
-  const pending = rows.filter((row) => row.status !== 'Pagado' && row.status !== 'Validando' && row.status !== 'Recibe').length;
+  const pending = rows.filter((row) => !row.isReceiver && row.status !== 'Pagado' && row.status !== 'Validando').length;
 
   if (process.env.NODE_ENV === 'development') {
     const rawPayments = params.payments.filter((p) => p.junta_id === params.junta.id);
@@ -197,7 +197,7 @@ export function getValidatingParticipants(rows: WeeklyMemberRow[]) {
 }
 
 export function getPendingPayers(rows: WeeklyMemberRow[]) {
-  return rows.filter((row) => row.status !== 'Pagado' && row.status !== 'Validando' && row.status !== 'Recibe');
+  return rows.filter((row) => !row.isReceiver && row.status !== 'Pagado' && row.status !== 'Validando');
 }
 
 export function getTurnSchedule(params: {
