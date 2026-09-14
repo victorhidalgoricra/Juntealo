@@ -12,6 +12,15 @@ export function getAvatarColor(seed: string) {
   return palette[hash % palette.length];
 }
 
+export function getMemberAvatarStyle(index: number) {
+  const hue = Math.round((Math.max(0, index) * 137.508) % 360);
+
+  return {
+    backgroundColor: `hsl(${hue} 78% 92%)`,
+    color: `hsl(${hue} 62% 34%)`
+  };
+}
+
 export function getInitial(name: string) {
   return name.trim().charAt(0).toUpperCase() || '?';
 }

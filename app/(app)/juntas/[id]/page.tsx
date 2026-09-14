@@ -11,7 +11,7 @@ import { activateJuntaIfReady, confirmPayout, deleteDraftJunta, fetchAvailableJu
 import { fetchGlobalRanking } from '@/services/ranking.service';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
-import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
+import { formatIncentiveLabel, getAvatarColor, getInitial, getMemberAvatarStyle } from '@/lib/profile-display';
 import { isJuntaActive } from '@/lib/junta-status';
 import { APP_BUSINESS_TIMEZONE, isJuntaBlockedByDeadline } from '@/lib/junta-blocking';
 import { formatCalendarDate } from '@/lib/calendar-date';
@@ -733,7 +733,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                     <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
                       {juntaMembers.map((member, index) => {
                         const name = member.profile_id === user?.id ? 'Tú' : member.nombre ?? `Integrante ${index + 1}`;
-                        return <div key={member.id} className="w-14 shrink-0 text-center"><div className={`mx-auto flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold ${getAvatarColor(name)}`}>{getInitial(name)}</div><p className="mt-1 truncate text-[11px] font-medium text-slate-600">{name}</p></div>;
+                        return <div key={member.id} className="w-14 shrink-0 text-center"><div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold" style={getMemberAvatarStyle(index)}>{getInitial(name)}</div><p className="mt-1 truncate text-[11px] font-medium text-slate-600">{name}</p></div>;
                       })}
                       {Array.from({ length: missingMembers }).map((_, index) => <button key={`empty-${index}`} type="button" onClick={handleWhatsAppInvite} className="w-14 shrink-0 text-center"><span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-blue-300 bg-blue-50 text-blue-600"><Plus size={16} /></span><span className="mt-1 block text-[11px] font-medium text-blue-600">Invitar</span></button>)}
                     </div>
