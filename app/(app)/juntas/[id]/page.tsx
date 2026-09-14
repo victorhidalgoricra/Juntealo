@@ -24,13 +24,33 @@ import {
   WeeklyMemberRow
 } from '@/lib/junta-detail-view';
 import { RachaCard } from '@/components/ui/racha-card';
+import { JuntaAvatar } from '@/components/junta-avatar';
 import { computeJuntaRacha } from '@/lib/racha';
+import { CalendarClock, CheckCircle2, Clock3, Copy, Landmark, Plus, Share2, Sparkles, WalletCards } from 'lucide-react';
 
 type MainView = 'general' | 'personal';
 type GeneralTab = 'integrantes' | 'cronograma' | 'pagos' | 'turnos';
 
 function JuntaScoreBadge({ score }: { score: number }) {
   return <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">Score {score}</span>;
+}
+
+function KpiCard({ icon: Icon, label, value, tone = 'blue' }: { icon: typeof WalletCards; label: string; value: string; tone?: 'blue' | 'green' | 'amber' | 'violet' }) {
+  const tones = {
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-emerald-50 text-emerald-600',
+    amber: 'bg-amber-50 text-amber-600',
+    violet: 'bg-violet-50 text-violet-600'
+  };
+  return (
+    <Card className="flex min-h-[82px] items-center gap-3 p-3">
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tones[tone]}`}><Icon size={17} /></span>
+      <div className="min-w-0">
+        <p className="truncate text-[11px] font-medium text-slate-500">{label}</p>
+        <p className="truncate text-xl font-bold tracking-tight text-slate-900">{value}</p>
+      </div>
+    </Card>
+  );
 }
 
 function statusClass(status: string) {
@@ -437,8 +457,19 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     setTimeout(() => setCopyStatus('idle'), 2000);
   };
 
+  const handleWhatsAppInvite = () => {
+    const origin = window.location.origin;
+    const url = junta.visibilidad === 'publica'
+      ? `${origin}/junta/${junta.slug}`
+      : `${origin}/juntas?code=${junta.access_code ?? ''}`;
+    const message = encodeURIComponent(`Te invito a unirte a ${junta.nombre} en Juntealo: ${url}`);
+    window.open(`https://wa.me/?text=${message}`, '_blank', 'noopener,noreferrer');
+  };
+
   const isOwner = user?.id === junta.admin_id;
   const memberCount = junta.integrantes_actuales ?? juntaMembers.length;
+  const missingMembers = Math.max(junta.participantes_max - memberCount, 0);
+  const isIncomplete = missingMembers > 0 && !juntaFinalizada;
   const canManualAssign = isOwner && !juntaActiva && !juntaFinalizada && !blockedByDeadline;
   const canShuffle = isOwner && !juntaActiva && !juntaFinalizada && !blockedByDeadline && memberCount >= junta.participantes_max;
   const allTurnsAssigned = juntaMembers.length > 0 && (() => {
@@ -570,46 +601,57 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     await refreshSnapshot();
   };
 
-  const headerSubtitle = `Semana ${currentWeek} · ${junta.frecuencia_pago} · ${junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}`;
-
   return (
-    <div className="space-y-4 pb-6">
-      <Card className="space-y-4 p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <h1 className="break-words text-2xl font-semibold">{junta.nombre}</h1>
-            <p className="text-sm text-slate-500">{headerSubtitle}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Badge>{juntaFinalizada ? 'Finalizada' : juntaActiva ? 'Activa' : 'En formación'}</Badge>
-              {blockedByDeadline && <Badge>Bloqueada</Badge>}
-              <Badge>{junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</Badge>
-              <Badge>{memberCount}/{junta.participantes_max} integrantes</Badge>
+    <div className="space-y-3 pb-6">
+      <Card className="overflow-hidden p-0">
+        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <JuntaAvatar nombre={junta.nombre} size="lg" />
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">{junta.nombre}</h1>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{junta.visibilidad === 'privada' ? 'Privada' : 'Pública'}</span>
+                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">Semana {currentWeek} de {simulation.rows.length}</span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium capitalize text-slate-600">{junta.frecuencia_pago}</span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{junta.tipo_junta === 'incentivo' ? 'Con incentivos' : 'Normal'}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${juntaFinalizada ? 'bg-slate-100 text-slate-600' : juntaActiva ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{juntaFinalizada ? 'Finalizada' : juntaActiva ? 'Activa' : 'En formación'}</span>
+                {blockedByDeadline && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700">Bloqueada</span>}
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 sm:items-center sm:justify-end">
-            <Button
-              variant="outline"
-              onClick={handleCopyLink}
-            >
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={handleCopyLink} className="gap-1.5">
+              <Copy size={14} />
               {copyStatus === 'copied' ? 'Enlace copiado' : copyStatus === 'error' ? 'Error al copiar' : 'Copiar enlace'}
             </Button>
             {isOwner && juntaFinalizada && (
-              <Button
-                variant="outline"
-                onClick={handleDeleteJunta}
-                disabled={isDeletingJunta}
-              >
+              <Button size="sm" variant="outline" onClick={handleDeleteJunta} disabled={isDeletingJunta}>
                 {isDeletingJunta ? 'Eliminando…' : 'Eliminar'}
               </Button>
             )}
           </div>
         </div>
 
-        <div className="grid w-full grid-cols-1 gap-1 rounded-xl bg-slate-100 p-1 text-sm sm:grid-cols-2">
-          <button type="button" className={`min-w-0 rounded-lg px-3 py-2 ${mainView === 'general' ? 'bg-white font-semibold text-slate-900 shadow' : 'text-slate-600'}`} onClick={() => setMainView('general')}>Vista general</button>
-          <button type="button" className={`min-w-0 rounded-lg px-3 py-2 ${mainView === 'personal' ? 'bg-white font-semibold text-slate-900 shadow' : 'text-slate-600'}`} onClick={() => setMainView('personal')}>Mi vista ({currentUserName})</button>
-        </div>
+        {isIncomplete && (
+          <div className="flex flex-col gap-3 border-t border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white"><Sparkles size={15} /></span>
+              <div><p className="text-sm font-semibold text-slate-900">Invita a más personas</p><p className="text-xs text-slate-600">Faltan {missingMembers} integrante{missingMembers === 1 ? '' : 's'} para comenzar.</p></div>
+            </div>
+            <Button size="sm" onClick={handleWhatsAppInvite} className="w-full sm:w-auto">Invitar por WhatsApp</Button>
+          </div>
+        )}
       </Card>
+
+      <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <div className="flex min-w-max gap-1 rounded-xl bg-slate-100 p-1 text-sm">
+          <button type="button" className={`rounded-lg px-3 py-1.5 ${mainView === 'general' ? 'bg-white font-semibold text-blue-700 shadow-sm' : 'text-slate-600'}`} onClick={() => setMainView('general')}>Vista general</button>
+          <button type="button" className={`rounded-lg px-3 py-1.5 ${mainView === 'personal' ? 'bg-white font-semibold text-blue-700 shadow-sm' : 'text-slate-600'}`} onClick={() => setMainView('personal')}>Mi vista ({currentUserName})</button>
+          {mainView === 'general' && ([['integrantes', 'Integrantes'], ['cronograma', 'Cronograma'], ['pagos', 'Pagos'], ['turnos', 'Asignar turnos']] as const).map(([id, label]) => (
+            <button key={id} type="button" onClick={() => setGeneralTab(id)} className={`rounded-lg px-3 py-1.5 ${generalTab === id ? 'bg-white font-semibold text-blue-700 shadow-sm' : 'text-slate-600'}`}>{label}</button>
+          ))}
+        </div>
+      </div>
 
       {juntaFinalizada && (
         <Card className="border-emerald-200 bg-emerald-50 p-4">
@@ -621,92 +663,95 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       {mainView === 'general' && (
         <div className="space-y-4">
           {phaseTwoLoading && <Card className="p-3 text-sm text-slate-500">Cargando pagos, cronograma e integrantes…</Card>}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            <Card className="p-3"><p className="text-xs text-slate-500">Bolsa semana</p><p className="text-2xl font-semibold">S/{((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}</p></Card>
-            <Card className="p-3"><p className="text-xs text-slate-500">Pagos esta semana</p><p className="text-2xl font-semibold">{displayPaid}/{summary.rows.length}</p></Card>
-            <Card className="p-3"><p className="text-xs text-slate-500">Turno actual</p><p className="text-2xl font-semibold">#{currentWeek}</p></Card>
-            <Card className="p-3"><p className="text-xs text-slate-500">Pendientes</p><p className="text-2xl font-semibold">{displayPending}</p></Card>
-            <Card className="p-3"><p className="text-xs text-slate-500">Fecha límite de pago</p><p className="text-2xl font-semibold">{currentRoundDueDate}</p></Card>
-          </div>
-
-          <Card className="space-y-2 p-3">
-            <div className="flex flex-col gap-1 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"><span>Progreso del ciclo</span><span>Semana {currentWeek}/{simulation.rows.length}</span></div>
-            <div className="h-2 rounded-full bg-slate-200"><div className="h-2 rounded-full bg-blue-600" style={{ width: `${(currentWeek / Math.max(simulation.rows.length, 1)) * 100}%` }} /></div>
-          </Card>
-
-          <div className="flex flex-wrap gap-2">
-            {([
-              ['integrantes', 'Integrantes'],
-              ['cronograma', 'Cronograma'],
-              ['pagos', 'Pagos'],
-              ['turnos', 'Asignar turnos']
-            ] as const).map(([id, label]) => (
-              <button key={id} type="button" onClick={() => setGeneralTab(id)} className={`rounded-full px-3 py-1.5 text-sm ${generalTab === id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}>
-                {label}
-              </button>
-            ))}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            <KpiCard icon={Landmark} label="Bolsa semana" value={`S/${((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}`} />
+            <KpiCard icon={CheckCircle2} label="Pagos esta semana" value={`${displayPaid}/${summary.rows.length}`} tone="green" />
+            <KpiCard icon={WalletCards} label="Turno actual" value={`#${currentWeek}`} tone="violet" />
+            <KpiCard icon={Clock3} label="Pendientes" value={`${displayPending}`} tone="amber" />
+            <div className="col-span-2 sm:col-span-1"><KpiCard icon={CalendarClock} label="Fecha límite de pago" value={currentRoundDueDate} /></div>
           </div>
 
           {generalTab === 'integrantes' && (
-            <Card className="space-y-3 p-4">
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                Esta semana recibe {summary.receiver?.displayName ?? '—'} (turno #{currentWeek}). Faltan {summary.pending} pagos para liberar la bolsa.
-              </div>
-
-              <div className="rounded-xl border p-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Receptor actual</p>
-                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold ${getAvatarColor(summary.receiver?.displayName ?? 'Receptor')}`}>{getInitial(summary.receiver?.displayName ?? 'R')}</div>
-                    <div className="min-w-0">
-                      <p className="break-words font-semibold">{summary.receiver?.displayName ?? 'Pendiente'}</p>
-                      <p className="text-sm text-slate-500">Turno #{currentWeek} · recibe esta semana</p>
+            <div className="space-y-3">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,.65fr)]">
+                <div className="space-y-3">
+                  <Card className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div><h2 className="font-semibold text-slate-900">Progreso del grupo</h2><p className="mt-0.5 text-sm text-slate-500">{memberCount} de {junta.participantes_max} integrantes</p></div>
+                      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{Math.round((memberCount / Math.max(junta.participantes_max, 1)) * 100)}%</span>
                     </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2 sm:items-center sm:justify-end">
-                    <JuntaScoreBadge score={summary.rows.find((row) => row.isReceiver)?.score ?? 70} />
-                    <Badge>{canConfirmReceipt ? 'Listo para confirmar' : 'Esperando pagos'}</Badge>
-                    {canConfirmReceipt && (
-                      <Button variant="outline" onClick={handleConfirmPayout} disabled={isConfirmingReceipt}>
-                        {isConfirmingReceipt ? 'Confirmando…' : 'Confirmar recibo'}
-                      </Button>
-                    )}
-                  </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${Math.min((memberCount / Math.max(junta.participantes_max, 1)) * 100, 100)}%` }} /></div>
+                    <p className="mt-2 text-xs text-slate-600">{isIncomplete ? `Faltan ${missingMembers} persona${missingMembers === 1 ? '' : 's'} para comenzar la junta.` : juntaFinalizada ? 'La junta completó todos sus turnos.' : 'El grupo está completo.'}</p>
+                    {isIncomplete && <div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={handleWhatsAppInvite}>Invitar por WhatsApp</Button><Button size="sm" variant="outline" onClick={handleCopyLink}><Share2 size={13} /> Compartir enlace</Button></div>}
+                  </Card>
+
+                  <Card className="p-4">
+                    <div className="flex items-center justify-between gap-3"><h2 className="font-semibold text-slate-900">Integrantes <span className="font-normal text-slate-400">({memberCount}/{junta.participantes_max})</span></h2><button type="button" onClick={() => router.push(`/juntas/${junta.id}/members`)} className="text-xs font-semibold text-blue-600 hover:text-blue-700">Ver todos</button></div>
+                    <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+                      {juntaMembers.map((member, index) => {
+                        const name = member.profile_id === user?.id ? 'Tú' : member.nombre ?? `Integrante ${index + 1}`;
+                        return <div key={member.id} className="w-14 shrink-0 text-center"><div className={`mx-auto flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold ${getAvatarColor(name)}`}>{getInitial(name)}</div><p className="mt-1 truncate text-[11px] font-medium text-slate-600">{name}</p></div>;
+                      })}
+                      {Array.from({ length: missingMembers }).map((_, index) => <button key={`empty-${index}`} type="button" onClick={handleWhatsAppInvite} className="w-14 shrink-0 text-center"><span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-blue-300 bg-blue-50 text-blue-600"><Plus size={16} /></span><span className="mt-1 block text-[11px] font-medium text-blue-600">Invitar</span></button>)}
+                    </div>
+                  </Card>
+                </div>
+
+                <div className="space-y-3">
+                  <Card className="border-blue-200 bg-gradient-to-br from-blue-600 to-indigo-700 p-4 text-white">
+                    <p className="text-xs font-medium text-blue-100">Tu próximo cobro</p>
+                    <div className="mt-3 flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-sm font-bold">{getInitial(currentUserName)}</div><div><p className="font-semibold">Tú</p><p className="text-xs text-blue-100">Turno #{personal.myTurnRow?.turno ?? '—'}</p></div></div>
+                    <p className="mt-3 text-sm font-medium">{personal.myTurnRow?.turno === currentWeek ? 'Te toca recibir esta semana' : personal.myTurnRow ? `Recibes en la semana ${personal.myTurnRow.turno}` : 'Turno pendiente de asignación'}</p>
+                    <div className="mt-2 flex items-end justify-between gap-2"><p className="text-2xl font-bold">S/{(personal.myTurnRow?.montoRecibido ?? simulation.bolsaBase).toFixed(0)}</p><JuntaScoreBadge score={personal.myRow?.score ?? 70} /></div>
+                  </Card>
+
+                  <Card className="p-4">
+                    <div className="flex items-center justify-between gap-2"><h2 className="font-semibold text-slate-900">Estado de pagos</h2><span className="text-xs text-slate-500">Semana {currentWeek}</span></div>
+                    <div className="mt-3 flex items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${(displayPaid / Math.max(summary.rows.length, 1)) * 100}%` }} /></div><span className="text-sm font-bold text-slate-900">{displayPaid}/{summary.rows.length}</span></div>
+                    <p className="mt-2 text-xs font-medium text-slate-700">{displayPaid === 0 ? 'Aún no hay pagos registrados.' : `${displayPaid} pago${displayPaid === 1 ? '' : 's'} registrado${displayPaid === 1 ? '' : 's'} esta semana.`}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">Cuando los integrantes realicen sus pagos, podrás confirmarlos aquí.</p>
+                  </Card>
                 </div>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <Card className="space-y-2 p-3">
-                  <p className="text-sm font-medium">Pagaron esta semana ({paidParticipants.length}/{summary.rows.length})</p>
+              <Card className="space-y-3 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-semibold text-slate-900">Gestión de pagos <span className="font-normal text-slate-400">· Semana {currentWeek}</span></h2><p className="text-xs text-slate-500">Esta semana recibe {summary.receiver?.displayName ?? '—'}.</p></div><Badge>{canConfirmReceipt ? 'Listo para confirmar' : 'En curso'}</Badge></div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3">
+                    <p className="text-sm font-semibold">Pagaron esta semana ({paidParticipants.length}/{summary.rows.length})</p>
                   {paidParticipants.map((row) => (
                     <div key={row.id} className="space-y-1">
                       <JuntaPaymentStatusRow row={row} />
                       {isCurrentReceiver && row.status === 'Validando' && row.paymentId && (
                         <div className="flex flex-wrap gap-2 pl-0 sm:pl-2">
-                          <Button size="sm" variant="outline" onClick={() => handleAcceptPayment(row.paymentId!, row.status)}>Aceptar</Button>
+                          <Button size="sm" onClick={() => handleAcceptPayment(row.paymentId!, row.status)}>Confirmar pago</Button>
                           <Button size="sm" variant="outline" onClick={() => handleRejectPayment(row.paymentId!, row.status)}>Rechazar</Button>
                         </div>
                       )}
                     </div>
                   ))}
+                  {paidParticipants.length === 0 && <p className="py-3 text-center text-xs text-slate-500">Aún no hay pagos en esta columna.</p>}
                   {paymentInfo && <p className="text-xs text-rose-700">{paymentInfo}</p>}
-                </Card>
-                <Card className="space-y-2 p-3">
-                  <p className="text-sm font-medium">Pendientes ({pendingPayers.length}/{summary.rows.length})</p>
+                  </div>
+                  <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+                    <p className="text-sm font-semibold">Pendientes ({pendingPayers.length}/{summary.rows.length})</p>
                   {pendingPayers.map((row) => (
                     <div key={row.id} className="space-y-2">
                       <JuntaPaymentStatusRow row={row} />
                       {!juntaFinalizada && (
                         <div className="flex flex-wrap gap-2 pl-0 sm:pl-2">
-                          <Button variant="ghost" onClick={() => alert('Las notificaciones automáticas estarán disponibles próximamente. Por ahora usa WhatsApp para contactar al integrante.')}>Reenviar recordatorio</Button>
-                          <Button variant="ghost" onClick={() => openWhatsAppReminder(row)}>WhatsApp</Button>
+                          <Button size="sm" variant="ghost" onClick={() => alert('Las notificaciones automáticas estarán disponibles próximamente. Por ahora usa WhatsApp para contactar al integrante.')}>Reenviar recordatorio</Button>
+                          <Button size="sm" variant="outline" onClick={() => openWhatsAppReminder(row)}>WhatsApp</Button>
                         </div>
                       )}
                     </div>
                   ))}
-                </Card>
-              </div>
-            </Card>
+                  {pendingPayers.length === 0 && <p className="py-3 text-center text-xs text-emerald-600">No hay pagos pendientes.</p>}
+                  </div>
+                </div>
+                {canConfirmReceipt && <div className="flex justify-end border-t pt-3"><Button size="sm" onClick={handleConfirmPayout} disabled={isConfirmingReceipt}>{isConfirmingReceipt ? 'Confirmando…' : 'Confirmar recibo'}</Button></div>}
+              </Card>
+            </div>
           )}
 
           {generalTab === 'cronograma' && (
