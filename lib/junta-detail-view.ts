@@ -16,7 +16,7 @@ export type WeeklyMemberRow = {
   displayName: string;
   celular?: string;
   turno: number;
-  score: number;
+  score: number | null;
   status: WeeklyPaymentStatus;
   amount: number;
   isReceiver: boolean;
@@ -69,6 +69,7 @@ export function getCurrentWeekSummary(params: {
   currentWeek: number;
   userId?: string;
   juntaActiva: boolean;
+  scoresByProfileId?: Record<string, number>;
 }) {
   const currentSchedule = params.schedules
     .filter((schedule) => schedule.junta_id === params.junta.id && schedule.cuota_numero === params.currentWeek)
@@ -87,7 +88,8 @@ export function getCurrentWeekSummary(params: {
     currentSchedule,
     receiverProfileId: receiver?.profile_id,
     userId: params.userId,
-    juntaActiva: params.juntaActiva
+    juntaActiva: params.juntaActiva,
+    scoresByProfileId: params.scoresByProfileId
   });
   const paid = rows.filter((row) => row.status === 'Pagado' || row.status === 'Validando').length;
   const pending = rows.filter((row) => row.status !== 'Pagado' && row.status !== 'Validando' && row.status !== 'Recibe').length;
@@ -121,6 +123,7 @@ export function getCurrentWeekPaymentRows(params: {
   receiverProfileId?: string;
   userId?: string;
   juntaActiva: boolean;
+  scoresByProfileId?: Record<string, number>;
 }): WeeklyMemberRow[] {
   const amount = params.junta.cuota_base ?? params.junta.monto_cuota;
   return params.members.map((member, index) => {
@@ -174,7 +177,7 @@ export function getCurrentWeekPaymentRows(params: {
       displayName,
       celular: member.celular,
       turno: member.orden_turno,
-      score: Math.max(62, 95 - Math.abs(member.orden_turno - params.currentWeek) * 3),
+      score: params.scoresByProfileId?.[member.profile_id] ?? null,
       status: resolvePaymentStatus({ juntaActiva: params.juntaActiva, schedule: params.currentSchedule, payment, isReceiver }),
       amount,
       isReceiver,

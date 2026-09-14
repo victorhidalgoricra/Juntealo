@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, confirmPayout, deleteDraftJunta, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, joinJuntaAsParticipant, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, deleteDraftJunta, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, joinJuntaAsParticipant, sendPaymentReminder, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
+import { fetchGlobalRanking } from '@/services/ranking.service';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
 import { Junta } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial } from '@/lib/profile-display';
@@ -31,8 +32,8 @@ import { CalendarClock, CheckCircle2, Clock3, Copy, Landmark, Plus, Share2, Spar
 type MainView = 'general' | 'personal';
 type GeneralTab = 'integrantes' | 'cronograma' | 'pagos' | 'turnos';
 
-function JuntaScoreBadge({ score }: { score: number }) {
-  return <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">Score {score}</span>;
+function JuntaScoreBadge({ score }: { score: number | null }) {
+  return <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">{score == null ? 'Score no disponible' : `Score ${score}`}</span>;
 }
 
 function KpiCard({ icon: Icon, label, value, tone = 'blue' }: { icon: typeof WalletCards; label: string; value: string; tone?: 'blue' | 'green' | 'amber' | 'violet' }) {
@@ -111,6 +112,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [isConfirmingReceipt, setIsConfirmingReceipt] = useState(false);
   const [isDeletingJunta, setIsDeletingJunta] = useState(false);
+  const [scoresByProfileId, setScoresByProfileId] = useState<Record<string, number>>({});
+  const [remindingProfileId, setRemindingProfileId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -192,10 +195,11 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       // store state after re-login (store is cleared on logout and repopulated async).
       // Payouts are critical for currentWeek calculation — a stale store count causes
       // the UI to show the wrong round as "current", mismatching the backend.
-      const [paymentsResult, schedulesResult, payoutsResult] = await Promise.all([
+      const [paymentsResult, schedulesResult, payoutsResult, rankingResult] = await Promise.all([
         fetchPaymentsByJuntaId(junta.id),
         fetchSchedulesByJuntaId(junta.id),
         fetchPayoutsByJuntaId(junta.id),
+        fetchGlobalRanking(),
       ]);
 
       if (cancelled) return;
@@ -228,6 +232,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       setDetailPayments(freshPayments);
       setDetailSchedules(freshSchedules);
       setDetailPayouts(freshPayouts);
+      if (rankingResult.ok) {
+        setScoresByProfileId(Object.fromEntries(rankingResult.data.map((entry) => [entry.profileId, entry.score])));
+      }
       setPhaseTwoLoading(false);
     };
     loadPhaseTwo();
@@ -397,7 +404,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     schedules: detailSchedules,
     currentWeek,
     userId: user?.id,
-    juntaActiva: juntaActiva || juntaFinalizada
+    juntaActiva: juntaActiva || juntaFinalizada,
+    scoresByProfileId
   });
   const paidParticipants = getPaidParticipants(summary.rows);
   const pendingPayers = getPendingPayers(summary.rows);
@@ -425,7 +433,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
   // When finalizada, override counters so the UI reflects full completion
   // regardless of any historical data inconsistencies.
-  const displayPaid = juntaFinalizada ? summary.rows.length : summary.paid;
+  const displayPaid = juntaFinalizada ? summary.rows.filter((row) => !row.isReceiver).length : summary.paid;
   const displayPending = juntaFinalizada ? 0 : summary.pending;
 
   const handleDeleteJunta = async () => {
@@ -484,6 +492,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const requiredPayers = summary.rows.filter((r) => !r.isReceiver);
   const allPaymentsApproved = requiredPayers.length > 0 && requiredPayers.every((r) => r.status === 'Pagado');
   const canConfirmReceipt = isCurrentReceiver && allPaymentsApproved && !juntaFinalizada;
+  const paymentTargetCount = requiredPayers.length;
 
   if (process.env.NODE_ENV === 'development') {
     console.debug('[CONFIRM RECEIPT DEBUG]', {
@@ -511,6 +520,15 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       `Hola ${row.displayName}, te recordamos que tienes pendiente tu aporte de S/ ${row.amount.toFixed(0)} para la junta ${junta!.nombre}. Por favor regularízalo para continuar con el ciclo.`
     );
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+  };
+
+  const handleSendPaymentReminder = async (row: WeeklyMemberRow) => {
+    if (remindingProfileId) return;
+    setRemindingProfileId(row.profileId);
+    setPaymentInfo(null);
+    const result = await sendPaymentReminder({ juntaId: junta!.id, profileId: row.profileId });
+    setPaymentInfo(result.ok ? `Recordatorio enviado a ${row.displayName}.` : result.message);
+    setRemindingProfileId(null);
   };
 
   const handleConfirmPayout = async () => {
@@ -690,7 +708,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             <KpiCard icon={Landmark} label="Bolsa semana" value={`S/${((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}`} />
-            <KpiCard icon={CheckCircle2} label="Pagos esta semana" value={`${displayPaid}/${summary.rows.length}`} tone="green" />
+            <KpiCard icon={CheckCircle2} label="Pagos esta semana" value={`${displayPaid}/${paymentTargetCount}`} tone="green" />
             <KpiCard icon={WalletCards} label="Turno actual" value={`#${currentWeek}`} tone="violet" />
             <KpiCard icon={Clock3} label="Pendientes" value={`${displayPending}`} tone="amber" />
             <div className="col-span-2 sm:col-span-1"><KpiCard icon={CalendarClock} label="Fecha límite de pago" value={currentRoundDueDate} /></div>
@@ -727,12 +745,12 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                     <p className="text-xs font-medium text-blue-100">Tu próximo cobro</p>
                     <div className="mt-3 flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-sm font-bold">{getInitial(currentUserName)}</div><div><p className="font-semibold">Tú</p><p className="text-xs text-blue-100">Turno #{personal.myTurnRow?.turno ?? '—'}</p></div></div>
                     <p className="mt-3 text-sm font-medium">{personal.myTurnRow?.turno === currentWeek ? 'Te toca recibir esta semana' : personal.myTurnRow ? `Recibes en la semana ${personal.myTurnRow.turno}` : 'Turno pendiente de asignación'}</p>
-                    <div className="mt-2 flex items-end justify-between gap-2"><p className="text-2xl font-bold">S/{(personal.myTurnRow?.montoRecibido ?? simulation.bolsaBase).toFixed(0)}</p><JuntaScoreBadge score={personal.myRow?.score ?? 70} /></div>
+                    <div className="mt-2 flex items-end justify-between gap-2"><p className="text-2xl font-bold">S/{(personal.myTurnRow?.montoRecibido ?? simulation.bolsaBase).toFixed(0)}</p><JuntaScoreBadge score={personal.myRow?.score ?? null} /></div>
                   </Card>
 
                   <Card className="p-4">
                     <div className="flex items-center justify-between gap-2"><h2 className="font-semibold text-slate-900">Estado de pagos</h2><span className="text-xs text-slate-500">Semana {currentWeek}</span></div>
-                    <div className="mt-3 flex items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${(displayPaid / Math.max(summary.rows.length, 1)) * 100}%` }} /></div><span className="text-sm font-bold text-slate-900">{displayPaid}/{summary.rows.length}</span></div>
+                    <div className="mt-3 flex items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${(displayPaid / Math.max(paymentTargetCount, 1)) * 100}%` }} /></div><span className="text-sm font-bold text-slate-900">{displayPaid}/{paymentTargetCount}</span></div>
                     <p className="mt-2 text-xs font-medium text-slate-700">{displayPaid === 0 ? 'Aún no hay pagos registrados.' : `${displayPaid} pago${displayPaid === 1 ? '' : 's'} registrado${displayPaid === 1 ? '' : 's'} esta semana.`}</p>
                     <p className="mt-1 text-xs leading-relaxed text-slate-500">Cuando los integrantes realicen sus pagos, podrás confirmarlos aquí.</p>
                   </Card>
@@ -743,7 +761,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                 <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-semibold text-slate-900">Gestión de pagos <span className="font-normal text-slate-400">· Semana {currentWeek}</span></h2><p className="text-xs text-slate-500">Esta semana recibe {summary.receiver?.displayName ?? '—'}.</p></div><Badge>{canConfirmReceipt ? 'Listo para confirmar' : 'En curso'}</Badge></div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3">
-                    <p className="text-sm font-semibold">Pagaron esta semana ({paidParticipants.length}/{summary.rows.length})</p>
+                    <p className="text-sm font-semibold">Pagaron esta semana ({paidParticipants.length}/{paymentTargetCount})</p>
                   {paidParticipants.map((row) => (
                     <div key={row.id} className="space-y-1">
                       <JuntaPaymentStatusRow row={row} />
@@ -759,13 +777,13 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   {paymentInfo && <p className="text-xs text-rose-700">{paymentInfo}</p>}
                   </div>
                   <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
-                    <p className="text-sm font-semibold">Pendientes ({pendingPayers.length}/{summary.rows.length})</p>
+                    <p className="text-sm font-semibold">Pendientes ({pendingPayers.length}/{paymentTargetCount})</p>
                   {pendingPayers.map((row) => (
                     <div key={row.id} className="space-y-2">
                       <JuntaPaymentStatusRow row={row} />
                       {!juntaFinalizada && (
                         <div className="flex flex-wrap gap-2 pl-0 sm:pl-2">
-                          <Button size="sm" variant="ghost" onClick={() => alert('Las notificaciones automáticas estarán disponibles próximamente. Por ahora usa WhatsApp para contactar al integrante.')}>Reenviar recordatorio</Button>
+                          {(isOwner || isCurrentReceiver) && <Button size="sm" variant="ghost" disabled={remindingProfileId !== null} onClick={() => handleSendPaymentReminder(row)}>{remindingProfileId === row.profileId ? 'Enviando…' : 'Reenviar recordatorio'}</Button>}
                           <Button size="sm" variant="outline" onClick={() => openWhatsAppReminder(row)}>WhatsApp</Button>
                         </div>
                       )}
@@ -953,7 +971,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             <p className="text-5xl font-bold">#{personal.myTurnRow?.turno ?? '-'}</p>
             <p className="text-sm text-slate-200">{junta.nombre} · Recibes S/{(personal.myTurnRow?.montoRecibido ?? simulation.bolsaBase).toFixed(2)}</p>
             <p className="text-sm text-slate-300">Fecha estimada: {personal.myTurnRow?.fechaRonda ?? 'Pendiente'} · {personal.myTurnRow ? `en ${Math.max(personal.myTurnRow.turno - currentWeek, 0)} semanas` : 'sin turno asignado'}</p>
-            <div className="flex flex-wrap items-center gap-2"><JuntaScoreBadge score={personal.myRow?.score ?? 70} /><span className="text-xs text-slate-300">Confianza visible para el grupo</span></div>
+            <div className="flex flex-wrap items-center gap-2"><JuntaScoreBadge score={personal.myRow?.score ?? null} /><span className="text-xs text-slate-300">Confianza visible para el grupo</span></div>
           </Card>
 
           {juntaRacha && (
