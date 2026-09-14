@@ -143,7 +143,7 @@ export default function NewJuntaPage() {
       turn_assignment_mode: 'manual',
       frecuencia_pago: 'semanal',
       fecha_inicio: '',
-      visibilidad: 'privada'
+      visibilidad: 'publica'
     }
   });
 
