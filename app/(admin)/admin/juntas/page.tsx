@@ -14,6 +14,7 @@ import {
 } from '@/services/juntas.repository';
 import { useAuthStore } from '@/store/auth-store';
 import { formatCalendarDate } from '@/lib/calendar-date';
+import { getJuntaDisplayCode } from '@/lib/junta-display';
 
 const ADMIN_JUNTA_HISTORICAL_STATUSES = new Set([
   'borrador',
@@ -113,6 +114,7 @@ export default function AdminJuntasPage() {
       if (!normalizedQuery) return true;
       const searchable = [
         row.nombre,
+        getJuntaDisplayCode(row),
         row.slug,
         row.admin_nombre ?? '',
         row.admin_email ?? ''
@@ -138,7 +140,7 @@ export default function AdminJuntasPage() {
 
       <Card className="space-y-3 p-4">
         <div className="grid gap-2 md:grid-cols-5">
-          <input className="w-full rounded-md border px-3 py-2 text-sm" placeholder="Buscar por nombre, creador, slug o correo" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <input className="w-full rounded-md border px-3 py-2 text-sm" placeholder="Buscar por nombre, código, creador, slug o correo" value={query} onChange={(event) => setQuery(event.target.value)} />
           <select className="w-full rounded-md border px-3 py-2 text-sm" value={estado} onChange={(event) => setEstado(event.target.value as typeof estado)}>
             <option value="todos">Estado: todos</option>
             <option value="borrador">Borrador</option>
@@ -187,6 +189,7 @@ export default function AdminJuntasPage() {
                   <tr key={row.id} className={`border-t align-top transition-colors ${isNotActionable ? 'bg-slate-50 text-slate-400 opacity-70' : ''}`}>
                     <td className="px-3 py-2">
                       <p className={`font-medium ${isNotActionable ? 'text-slate-500' : 'text-slate-900'}`}>{row.nombre}</p>
+                      <p className="text-xs font-medium text-slate-600">Código: {getJuntaDisplayCode(row)}</p>
                       <p className="text-xs text-slate-500">slug: {row.slug}</p>
                     </td>
                     <td className="px-3 py-2">
