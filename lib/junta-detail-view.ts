@@ -35,9 +35,9 @@ function resolvePaymentStatus(params: {
   if (params.schedule?.estado === 'vencida' && !params.payment) return 'Vencido';
   // Check both `estado` and `payment_status` — the DB stores Spanish values in `estado`
   // while the local store may use the TypeScript enum in either field.
-  const normalizedEstado = normalizePaymentStatus(params.payment?.estado);
-  const normalizedStatus = normalizePaymentStatus(params.payment?.payment_status);
-  const normalized = normalizedEstado !== 'pending' ? normalizedEstado : normalizedStatus;
+  // `payment_status` is the canonical lifecycle field. Fall back to `estado`
+  // only for legacy rows where the canonical field has not been populated.
+  const normalized = normalizePaymentStatus(params.payment?.payment_status ?? params.payment?.estado);
   if (normalized === 'approved') return 'Pagado';
   if (normalized === 'submitted' || normalized === 'validating') return 'Validando';
   if (normalized === 'rejected') return 'Rechazado';
@@ -91,7 +91,8 @@ export function getCurrentWeekSummary(params: {
     juntaActiva: params.juntaActiva,
     scoresByProfileId: params.scoresByProfileId
   });
-  const paid = rows.filter((row) => row.status === 'Pagado' || row.status === 'Validando').length;
+  const paid = rows.filter((row) => row.status === 'Pagado').length;
+  const validating = rows.filter((row) => row.status === 'Validando').length;
   const pending = rows.filter((row) => row.status !== 'Pagado' && row.status !== 'Validando' && row.status !== 'Recibe').length;
 
   if (process.env.NODE_ENV === 'development') {
@@ -111,7 +112,7 @@ export function getCurrentWeekSummary(params: {
     });
   }
 
-  return { currentSchedule, receiver, rows, paid, pending };
+  return { currentSchedule, receiver, rows, paid, validating, pending };
 }
 
 export function getCurrentWeekPaymentRows(params: {
@@ -188,7 +189,11 @@ export function getCurrentWeekPaymentRows(params: {
 }
 
 export function getPaidParticipants(rows: WeeklyMemberRow[]) {
-  return rows.filter((row) => row.status === 'Pagado' || row.status === 'Validando');
+  return rows.filter((row) => row.status === 'Pagado');
+}
+
+export function getValidatingParticipants(rows: WeeklyMemberRow[]) {
+  return rows.filter((row) => row.status === 'Validando');
 }
 
 export function getPendingPayers(rows: WeeklyMemberRow[]) {

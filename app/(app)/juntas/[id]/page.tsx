@@ -20,6 +20,7 @@ import {
   getCurrentWeekSummary,
   getPaidParticipants,
   getPendingPayers,
+  getValidatingParticipants,
   getTurnSchedule,
   getUserPersonalJuntaView,
   WeeklyMemberRow
@@ -101,7 +102,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [accessState, setAccessState] = useState<'checking' | 'allowed' | 'unauthorized' | 'blocked' | 'not_found' | 'can_join'>('checking');
   const [joiningFromPreview, setJoiningFromPreview] = useState(false);
   const [joinPreviewError, setJoinPreviewError] = useState<string | null>(null);
-  const [phaseTwoLoading, setPhaseTwoLoading] = useState(false);
+  const [phaseTwoLoading, setPhaseTwoLoading] = useState(true);
   const [detailMembers, setDetailMembers] = useState<import('@/types/domain').JuntaMember[]>([]);
   const [detailPayments, setDetailPayments] = useState<typeof payments>([]);
   const [detailSchedules, setDetailSchedules] = useState<typeof schedules>([]);
@@ -408,6 +409,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     scoresByProfileId
   });
   const paidParticipants = getPaidParticipants(summary.rows);
+  const validatingParticipants = getValidatingParticipants(summary.rows);
   const pendingPayers = getPendingPayers(summary.rows);
   const needsScheduleRows = (mainView === 'general' && (generalTab === 'cronograma' || generalTab === 'turnos')) || mainView === 'personal';
   const scheduleRows = needsScheduleRows
@@ -431,10 +433,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     incentivoRegla: junta.incentivo_regla
   });
 
-  // When finalizada, override counters so the UI reflects full completion
-  // regardless of any historical data inconsistencies.
-  const displayPaid = juntaFinalizada ? summary.rows.filter((row) => !row.isReceiver).length : summary.paid;
-  const displayPending = juntaFinalizada ? 0 : summary.pending;
+  const displayPaid = summary.paid;
+  const displayPending = summary.pending;
 
   const handleDeleteJunta = async () => {
     if (!isOwner || !junta || isDeletingJunta) return;
@@ -708,9 +708,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             <KpiCard icon={Landmark} label="Bolsa semana" value={`S/${((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}`} />
-            <KpiCard icon={CheckCircle2} label="Pagos esta semana" value={`${displayPaid}/${paymentTargetCount}`} tone="green" />
+            <KpiCard icon={CheckCircle2} label="Pagos confirmados" value={phaseTwoLoading ? '—' : `${displayPaid}/${paymentTargetCount}`} tone="green" />
             <KpiCard icon={WalletCards} label="Turno actual" value={`#${currentWeek}`} tone="violet" />
-            <KpiCard icon={Clock3} label="Pendientes" value={`${displayPending}`} tone="amber" />
+            <KpiCard icon={Clock3} label="Pendientes" value={phaseTwoLoading ? '—' : `${displayPending}`} tone="amber" />
             <div className="col-span-2 sm:col-span-1"><KpiCard icon={CalendarClock} label="Fecha límite de pago" value={currentRoundDueDate} /></div>
           </div>
 
@@ -750,22 +750,31 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
                   <Card className="p-4">
                     <div className="flex items-center justify-between gap-2"><h2 className="font-semibold text-slate-900">Estado de pagos</h2><span className="text-xs text-slate-500">Semana {currentWeek}</span></div>
-                    <div className="mt-3 flex items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${(displayPaid / Math.max(paymentTargetCount, 1)) * 100}%` }} /></div><span className="text-sm font-bold text-slate-900">{displayPaid}/{paymentTargetCount}</span></div>
-                    <p className="mt-2 text-xs font-medium text-slate-700">{displayPaid === 0 ? 'Aún no hay pagos registrados.' : `${displayPaid} pago${displayPaid === 1 ? '' : 's'} registrado${displayPaid === 1 ? '' : 's'} esta semana.`}</p>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-500">Cuando los integrantes realicen sus pagos, podrás confirmarlos aquí.</p>
+                    {phaseTwoLoading ? <p className="mt-3 text-sm text-slate-500">Cargando estado de pagos…</p> : <>
+                      <div className="mt-3 flex items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${(displayPaid / Math.max(paymentTargetCount, 1)) * 100}%` }} /></div><span className="text-sm font-bold text-slate-900">{displayPaid}/{paymentTargetCount}</span></div>
+                      <p className="mt-2 text-xs font-medium text-slate-700">{displayPaid} confirmado{displayPaid === 1 ? '' : 's'} · {summary.validating} por validar · {displayPending} pendiente{displayPending === 1 ? '' : 's'}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-slate-500">{isCurrentReceiver ? 'Como receptor de esta semana, puedes confirmar los pagos enviados.' : `Esta semana ${summary.receiver?.displayName ?? 'el receptor'} confirma los pagos enviados.`}</p>
+                    </>}
                   </Card>
                 </div>
               </div>
 
               <Card className="space-y-3 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-semibold text-slate-900">Gestión de pagos <span className="font-normal text-slate-400">· Semana {currentWeek}</span></h2><p className="text-xs text-slate-500">Esta semana recibe {summary.receiver?.displayName ?? '—'}.</p></div><Badge>{canConfirmReceipt ? 'Listo para confirmar' : 'En curso'}</Badge></div>
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 lg:grid-cols-3">
                   <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3">
-                    <p className="text-sm font-semibold">Pagaron esta semana ({paidParticipants.length}/{paymentTargetCount})</p>
+                    <p className="text-sm font-semibold">Confirmados ({paidParticipants.length}/{paymentTargetCount})</p>
                   {paidParticipants.map((row) => (
+                    <JuntaPaymentStatusRow key={row.id} row={row} />
+                  ))}
+                  {paidParticipants.length === 0 && <p className="py-3 text-center text-xs text-slate-500">Aún no hay pagos confirmados.</p>}
+                  </div>
+                  <div className="space-y-2 rounded-xl border border-blue-200 bg-blue-50/40 p-3">
+                    <p className="text-sm font-semibold">Por validar ({validatingParticipants.length}/{paymentTargetCount})</p>
+                  {validatingParticipants.map((row) => (
                     <div key={row.id} className="space-y-1">
                       <JuntaPaymentStatusRow row={row} />
-                      {isCurrentReceiver && row.status === 'Validando' && row.paymentId && (
+                      {isCurrentReceiver && row.paymentId && (
                         <div className="flex flex-wrap gap-2 pl-0 sm:pl-2">
                           <Button size="sm" onClick={() => handleAcceptPayment(row.paymentId!, row.status)}>Confirmar pago</Button>
                           <Button size="sm" variant="outline" onClick={() => handleRejectPayment(row.paymentId!, row.status)}>Rechazar</Button>
@@ -773,7 +782,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                       )}
                     </div>
                   ))}
-                  {paidParticipants.length === 0 && <p className="py-3 text-center text-xs text-slate-500">Aún no hay pagos en esta columna.</p>}
+                  {validatingParticipants.length === 0 && <p className="py-3 text-center text-xs text-slate-500">No hay pagos por validar.</p>}
                   {paymentInfo && <p className="text-xs text-rose-700">{paymentInfo}</p>}
                   </div>
                   <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
