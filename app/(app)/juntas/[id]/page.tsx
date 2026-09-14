@@ -686,7 +686,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   </Card>
 
                   <Card className="p-4">
-                    <div className="flex items-center justify-between gap-3"><h2 className="font-semibold text-slate-900">Integrantes <span className="font-normal text-slate-400">({memberCount}/{junta.participantes_max})</span></h2><button type="button" onClick={() => setGeneralTab('integrantes')} className="text-xs font-semibold text-blue-600 hover:text-blue-700">Ver todos</button></div>
+                    <div className="flex items-center justify-between gap-3"><h2 className="font-semibold text-slate-900">Integrantes <span className="font-normal text-slate-400">({memberCount}/{junta.participantes_max})</span></h2><button type="button" onClick={() => setGeneralTab('cronograma')} className="text-xs font-semibold text-blue-600 hover:text-blue-700">Ver todos</button></div>
                     <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
                       {juntaMembers.map((member, index) => {
                         const name = member.profile_id === user?.id ? 'Tú' : member.nombre ?? `Integrante ${index + 1}`;
