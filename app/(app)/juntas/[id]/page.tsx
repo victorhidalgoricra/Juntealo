@@ -823,7 +823,19 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                 </div>
 
                 <div className="space-y-3">
-                  <Card className="border-blue-200 bg-gradient-to-br from-blue-600 to-indigo-700 p-4 text-white">
+                  <Card
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Ir a Mi participación"
+                    onClick={() => setMainView('personal')}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setMainView('personal');
+                      }
+                    }}
+                    className="cursor-pointer border-blue-200 bg-gradient-to-br from-blue-600 to-indigo-700 p-4 text-white transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                  >
                     <p className="text-xs font-medium text-blue-100">Tu próximo cobro</p>
                     <div className="mt-3 flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-sm font-bold">{getInitial(currentUserName)}</div><div><p className="font-semibold">Tú</p><p className="text-xs text-blue-100">Turno #{personal.myTurnRow?.turno ?? '—'}</p></div></div>
                     <p className="mt-3 text-sm font-medium">{personal.myTurnRow?.turno === currentWeek ? 'Te toca recibir esta semana' : personal.myTurnRow ? `Recibes en la semana ${personal.myTurnRow.turno}` : 'Turno pendiente de asignación'}</p>
@@ -837,6 +849,17 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                       <p className="mt-2 text-xs font-medium text-slate-700">{displayPaid} confirmado{displayPaid === 1 ? '' : 's'} · {summary.validating} por validar · {displayPending} pendiente{displayPending === 1 ? '' : 's'}</p>
                       <p className="mt-1 text-xs leading-relaxed text-slate-500">{isCurrentReceiver ? 'Como receptor de esta semana, puedes confirmar los pagos enviados.' : `Esta semana ${summary.receiver?.displayName ?? 'el receptor'} confirma los pagos enviados.`}</p>
                     </>}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-3 w-full"
+                      onClick={() => {
+                        setMainView('general');
+                        setGeneralTab('pagos');
+                      }}
+                    >
+                      Ver pagos
+                    </Button>
                   </Card>
                 </div>
               </div>
