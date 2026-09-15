@@ -16,7 +16,7 @@ export type WeeklyMemberRow = {
   displayName: string;
   celular?: string;
   turno: number;
-  score: number;
+  score: number | null;
   status: WeeklyPaymentStatus;
   amount: number;
   isReceiver: boolean;
@@ -30,14 +30,14 @@ function resolvePaymentStatus(params: {
   payment?: Payment;
   isReceiver?: boolean;
 }): WeeklyPaymentStatus {
-  if (!params.juntaActiva) return 'En formación';
   if (params.isReceiver) return 'Recibe';
+  if (!params.juntaActiva) return 'En formación';
   if (params.schedule?.estado === 'vencida' && !params.payment) return 'Vencido';
   // Check both `estado` and `payment_status` — the DB stores Spanish values in `estado`
   // while the local store may use the TypeScript enum in either field.
-  const normalizedEstado = normalizePaymentStatus(params.payment?.estado);
-  const normalizedStatus = normalizePaymentStatus(params.payment?.payment_status);
-  const normalized = normalizedEstado !== 'pending' ? normalizedEstado : normalizedStatus;
+  // `payment_status` is the canonical lifecycle field. Fall back to `estado`
+  // only for legacy rows where the canonical field has not been populated.
+  const normalized = normalizePaymentStatus(params.payment?.payment_status ?? params.payment?.estado);
   if (normalized === 'approved') return 'Pagado';
   if (normalized === 'submitted' || normalized === 'validating') return 'Validando';
   if (normalized === 'rejected') return 'Rechazado';
@@ -69,6 +69,7 @@ export function getCurrentWeekSummary(params: {
   currentWeek: number;
   userId?: string;
   juntaActiva: boolean;
+  scoresByProfileId?: Record<string, number>;
 }) {
   const currentSchedule = params.schedules
     .filter((schedule) => schedule.junta_id === params.junta.id && schedule.cuota_numero === params.currentWeek)
@@ -87,10 +88,12 @@ export function getCurrentWeekSummary(params: {
     currentSchedule,
     receiverProfileId: receiver?.profile_id,
     userId: params.userId,
-    juntaActiva: params.juntaActiva
+    juntaActiva: params.juntaActiva,
+    scoresByProfileId: params.scoresByProfileId
   });
-  const paid = rows.filter((row) => row.status === 'Pagado' || row.status === 'Validando').length;
-  const pending = rows.filter((row) => row.status !== 'Pagado' && row.status !== 'Validando' && row.status !== 'Recibe').length;
+  const paid = rows.filter((row) => row.status === 'Pagado').length;
+  const validating = rows.filter((row) => row.status === 'Validando').length;
+  const pending = rows.filter((row) => !row.isReceiver && row.status !== 'Pagado' && row.status !== 'Validando').length;
 
   if (process.env.NODE_ENV === 'development') {
     const rawPayments = params.payments.filter((p) => p.junta_id === params.junta.id);
@@ -109,7 +112,7 @@ export function getCurrentWeekSummary(params: {
     });
   }
 
-  return { currentSchedule, receiver, rows, paid, pending };
+  return { currentSchedule, receiver, rows, paid, validating, pending };
 }
 
 export function getCurrentWeekPaymentRows(params: {
@@ -121,6 +124,7 @@ export function getCurrentWeekPaymentRows(params: {
   receiverProfileId?: string;
   userId?: string;
   juntaActiva: boolean;
+  scoresByProfileId?: Record<string, number>;
 }): WeeklyMemberRow[] {
   const amount = params.junta.cuota_base ?? params.junta.monto_cuota;
   return params.members.map((member, index) => {
@@ -174,7 +178,7 @@ export function getCurrentWeekPaymentRows(params: {
       displayName,
       celular: member.celular,
       turno: member.orden_turno,
-      score: Math.max(62, 95 - Math.abs(member.orden_turno - params.currentWeek) * 3),
+      score: params.scoresByProfileId?.[member.profile_id] ?? null,
       status: resolvePaymentStatus({ juntaActiva: params.juntaActiva, schedule: params.currentSchedule, payment, isReceiver }),
       amount,
       isReceiver,
@@ -185,11 +189,15 @@ export function getCurrentWeekPaymentRows(params: {
 }
 
 export function getPaidParticipants(rows: WeeklyMemberRow[]) {
-  return rows.filter((row) => row.status === 'Pagado' || row.status === 'Validando');
+  return rows.filter((row) => row.status === 'Pagado');
+}
+
+export function getValidatingParticipants(rows: WeeklyMemberRow[]) {
+  return rows.filter((row) => row.status === 'Validando');
 }
 
 export function getPendingPayers(rows: WeeklyMemberRow[]) {
-  return rows.filter((row) => row.status !== 'Pagado' && row.status !== 'Validando' && row.status !== 'Recibe');
+  return rows.filter((row) => !row.isReceiver && row.status !== 'Pagado' && row.status !== 'Validando');
 }
 
 export function getTurnSchedule(params: {

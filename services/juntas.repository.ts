@@ -1066,3 +1066,15 @@ export async function markNotificationsRead(profileId: string, ids?: string[]) {
   if (error) return { ok: false as const, message: error.message };
   return { ok: true as const };
 }
+
+export async function sendPaymentReminder(params: { juntaId: string; profileId: string }) {
+  if (!hasSupabase || !supabase) return { ok: true as const };
+
+  const { error } = await supabase.schema('public').rpc('send_payment_reminder', {
+    p_junta_id: params.juntaId,
+    p_profile_id: params.profileId,
+  });
+
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+  return { ok: true as const };
+}
