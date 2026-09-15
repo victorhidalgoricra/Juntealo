@@ -545,6 +545,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   }
 
   const openWhatsAppReminder = (row: WeeklyMemberRow) => {
+    if (row.profileId === currentUserProfileId) return;
+
     const rawPhone = row.celular ?? '';
     const digits = rawPhone.replace(/\D/g, '');
     const phone = digits.length === 9 ? `51${digits}` : digits;
@@ -559,7 +561,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   };
 
   const handleSendPaymentReminder = async (row: WeeklyMemberRow) => {
-    if (remindingProfileId) return;
+    if (remindingProfileId || row.profileId === currentUserProfileId) return;
     setRemindingProfileId(row.profileId);
     setPaymentInfo(null);
     const result = await sendPaymentReminder({ juntaId: junta!.id, profileId: row.profileId });
@@ -842,24 +844,29 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                     <div className="mt-2 flex items-end justify-between gap-2"><p className="text-2xl font-bold">S/{(personal.myTurnRow?.montoRecibido ?? simulation.bolsaBase).toFixed(0)}</p><JuntaScoreBadge score={personal.myRow?.score ?? null} /></div>
                   </Card>
 
-                  <Card className="p-4">
+                  <Card
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Ir a pagos"
+                    onClick={() => {
+                      setMainView('general');
+                      setGeneralTab('pagos');
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setMainView('general');
+                        setGeneralTab('pagos');
+                      }
+                    }}
+                    className="cursor-pointer p-4 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                  >
                     <div className="flex items-center justify-between gap-2"><h2 className="font-semibold text-slate-900">Estado de pagos</h2><span className="text-xs text-slate-500">Semana {currentWeek}</span></div>
                     {phaseTwoLoading ? <p className="mt-3 text-sm text-slate-500">Cargando estado de pagos…</p> : <>
                       <div className="mt-3 flex items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${(displayPaid / Math.max(paymentTargetCount, 1)) * 100}%` }} /></div><span className="text-sm font-bold text-slate-900">{displayPaid}/{paymentTargetCount}</span></div>
                       <p className="mt-2 text-xs font-medium text-slate-700">{displayPaid} confirmado{displayPaid === 1 ? '' : 's'} · {summary.validating} por validar · {displayPending} pendiente{displayPending === 1 ? '' : 's'}</p>
                       <p className="mt-1 text-xs leading-relaxed text-slate-500">{isCurrentReceiver ? 'Como receptor de esta semana, puedes confirmar los pagos enviados.' : `Esta semana ${summary.receiver?.displayName ?? 'el receptor'} confirma los pagos enviados.`}</p>
                     </>}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-3 w-full"
-                      onClick={() => {
-                        setMainView('general');
-                        setGeneralTab('pagos');
-                      }}
-                    >
-                      Ver pagos
-                    </Button>
                   </Card>
                 </div>
               </div>
@@ -898,7 +905,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                   {pendingPayers.map((row) => (
                     <div key={row.id} className="space-y-2">
                       <JuntaPaymentStatusRow row={row} showPayAction={!juntaFinalizada} onPay={() => router.push(`/juntas/${junta.id}/registrar-pago`)} />
-                      {!juntaFinalizada && (
+                      {!juntaFinalizada && row.profileId !== currentUserProfileId && (
                         <div className="flex flex-wrap gap-2 pl-0 sm:pl-2">
                           {(isOwner || isCurrentReceiver) && <Button size="sm" variant="ghost" disabled={remindingProfileId !== null} onClick={() => handleSendPaymentReminder(row)}>{remindingProfileId === row.profileId ? 'Enviando…' : 'Reenviar recordatorio'}</Button>}
                           <Button size="sm" variant="outline" onClick={() => openWhatsAppReminder(row)}>WhatsApp</Button>
