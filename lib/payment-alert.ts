@@ -3,6 +3,7 @@ import { es } from 'date-fns/locale';
 import { Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
 import { normalizePaymentStatus } from './payment-status';
 import { getCurrentRoundReceiver } from './payment-instructions';
+import { formatSoles } from './number-format';
 
 export type PaymentAlertStatus = 'upcoming' | 'due_today' | 'overdue' | 'paid' | 'none' | 'en_validacion';
 
@@ -259,7 +260,7 @@ export function getPaymentAlertState(params: {
       status: 'en_validacion',
       tone: 'neutral',
       title: `Tu pago de ${junta.nombre} está en validación`,
-      subtitle: `S/${next.schedule.monto.toFixed(2)} · Será confirmado por el receptor.`,
+      subtitle: `${formatSoles(next.schedule.monto)} · Será confirmado por el receptor.`,
       amount: next.schedule.monto,
       dueDate,
       dueTime,
@@ -273,7 +274,7 @@ export function getPaymentAlertState(params: {
     result = {
       status: 'overdue',
       tone: 'destructive',
-      title: `Tienes un pago vencido de S/${next.schedule.monto.toFixed(2)}`,
+      title: `Tienes un pago vencido de ${formatSoles(next.schedule.monto)}`,
       subtitle: `Venció el ${format(dueDate, "dd 'de' MMMM, HH:mm", { locale: es })} (${formatDistanceToNowStrict(dueDate, { addSuffix: true, locale: es })}).`,
       amount: next.schedule.monto,
       dueDate,
@@ -288,7 +289,7 @@ export function getPaymentAlertState(params: {
     result = {
       status: 'due_today',
       tone: 'warning',
-      title: `Tienes hasta hoy ${dueTime ?? '23:59'} para pagar S/${next.schedule.monto.toFixed(2)}`,
+      title: `Tienes hasta hoy ${dueTime ?? '23:59'} para pagar ${formatSoles(next.schedule.monto)}`,
       subtitle: `${junta.nombre}. ${remainingText ?? ''}`.trim(),
       amount: next.schedule.monto,
       dueDate,
@@ -304,7 +305,7 @@ export function getPaymentAlertState(params: {
       status: 'upcoming',
       tone: 'warning',
       title: `Tu próximo pago vence el ${format(dueDate, "dd 'de' MMMM, HH:mm", { locale: es })}`,
-      subtitle: `${junta.nombre} · S/${next.schedule.monto.toFixed(2)}`,
+      subtitle: `${junta.nombre} · ${formatSoles(next.schedule.monto)}`,
       amount: next.schedule.monto,
       dueDate,
       dueTime,

@@ -21,6 +21,7 @@ import {
 } from '@/services/incentive.service';
 import { getLevelCreationLimits } from '@/services/junta-engagement.service';
 import { buildJuntaScoreStatsFromDomain, getUserJuntaScore } from '@/services/junta-score.service';
+import { formatAmount, formatSoles } from '@/lib/number-format';
 
 const steps = [
   { id: 1, title: 'Información básica' },
@@ -642,7 +643,7 @@ export default function NewJuntaPage() {
                             <tr key={`preview-row-${row.turno}`} className="border-t">
                               <td className="px-2 py-2">#{row.turno}</td>
                               <td className="px-2 py-2">{row.ajustePorcentaje > 0 ? `+${row.ajustePorcentaje}%` : row.ajustePorcentaje < 0 ? `${row.ajustePorcentaje}%` : 'Sin incentivo'}</td>
-                              <td className="px-2 py-2">S/ {row.cuotaFinal.toFixed(2)}</td>
+                              <td className="px-2 py-2">{formatSoles(row.cuotaFinal)}</td>
                             </tr>
                           )) : (
                             <tr className="border-t">
@@ -706,8 +707,8 @@ export default function NewJuntaPage() {
           </div>
 
           <div className="space-y-1 text-sm [font-family:'DM_Mono',monospace]">
-            <p>Bolsa total: S/ {(previewParticipantes * previewCuota).toFixed(2)}</p>
-            <p>Cuota base: S/ {previewCuota.toFixed(2)}</p>
+            <p>Bolsa total: {formatSoles(previewParticipantes * previewCuota)}</p>
+            <p>Cuota base: {formatSoles(previewCuota)}</p>
             <p>Duración del ciclo: {cycleLabel}</p>
           </div>
 
@@ -727,7 +728,7 @@ export default function NewJuntaPage() {
             {form.tipo_junta === 'incentivo' && !shouldComputeIncentivePreview && <p>Incentivo: Pendiente de configurar</p>}
             {form.tipo_junta === 'incentivo' && shouldComputeIncentivePreview && incentivePreviewRows.slice(0, 5).map((row) => (
               <p key={row.turno}>
-                Turno #{row.turno}: S/{row.cuotaFinal.toFixed(2)} ({row.ajustePorcentaje > 0 ? `+${row.ajustePorcentaje}%` : `${row.ajustePorcentaje}%`})
+                Turno #{row.turno}: S/ {formatAmount(row.cuotaFinal)} ({row.ajustePorcentaje > 0 ? `+${row.ajustePorcentaje}%` : `${row.ajustePorcentaje}%`})
               </p>
             ))}
           </div>

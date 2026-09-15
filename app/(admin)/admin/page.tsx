@@ -8,6 +8,7 @@ import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { normalizePaymentStatus, paymentStatusLabel } from '@/lib/payment-status';
 import { isBackofficeAdmin } from '@/services/auth-role.service';
+import { formatSoles } from '@/lib/number-format';
 
 type AdminTab = 'resumen' | 'pagos' | 'usuarios' | 'validaciones';
 type ValidationStatus = 'pendiente' | 'aprobado' | 'rechazado';
@@ -130,8 +131,8 @@ export default function AdminPage() {
           <Card><p className="text-xs text-slate-500">Juntas activas</p><p className="text-2xl font-bold">{kpis.activeJuntas}</p></Card>
           <Card><p className="text-xs text-slate-500">Usuarios activos</p><p className="text-2xl font-bold">{kpis.activeUsers}</p></Card>
           <Card><p className="text-xs text-slate-500">Usuarios pendientes</p><p className="text-2xl font-bold">{kpis.usersPending}</p></Card>
-          <Card><p className="text-xs text-slate-500">Monto pendiente</p><p className="text-2xl font-bold">S/ {kpis.amountPending.toFixed(0)}</p></Card>
-          <Card><p className="text-xs text-slate-500">Monto recaudado</p><p className="text-2xl font-bold">S/ {kpis.amountCollected.toFixed(0)}</p></Card>
+          <Card><p className="text-xs text-slate-500">Monto pendiente</p><p className="text-2xl font-bold">{formatSoles(kpis.amountPending, 0)}</p></Card>
+          <Card><p className="text-xs text-slate-500">Monto recaudado</p><p className="text-2xl font-bold">{formatSoles(kpis.amountCollected, 0)}</p></Card>
         </div>
       )}
 
@@ -144,8 +145,8 @@ export default function AdminPage() {
                 <p className="break-words font-semibold">{row.juntaName}</p>
                 <p className="text-xs text-slate-500">Semana {row.semana} · {new Date(row.submittedAt).toLocaleDateString('es-PE')}</p>
               </div>
-              <p>Esperado: S/{row.expectedAmount.toFixed(2)}</p>
-              <p>Enviado: S/{row.submittedAmount.toFixed(2)}</p>
+              <p>Esperado: {formatSoles(row.expectedAmount)}</p>
+              <p>Enviado: {formatSoles(row.submittedAmount)}</p>
               <p>{row.payment.payment_method ?? 'Sin método'}</p>
               <p>{paymentStatusLabel(row.status)}</p>
               <div className="space-y-1">

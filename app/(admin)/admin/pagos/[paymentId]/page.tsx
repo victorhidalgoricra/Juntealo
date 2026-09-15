@@ -8,6 +8,7 @@ import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { normalizePaymentStatus, paymentStatusLabel } from '@/lib/payment-status';
 import { isBackofficeAdmin } from '@/services/auth-role.service';
+import { formatSoles } from '@/lib/number-format';
 
 export default function AdminPaymentDetailPage({ params }: { params: { paymentId: string } }) {
   const router = useRouter();
@@ -58,8 +59,8 @@ export default function AdminPaymentDetailPage({ params }: { params: { paymentId
         <p className="break-words text-sm text-slate-600">Junta: {junta?.nombre ?? 'Junta'}</p>
         <p className="break-all text-sm text-slate-600">Participante: {payment.profile_id}</p>
         <p className="text-sm text-slate-600">Semana/ronda: {schedule?.cuota_numero ?? '-'}</p>
-        <p className="text-sm text-slate-600">Monto esperado: S/{(payment.expected_amount ?? schedule?.monto ?? payment.monto).toFixed(2)}</p>
-        <p className="text-sm text-slate-600">Monto enviado: S/{(payment.submitted_amount ?? payment.monto).toFixed(2)}</p>
+        <p className="text-sm text-slate-600">Monto esperado: {formatSoles(payment.expected_amount ?? schedule?.monto ?? payment.monto)}</p>
+        <p className="text-sm text-slate-600">Monto enviado: {formatSoles(payment.submitted_amount ?? payment.monto)}</p>
         <p className="text-sm text-slate-600">Método: {payment.payment_method ?? 'No especificado'}</p>
         <p className="text-sm text-slate-600">Nro operación: {payment.operation_number ?? '—'}</p>
         <p className="text-sm text-slate-600">Estado: <span className="font-semibold">{paymentStatusLabel(normalizePaymentStatus(payment.estado))}</span></p>

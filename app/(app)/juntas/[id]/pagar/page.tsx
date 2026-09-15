@@ -22,6 +22,7 @@ import {
   validatePaymentReceiptFile
 } from '@/services/payment-receipt-upload.service';
 import { formatCalendarDate } from '@/lib/calendar-date';
+import { formatSoles } from '@/lib/number-format';
 
 export default function JuntaPayPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -396,7 +397,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         <h1 className="break-words text-2xl font-semibold">Registrar pago</h1>
         <p className="break-words text-sm text-slate-600">{junta.nombre}</p>
         <p className="text-sm text-slate-600">{scheduleLabel}</p>
-        <p className="text-sm text-slate-600">Monto esperado: <span className="font-semibold">S/ {currentSchedule.monto.toFixed(2)}</span></p>
+        <p className="text-sm text-slate-600">Monto esperado: <span className="font-semibold">{formatSoles(currentSchedule.monto)}</span></p>
         <p className="text-sm text-slate-600">Fecha límite: <span className="font-semibold">{formatCalendarDate(currentSchedule.fecha_vencimiento)}</span></p>
         <p className="text-sm text-slate-600">Estado actual: <span className="font-semibold">{paymentStatusLabel(currentStatus)}</span></p>
         {alreadyPaid && <p className="text-sm font-medium text-emerald-700">Pago ya registrado</p>}
@@ -408,7 +409,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Destinatario del pozo</p>
           <p className="break-words font-semibold text-slate-800">Paga a: {receiverDisplayName}</p>
           <p className="text-sm text-slate-600">Turno: <span className="font-medium">#{currentSchedule.cuota_numero}</span></p>
-          <p className="text-sm text-slate-600">Monto: <span className="font-medium">S/ {currentSchedule.monto.toFixed(2)}</span></p>
+          <p className="text-sm text-slate-600">Monto: <span className="font-medium">{formatSoles(currentSchedule.monto)}</span></p>
           {receiverPaymentDetails.isConfigured ? (
             <div className="space-y-1 border-t border-blue-200 pt-2">
               <p className="text-sm font-medium text-slate-700">Método sugerido: {receiverPaymentDetails.methodLabel}</p>

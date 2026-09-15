@@ -13,9 +13,10 @@ import { useAppStore } from '@/store/app-store';
 import { Profile } from '@/types/domain';
 import { buildPaymentDebtItems } from '@/lib/payment-debts';
 import { formatCalendarDate } from '@/lib/calendar-date';
+import { formatSoles } from '@/lib/number-format';
 
 function money(value: number) {
-  return `S/ ${value.toFixed(2)}`;
+  return formatSoles(value);
 }
 
 export default function PagarPage() {

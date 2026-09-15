@@ -7,6 +7,7 @@ import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { normalizePaymentStatus, paymentStatusLabel } from '@/lib/payment-status';
 import { isBackofficeAdmin } from '@/services/auth-role.service';
+import { formatSoles } from '@/lib/number-format';
 
 export default function AdminPaymentsPage() {
   const { payments, juntas, members, schedules } = useAppStore();
@@ -46,8 +47,8 @@ export default function AdminPaymentsPage() {
                 <p className="text-xs text-slate-500">{member?.rol === 'admin' ? 'Creador' : `Participante turno ${member?.orden_turno ?? '-'}`}</p>
               </div>
               <p>Semana {schedule?.cuota_numero ?? '-'}</p>
-              <p>Esperado: S/{expected.toFixed(2)}</p>
-              <p>Enviado: S/{submitted.toFixed(2)}</p>
+              <p>Esperado: {formatSoles(expected)}</p>
+              <p>Enviado: {formatSoles(submitted)}</p>
               <p>{payment.payment_method ?? '—'}</p>
               <p>{sentAt ? new Date(sentAt).toLocaleDateString('es-PE') : '—'}</p>
               <p className="font-medium">{paymentStatusLabel(normalizePaymentStatus(payment.estado))}</p>

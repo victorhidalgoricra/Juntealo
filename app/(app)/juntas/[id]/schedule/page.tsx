@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useAppStore } from '@/store/app-store';
 import { formatCalendarDate } from '@/lib/calendar-date';
+import { formatSoles } from '@/lib/number-format';
 
 export default function SchedulePage({ params }: { params: { id: string } }) {
   const schedules = useAppStore((s) => s.schedules.filter((x) => x.junta_id === params.id));
@@ -15,7 +16,7 @@ export default function SchedulePage({ params }: { params: { id: string } }) {
           <div key={s.id} className="grid gap-1 rounded border p-2 text-sm sm:grid-cols-4">
             <p>#{s.cuota_numero}</p>
             <p>{formatCalendarDate(s.fecha_vencimiento)}</p>
-            <p>S/ {s.monto}</p>
+            <p>{formatSoles(s.monto)}</p>
             <Badge>{s.estado}</Badge>
           </div>
         ))}
