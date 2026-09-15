@@ -1064,7 +1064,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             />
           )}
 
-          {!juntaFinalizada && personal.myRow && personal.myRow.status !== 'Pagado' && personal.myRow.status !== 'Recibe' && (
+          {juntaActiva && personal.myRow && personal.myRow.status !== 'Pagado' && personal.myRow.status !== 'Recibe' && (
             <Card className="border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
               Esta semana debes pagar S/{personal.myRow.amount.toFixed(2)}{junta.tipo_junta === 'incentivo' ? ' (incluye ajustes por incentivos).' : '.'}
             </Card>
@@ -1099,7 +1099,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                 <p>Ajuste: {junta.tipo_junta === 'incentivo' ? incentiveLabel : 'No aplica'}</p>
                 <p>{personal.progressLabel}</p>
               </div>
-              {!juntaFinalizada && personal.myRow?.status !== 'Pagado' && personal.myRow?.status !== 'Validando' && (
+              {juntaActiva && personal.myRow?.status !== 'Pagado' && personal.myRow?.status !== 'Validando' && (
                 <Button onClick={() => router.push(`/juntas/${junta.id}/registrar-pago`)}>Pagar ahora →</Button>
               )}
               {personal.myRow?.status === 'Pagado' && <p className="text-sm font-medium text-emerald-600">Ya enviaste tu pago.</p>}
