@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { activateJuntaIfReady, confirmPayout, deleteDraftJunta, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, joinJuntaAsParticipant, sendPaymentReminder, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
+import { activateJuntaIfReady, confirmPayout, deleteDraftJunta, fetchAvailableJuntas, fetchJuntaActiveMembers, fetchJuntaById, fetchMyActiveMembership, fetchPaymentsByJuntaId, fetchPayoutsByJuntaId, fetchSchedulesByJuntaId, joinJuntaAsParticipant, removeJuntaMember, sendPaymentReminder, setJuntaAssignmentMode, updateJuntaMemberTurns, updatePaymentStatus } from '@/services/juntas.repository';
 import { fetchGlobalRanking } from '@/services/ranking.service';
 import { calcularSimulacionJunta } from '@/services/incentive.service';
-import { Junta } from '@/types/domain';
+import { Junta, JuntaMember } from '@/types/domain';
 import { formatIncentiveLabel, getAvatarColor, getInitial, getMemberAvatarStyle } from '@/lib/profile-display';
 import { isJuntaActive } from '@/lib/junta-status';
 import { APP_BUSINESS_TIMEZONE, isJuntaBlockedByDeadline } from '@/lib/junta-blocking';
@@ -28,7 +28,7 @@ import {
 import { RachaCard } from '@/components/ui/racha-card';
 import { JuntaAvatar } from '@/components/junta-avatar';
 import { computeJuntaRacha } from '@/lib/racha';
-import { CalendarClock, CheckCircle2, Clock3, Copy, Landmark, Plus, Share2, Sparkles, WalletCards } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Clock3, Copy, Crown, Landmark, Plus, Share2, Sparkles, WalletCards, X } from 'lucide-react';
 
 type MainView = 'general' | 'personal';
 type GeneralTab = 'integrantes' | 'cronograma' | 'pagos' | 'turnos';
@@ -115,6 +115,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [isDeletingJunta, setIsDeletingJunta] = useState(false);
   const [scoresByProfileId, setScoresByProfileId] = useState<Record<string, number>>({});
   const [remindingProfileId, setRemindingProfileId] = useState<string | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<JuntaMember | null>(null);
+  const [removingMember, setRemovingMember] = useState(false);
+  const [removeMemberError, setRemoveMemberError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -474,6 +477,34 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     window.open(`https://wa.me/?text=${message}`, '_blank', 'noopener,noreferrer');
   };
 
+  const handleRemoveMember = async () => {
+    if (!user || !memberToRemove || removingMember) return;
+    const canRemove = user.id === junta.admin_id
+      && junta.estado === 'borrador'
+      && memberToRemove.profile_id !== junta.admin_id;
+    if (!canRemove) {
+      setRemoveMemberError('Este integrante ya no puede ser retirado.');
+      return;
+    }
+
+    setRemovingMember(true);
+    setRemoveMemberError(null);
+    const result = await removeJuntaMember({ juntaId: junta.id, profileId: memberToRemove.profile_id });
+    if (!result.ok) {
+      setRemoveMemberError(result.message);
+      setRemovingMember(false);
+      return;
+    }
+
+    setDetailMembers((current) => current.filter((member) => member.id !== memberToRemove.id));
+    setJunta((current) => current ? {
+      ...current,
+      integrantes_actuales: Math.max((current.integrantes_actuales ?? juntaMembers.length) - 1, 0)
+    } : current);
+    setMemberToRemove(null);
+    setRemovingMember(false);
+  };
+
   const isOwner = user?.id === junta.admin_id;
   const memberCount = junta.integrantes_actuales ?? juntaMembers.length;
   const missingMembers = Math.max(junta.participantes_max - memberCount, 0);
@@ -748,10 +779,46 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                     <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
                       {juntaMembers.map((member, index) => {
                         const name = member.profile_id === user?.id ? 'Tú' : member.nombre ?? `Integrante ${index + 1}`;
-                        return <div key={member.id} className="w-14 shrink-0 text-center"><div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold" style={getMemberAvatarStyle(index)}>{getInitial(name)}</div><p className="mt-1 truncate text-[11px] font-medium text-slate-600">{name}</p></div>;
+                        const isCreator = member.profile_id === junta.admin_id;
+                        const canRemove = isOwner && junta.estado === 'borrador' && !isCreator;
+                        const score = scoresByProfileId[member.profile_id] ?? null;
+                        return (
+                          <div key={member.id} className="w-20 shrink-0 text-center">
+                            <div className="relative mx-auto w-11 pt-2">
+                              {isCreator && <Crown aria-label="Creador de la junta" size={15} className="absolute left-1/2 top-0 z-10 -translate-x-1/2 fill-amber-300 text-amber-500" />}
+                              {canRemove && (
+                                <button
+                                  type="button"
+                                  aria-label={`Retirar a ${name}`}
+                                  onClick={() => { setRemoveMemberError(null); setMemberToRemove(member); }}
+                                  className="absolute -right-1 top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:border-red-200 hover:text-red-600"
+                                >
+                                  <X size={12} strokeWidth={2.5} />
+                                </button>
+                              )}
+                              <div className="flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold" style={getMemberAvatarStyle(index)}>{getInitial(name)}</div>
+                            </div>
+                            <p className="mt-1 truncate text-[11px] font-medium text-slate-600" title={name}>{name}</p>
+                            <p className="mt-0.5 text-[10px] leading-tight text-slate-400">{score == null ? 'Score no disponible' : `Score ${score}`}</p>
+                          </div>
+                        );
                       })}
-                      {Array.from({ length: missingMembers }).map((_, index) => <button key={`empty-${index}`} type="button" onClick={handleWhatsAppInvite} className="w-14 shrink-0 text-center"><span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-blue-300 bg-blue-50 text-blue-600"><Plus size={16} /></span><span className="mt-1 block text-[11px] font-medium text-blue-600">Invitar</span></button>)}
+                      {Array.from({ length: missingMembers }).map((_, index) => <button key={`empty-${index}`} type="button" onClick={handleWhatsAppInvite} className="w-20 shrink-0 pt-2 text-center"><span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-blue-300 bg-blue-50 text-blue-600"><Plus size={16} /></span><span className="mt-1 block text-[11px] font-medium text-blue-600">Invitar</span></button>)}
                     </div>
+
+                    {memberToRemove && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="remove-member-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !removingMember) setMemberToRemove(null); }}>
+                        <div className="w-full max-w-md rounded-2xl bg-white p-5 text-left shadow-xl">
+                          <h3 id="remove-member-title" className="text-lg font-semibold text-slate-900">¿Retirar a {memberToRemove.nombre ?? 'este integrante'} de la junta?</h3>
+                          <p className="mt-2 text-sm leading-relaxed text-slate-600">Este integrante dejará de formar parte de la junta y su cupo volverá a estar disponible.</p>
+                          {removeMemberError && <p className="mt-3 rounded-lg bg-red-50 p-2.5 text-sm text-red-700">{removeMemberError}</p>}
+                          <div className="mt-5 flex justify-end gap-2">
+                            <Button type="button" variant="outline" disabled={removingMember} onClick={() => setMemberToRemove(null)}>Cancelar</Button>
+                            <button type="button" disabled={removingMember} onClick={handleRemoveMember} className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">{removingMember ? 'Retirando…' : 'Retirar integrante'}</button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </Card>
                 </div>
 

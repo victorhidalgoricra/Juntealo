@@ -375,6 +375,18 @@ export async function leaveJuntaAsParticipant(params: { juntaId: string }) {
   return { ok: true as const };
 }
 
+export async function removeJuntaMember(params: { juntaId: string; profileId: string }) {
+  if (!hasSupabase || !supabase) return { ok: true as const };
+
+  const { error } = await supabase.schema('public').rpc('remove_junta_member', {
+    p_junta_id: params.juntaId,
+    p_profile_id: params.profileId
+  });
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+
+  return { ok: true as const };
+}
+
 export async function activateJuntaIfReady(params: { juntaId: string }) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: { estado: 'activa' as const } };
 
