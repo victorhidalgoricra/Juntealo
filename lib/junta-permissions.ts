@@ -6,6 +6,16 @@ type JuntaDeleteRow = {
   estado?: string | null;
 };
 
+type JuntaLeaveRow = {
+  estado?: string | null;
+};
+
+export function canLeaveJunta(row: JuntaLeaveRow, isMember: boolean): boolean {
+  // Once activated, a member's place and assigned turn are part of an
+  // in-progress payment cycle and must no longer be removable.
+  return isMember && row.estado !== 'activa' && row.estado !== 'cerrada';
+}
+
 export function canDeleteJunta(
   row: JuntaDeleteRow,
   currentUserId: string | null | undefined
