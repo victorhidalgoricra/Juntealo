@@ -110,6 +110,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [paymentInfo, setPaymentInfo] = useState<string | null>(null);
   const [manualTurns, setManualTurns] = useState<Record<string, number>>({});
   const [activating, setActivating] = useState(false);
+  const [summaryActivationError, setSummaryActivationError] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [isConfirmingReceipt, setIsConfirmingReceipt] = useState(false);
   const [isDeletingJunta, setIsDeletingJunta] = useState(false);
@@ -485,6 +486,11 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     const assigned = turns.filter((t) => t > 0);
     return assigned.length === juntaMembers.length && new Set(assigned).size === juntaMembers.length;
   })();
+  const canActivateFromSummary = isOwner
+    && !juntaActiva
+    && !juntaFinalizada
+    && !blockedByDeadline
+    && memberCount >= junta.participantes_max;
   const currentUserProfileId = user?.id ?? null;
   const currentReceiverProfileId = summary.receiver?.profile_id ?? null;
   const isCurrentReceiver = currentUserProfileId !== null && currentUserProfileId === currentReceiverProfileId;
@@ -493,6 +499,35 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const allPaymentsApproved = requiredPayers.length > 0 && requiredPayers.every((r) => r.status === 'Pagado');
   const canConfirmReceipt = isCurrentReceiver && allPaymentsApproved && !juntaFinalizada;
   const paymentTargetCount = requiredPayers.length;
+
+  const handleActivateFromSummary = async () => {
+    if (!canActivateFromSummary || activating) return;
+
+    setSummaryActivationError(null);
+    if (junta.turn_assignment_mode === 'manual' && !allTurnsAssigned) {
+      setMainView('general');
+      setGeneralTab('turnos');
+      setPaymentInfo('Asigna un turno único a cada integrante para poder activar la junta.');
+      return;
+    }
+
+    setActivating(true);
+    try {
+      const result = await activateJuntaIfReady({ juntaId: junta.id });
+      if (!result.ok) {
+        setSummaryActivationError(result.message);
+        return;
+      }
+
+      const freshResult = await fetchJuntaById(params.id);
+      if (freshResult.ok && freshResult.data) setJunta(freshResult.data);
+      await refreshSnapshot();
+    } catch {
+      setSummaryActivationError('Ocurrió un error al activar la junta. Intenta de nuevo.');
+    } finally {
+      setActivating(false);
+    }
+  };
 
   if (process.env.NODE_ENV === 'development') {
     console.debug('[CONFIRM RECEIPT DEBUG]', {
@@ -726,6 +761,14 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${Math.min((memberCount / Math.max(junta.participantes_max, 1)) * 100, 100)}%` }} /></div>
                     <p className="mt-2 text-xs text-slate-600">{isIncomplete ? `Faltan ${missingMembers} persona${missingMembers === 1 ? '' : 's'} para comenzar la junta.` : juntaFinalizada ? 'La junta completó todos sus turnos.' : 'El grupo está completo.'}</p>
                     {isIncomplete && <div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={handleWhatsAppInvite}>Invitar por WhatsApp</Button><Button size="sm" variant="outline" onClick={handleCopyLink}><Share2 size={13} /> Compartir enlace</Button></div>}
+                    {canActivateFromSummary && (
+                      <div className="mt-3 space-y-2">
+                        <Button size="sm" onClick={handleActivateFromSummary} disabled={activating} className="w-full sm:w-auto">
+                          {activating ? 'Activando…' : 'Activar junta'}
+                        </Button>
+                        {summaryActivationError && <p className="text-xs text-rose-700">{summaryActivationError}</p>}
+                      </div>
+                    )}
                   </Card>
 
                   <Card className="p-4">
