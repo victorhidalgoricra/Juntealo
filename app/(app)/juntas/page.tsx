@@ -15,7 +15,7 @@ import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import { isJuntaActive } from '@/lib/junta-status';
 import { APP_BUSINESS_TIMEZONE, isJuntaBlockedByDeadline } from '@/lib/junta-blocking';
-import { canDeleteJunta } from '@/lib/junta-permissions';
+import { canDeleteJunta, canLeaveJunta } from '@/lib/junta-permissions';
 import { getActiveMemberCountByJunta, isUserMember } from '@/lib/junta-members';
 import { JuntaAvatar } from '@/components/junta-avatar';
 import { JuntaAmountBlock } from '@/components/ui/junta-amount-block';
@@ -131,6 +131,7 @@ export default function JuntasDisponiblesPage() {
     const normalizedQuery = query.trim().toLowerCase();
 
     return allJuntas.filter((j) => {
+      const isAvailable = j.estado !== 'eliminada' && !j.deleted_at && !j.bloqueada;
       const isMine = j.admin_id === user?.id
         || Boolean(j.is_member_current_user)
         || isUserMember({ juntaId: j.id, userId: user?.id, members: allMembers });
@@ -145,7 +146,7 @@ export default function JuntasDisponiblesPage() {
         j.nombre.toLowerCase().includes(normalizedQuery) ||
         (j.descripcion ?? '').toLowerCase().includes(normalizedQuery);
 
-      return passesFilter && passesQuery;
+      return isAvailable && passesFilter && passesQuery;
     });
   }, [activeFilter, allJuntas, allMembers, query, user?.id]);
 
@@ -287,6 +288,12 @@ export default function JuntasDisponiblesPage() {
     setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: '' }));
     const junta = allJuntas.find((item) => item.id === juntaId);
     if (!junta) return;
+    const isMember = Boolean(junta.is_member_current_user) ||
+      isUserMember({ juntaId, userId: user.id, members: allMembers });
+    if (!canLeaveJunta(junta, isMember)) {
+      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'No puedes retirarte de una junta que ya inició.' }));
+      return;
+    }
 
     setLeavingId(juntaId);
     const result = await leaveJuntaAsParticipant({ juntaId });
@@ -475,7 +482,7 @@ export default function JuntasDisponiblesPage() {
             const isActive = isJuntaActive(j.estado);
             const canActivate = roleState === 'owner' && j.estado === 'borrador' && cupoCompleto && !isBlocked;
             const canDelete = canDeleteJunta(j, user.id);
-            const canLeave = roleState === 'member';
+            const canLeave = canLeaveJunta(j, roleState === 'member');
             // eslint-disable-next-line no-console
             console.debug('[JUNTA STATE DEBUG]', {
               juntaId,
@@ -600,10 +607,10 @@ export default function JuntasDisponiblesPage() {
                           {deletingId === juntaId ? 'Eliminando...' : 'Eliminar junta'}
                         </Button>
                       )}
-                      {roleState === 'member' && (
+                      {canLeave && (
                         <Button
                           variant="ghost"
-                          disabled={!canLeave || leavingId === juntaId}
+                          disabled={leavingId === juntaId}
                           onClick={() => handleLeave(juntaId)}
                         >
                           {leavingId === juntaId ? 'Retirándome...' : 'Retirarme'}

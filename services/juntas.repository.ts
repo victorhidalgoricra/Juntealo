@@ -375,6 +375,18 @@ export async function leaveJuntaAsParticipant(params: { juntaId: string }) {
   return { ok: true as const };
 }
 
+export async function removeJuntaMember(params: { juntaId: string; profileId: string }) {
+  if (!hasSupabase || !supabase) return { ok: true as const };
+
+  const { error } = await supabase.schema('public').rpc('remove_junta_member', {
+    p_junta_id: params.juntaId,
+    p_profile_id: params.profileId
+  });
+  if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
+
+  return { ok: true as const };
+}
+
 export async function activateJuntaIfReady(params: { juntaId: string }) {
   if (!hasSupabase || !supabase) return { ok: true as const, data: { estado: 'activa' as const } };
 
@@ -467,7 +479,13 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
   // Query B: juntas where user is an active member
   // Both use allSettled — failure of one does not block the other.
   const [ownedSettled, membershipSettled] = await Promise.allSettled([
-    supabase.schema('public').from('juntas').select('id').eq('admin_id', authenticatedUserId),
+    supabase
+      .schema('public')
+      .from('juntas')
+      .select('id')
+      .eq('admin_id', authenticatedUserId)
+      .neq('estado', 'eliminada')
+      .is('deleted_at', null),
     supabase.schema('public').from('junta_members').select('junta_id').eq('profile_id', authenticatedUserId).neq('estado', 'retirado')
   ]);
 
@@ -517,7 +535,13 @@ export async function fetchUserJuntaSnapshot(profileId: string) {
 
   // Fetch full data for all relevant juntas — every query is non-blocking.
   const [juntasSettled, membersSettled, schedulesSettled, paymentsSettled, payoutsSettled] = await Promise.allSettled([
-    supabase.schema('public').from('juntas').select('id,admin_id,slug,invite_token,access_code,bloqueada,tipo_junta,incentivo_porcentaje,incentivo_regla,turn_assignment_mode,cuota_base,bolsa_base,nombre,descripcion,moneda,participantes_max,monto_cuota,premio_primero_pct,descuento_ultimo_pct,fee_plataforma_pct,frecuencia_pago,fecha_inicio,dia_limite_pago,penalidad_mora,visibilidad,cerrar_inscripciones,estado,created_at').in('id', juntaIds),
+    supabase
+      .schema('public')
+      .from('juntas')
+      .select('id,admin_id,slug,invite_token,access_code,bloqueada,tipo_junta,incentivo_porcentaje,incentivo_regla,turn_assignment_mode,cuota_base,bolsa_base,nombre,descripcion,moneda,participantes_max,monto_cuota,premio_primero_pct,descuento_ultimo_pct,fee_plataforma_pct,frecuencia_pago,fecha_inicio,dia_limite_pago,penalidad_mora,visibilidad,cerrar_inscripciones,estado,deleted_at,created_at')
+      .in('id', juntaIds)
+      .neq('estado', 'eliminada')
+      .is('deleted_at', null),
     supabase.schema('public').from('junta_members').select('id,junta_id,profile_id,estado,rol,orden_turno,created_at').in('junta_id', juntaIds),
     supabase.schema('public').from('payment_schedules').select('id,junta_id,cuota_numero,fecha_vencimiento,monto,estado').in('junta_id', juntaIds),
     supabase.schema('public').from('payments').select('id,junta_id,schedule_id,round_id,member_id,profile_id,expected_amount,submitted_amount,monto,estado,receipt_url,comprobante_url,payment_method,operation_number,participant_note,payment_status,submitted_at,internal_note,validated_at,validated_by,rejection_reason,pagado_en').in('junta_id', juntaIds),
