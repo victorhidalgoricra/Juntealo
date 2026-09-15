@@ -20,10 +20,8 @@ import { getActiveMemberCountByJunta, isUserMember } from '@/lib/junta-members';
 import { JuntaAvatar } from '@/components/junta-avatar';
 import { JuntaAmountBlock } from '@/components/ui/junta-amount-block';
 import {
-  activateJuntaIfReady,
   deleteDraftJunta,
   fetchAvailableJuntas,
-  fetchSchedulesByJuntaId,
   fetchUserJuntaSnapshot,
   findJuntaByAccessCode,
   joinJuntaAsParticipant,
@@ -60,7 +58,6 @@ export default function JuntasDisponiblesPage() {
   const user = useAuthStore((s) => s.user);
   const allJuntas = useAppStore((s) => (Array.isArray(s.juntas) ? s.juntas : []));
   const allMembers = useAppStore((s) => (Array.isArray(s.members) ? s.members : []));
-  const allSchedules = useAppStore((s) => (Array.isArray(s.schedules) ? s.schedules : []));
   const setData = useAppStore((s) => s.setData);
   const addNotification = useAppStore((s) => s.addNotification);
 
@@ -70,10 +67,8 @@ export default function JuntasDisponiblesPage() {
   const [accessCode, setAccessCode] = useState('');
   const [codeError, setCodeError] = useState<string | null>(null);
   const [joinErrorByJunta, setJoinErrorByJunta] = useState<Record<string, string>>({});
-  const [activationFeedbackByJunta, setActivationFeedbackByJunta] = useState<Record<string, string>>({});
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [leavingId, setLeavingId] = useState<string | null>(null);
-  const [activatingId, setActivatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterId>('todas');
   const [currentPage, setCurrentPage] = useState(1);
@@ -311,70 +306,6 @@ export default function JuntasDisponiblesPage() {
     });
     setLeavingId(null);
     await reloadCatalog();
-  };
-
-  const handleActivate = async (juntaId: string) => {
-    const junta = allJuntas.find((item) => item.id === juntaId);
-    if (!junta) return;
-
-    const miembrosActuales = countByJunta.get(juntaId) ?? Number(junta.integrantes_actuales ?? 0);
-    const cupoCompleto = miembrosActuales >= junta.participantes_max;
-    const isOwnerCheck = junta.admin_id === user.id;
-    const canActivateCheck = isOwnerCheck && junta.estado === 'borrador' && cupoCompleto && !isJuntaBlockedByDeadline(junta);
-
-    // eslint-disable-next-line no-console
-    console.debug('[ACTIVATE JUNTA CHECK]', {
-      juntaId,
-      integrantesActuales: miembrosActuales,
-      participantesMax: junta.participantes_max,
-      cupoCompleto,
-      estado: junta.estado,
-      isOwner: isOwnerCheck,
-      canActivate: canActivateCheck
-    });
-
-    setActivationFeedbackByJunta((prev) => ({ ...prev, [juntaId]: '' }));
-    setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: '' }));
-
-    if (junta.admin_id !== user.id) {
-      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Solo el creador puede activar esta junta.' }));
-      return;
-    }
-    if (junta.estado !== 'borrador') {
-      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'Solo puedes activar juntas en borrador.' }));
-      return;
-    }
-    if (isJuntaBlockedByDeadline(junta)) {
-      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: 'No puedes activar una junta bloqueada.' }));
-      return;
-    }
-
-    if (!cupoCompleto) {
-      setActivationFeedbackByJunta((prev) => ({
-        ...prev,
-        [juntaId]: 'Completa todos los integrantes para activar la junta'
-      }));
-      return;
-    }
-
-    setActivatingId(juntaId);
-
-    const result = await activateJuntaIfReady({ juntaId });
-    if (!result.ok) {
-      setJoinErrorByJunta((prev) => ({ ...prev, [juntaId]: result.message }));
-      setActivatingId(null);
-      return;
-    }
-
-    const schedulesResult = await fetchSchedulesByJuntaId(juntaId);
-    setData({
-      juntas: allJuntas.map((item) => (item.id === juntaId ? { ...item, ...result.data } : item)),
-      ...(schedulesResult.ok
-        ? { schedules: [...allSchedules.filter((s) => s.junta_id !== juntaId), ...schedulesResult.data] }
-        : {})
-    });
-    setActivationFeedbackByJunta((prev) => ({ ...prev, [juntaId]: '' }));
-    setActivatingId(null);
   };
 
   const handleDelete = async (juntaId: string, juntaAdminId: string) => {
@@ -656,12 +587,9 @@ export default function JuntasDisponiblesPage() {
                         <Link href={`/juntas/${juntaId}`}><Button variant="outline">Ver detalle</Button></Link>
                       )}
                       {roleState === 'owner' && (
-                        <Button
-                          disabled={!canActivate || activatingId === juntaId}
-                          onClick={() => handleActivate(juntaId)}
-                        >
-                          {activatingId === juntaId ? 'Activando...' : 'Activar junta'}
-                        </Button>
+                        canActivate
+                          ? <Link href={`/juntas/${juntaId}?tab=turnos`}><Button>Activar junta</Button></Link>
+                          : <Button disabled>Activar junta</Button>
                       )}
                       {roleState === 'owner' && canDelete && (
                         <Button
@@ -688,9 +616,6 @@ export default function JuntasDisponiblesPage() {
                       )}
                     </div>
                     {isBlocked && <p className="text-xs text-rose-700">No se permiten nuevas uniones ni activación.</p>}
-                    {roleState === 'owner' && activationFeedbackByJunta[juntaId] && (
-                      <p className="text-xs text-amber-700">{activationFeedbackByJunta[juntaId]}</p>
-                    )}
                     {joinErrorByJunta[juntaId] && !(roleState === 'owner' && joinErrorByJunta[juntaId].includes('creador no puede retirarse')) && (
                       <p className="text-xs text-red-600">{joinErrorByJunta[juntaId]}</p>
                     )}
