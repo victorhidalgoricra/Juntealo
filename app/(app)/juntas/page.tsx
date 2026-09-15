@@ -131,6 +131,7 @@ export default function JuntasDisponiblesPage() {
     const normalizedQuery = query.trim().toLowerCase();
 
     return allJuntas.filter((j) => {
+      const isAvailable = j.estado !== 'eliminada' && !j.deleted_at && !j.bloqueada;
       const isMine = j.admin_id === user?.id
         || Boolean(j.is_member_current_user)
         || isUserMember({ juntaId: j.id, userId: user?.id, members: allMembers });
@@ -145,7 +146,7 @@ export default function JuntasDisponiblesPage() {
         j.nombre.toLowerCase().includes(normalizedQuery) ||
         (j.descripcion ?? '').toLowerCase().includes(normalizedQuery);
 
-      return passesFilter && passesQuery;
+      return isAvailable && passesFilter && passesQuery;
     });
   }, [activeFilter, allJuntas, allMembers, query, user?.id]);
 
