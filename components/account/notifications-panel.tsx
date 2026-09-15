@@ -11,9 +11,10 @@ import { markNotificationsRead } from '@/services/juntas.repository';
 import { Profile } from '@/types/domain';
 import { buildPaymentDebtItems, PaymentDebtItem } from '@/lib/payment-debts';
 import { formatCalendarDate } from '@/lib/calendar-date';
+import { formatSoles } from '@/lib/number-format';
 
 function money(value: number) {
-  return `S/ ${value.toFixed(2)}`;
+  return formatSoles(value);
 }
 
 function pickActionablePerJunta(items: PaymentDebtItem[]): PaymentDebtItem[] {

@@ -15,6 +15,7 @@ import { formatIncentiveLabel, getAvatarColor, getInitial, getMemberAvatarStyle 
 import { isJuntaActive } from '@/lib/junta-status';
 import { APP_BUSINESS_TIMEZONE, isJuntaBlockedByDeadline } from '@/lib/junta-blocking';
 import { formatCalendarDate } from '@/lib/calendar-date';
+import { formatAmount, formatSoles } from '@/lib/number-format';
 import { getActiveMembersForJunta } from '@/lib/junta-members';
 import {
   getCurrentWeekSummary,
@@ -28,7 +29,7 @@ import {
 import { RachaCard } from '@/components/ui/racha-card';
 import { JuntaAvatar } from '@/components/junta-avatar';
 import { computeJuntaRacha } from '@/lib/racha';
-import { CalendarClock, CheckCircle2, Clock3, Copy, Crown, Landmark, Plus, Share2, Sparkles, WalletCards, X } from 'lucide-react';
+import { Bell, CalendarClock, CheckCircle2, Clock3, Copy, Crown, Landmark, Plus, Share2, Sparkles, WalletCards, X } from 'lucide-react';
 
 type MainView = 'general' | 'personal';
 type GeneralTab = 'integrantes' | 'cronograma' | 'pagos' | 'turnos';
@@ -70,14 +71,14 @@ function JuntaPaymentStatusRow({ row, showPayAction, onPay }: { row: WeeklyMembe
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${getAvatarColor(row.displayName)}`}>{getInitial(row.displayName)}</div>
         <div className="min-w-0">
           <p className="break-words text-sm font-medium">{row.displayName}</p>
-          <p className="text-xs text-slate-500">Turno #{row.turno} · S/{row.amount.toFixed(0)}</p>
+          <p className="text-xs text-slate-500">Turno #{row.turno} · {formatSoles(row.amount, 0)}</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2 sm:items-center sm:justify-end">
         <JuntaScoreBadge score={row.score} />
         <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass(row.status)}`}>{row.status}</span>
         {showPayAction && row.isCurrentUser && (row.status === 'Pendiente' || row.status === 'Rechazado' || row.status === 'Vencido') && (
-          <Button onClick={onPay}>Pagar S/{row.amount.toFixed(0)} →</Button>
+          <Button onClick={onPay}>Pagar {formatSoles(row.amount, 0)} →</Button>
         )}
       </div>
     </div>
@@ -372,7 +373,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           </div>
         </div>
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-1">
-          <p className="text-sm text-slate-600">Cuota: <span className="font-semibold">S/{(junta.cuota_base ?? junta.monto_cuota).toFixed(0)}</span></p>
+          <p className="text-sm text-slate-600">Cuota: <span className="font-semibold">{formatSoles(junta.cuota_base ?? junta.monto_cuota, 0)}</span></p>
           {junta.fecha_inicio && <p className="text-sm text-slate-600">Inicio: <span className="font-semibold">{formatCalendarDate(junta.fecha_inicio)}</span></p>}
         </div>
         {isFull && <p className="text-sm text-amber-700 rounded-md bg-amber-50 border border-amber-200 p-3">Esta junta ya está completa.</p>}
@@ -397,6 +398,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   // the UI would show the wrong round as "current", mismatching the backend's COUNT(*)+1 derivation.
   const completedPayouts = detailPayouts.length;
   const currentWeek = Math.min(completedPayouts + 1, simulation.rows.length);
+  const totalWeeks = Math.max(simulation.rows.length, 1);
+  const cycleProgressWeek = juntaFinalizada ? totalWeeks : currentWeek;
+  const cycleProgressPercentage = Math.min(Math.round((cycleProgressWeek / totalWeeks) * 100), 100);
   const currentRoundSchedule = detailSchedules.find((s) => s.cuota_numero === currentWeek);
   const currentRoundDueDate = currentRoundSchedule?.fecha_vencimiento
     ? formatCalendarDate(currentRoundSchedule.fecha_vencimiento)
@@ -555,7 +559,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
       return;
     }
     const message = encodeURIComponent(
-      `Hola ${row.displayName}, te recordamos que tienes pendiente tu aporte de S/ ${row.amount.toFixed(0)} para la junta ${junta!.nombre}. Por favor regularízalo para continuar con el ciclo.`
+      `Hola ${row.displayName}, te recordamos que tienes pendiente tu aporte de ${formatSoles(row.amount, 0)} para la junta ${junta!.nombre}. Por favor regularízalo para continuar con el ciclo.`
     );
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   };
@@ -745,7 +749,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           {phaseTwoLoading && <Card className="p-3 text-sm text-slate-500">Cargando pagos, cronograma e integrantes…</Card>}
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-            <KpiCard icon={Landmark} label="Bolsa semana" value={`S/${((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(0)}`} />
+            <KpiCard icon={Landmark} label="Bolsa semana" value={formatSoles((junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length, 0)} />
             <KpiCard icon={CheckCircle2} label="Pagos confirmados" value={phaseTwoLoading ? '—' : `${displayPaid}/${paymentTargetCount}`} tone="green" />
             <KpiCard icon={WalletCards} label="Turno actual" value={`#${currentWeek}`} tone="violet" />
             <KpiCard icon={Clock3} label="Pendientes" value={phaseTwoLoading ? '—' : `${displayPending}`} tone="amber" />
@@ -758,11 +762,42 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                 <div className="space-y-3">
                   <Card className="p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div><h2 className="font-semibold text-slate-900">Progreso del grupo</h2><p className="mt-0.5 text-sm text-slate-500">{memberCount} de {junta.participantes_max} integrantes</p></div>
-                      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{Math.round((memberCount / Math.max(junta.participantes_max, 1)) * 100)}%</span>
+                      <div>
+                        <h2 className="font-semibold text-slate-900">{juntaActiva || juntaFinalizada ? 'Avance de la junta' : 'Progreso del grupo'}</h2>
+                        <p className="mt-0.5 text-sm text-slate-500">
+                          {juntaActiva || juntaFinalizada
+                            ? `Semana ${cycleProgressWeek} de ${totalWeeks}`
+                            : `${memberCount} de ${junta.participantes_max} integrantes`}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                        {juntaActiva || juntaFinalizada
+                          ? cycleProgressPercentage
+                          : Math.round((memberCount / Math.max(junta.participantes_max, 1)) * 100)}%
+                      </span>
                     </div>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${Math.min((memberCount / Math.max(junta.participantes_max, 1)) * 100, 100)}%` }} /></div>
-                    <p className="mt-2 text-xs text-slate-600">{isIncomplete ? `Faltan ${missingMembers} persona${missingMembers === 1 ? '' : 's'} para comenzar la junta.` : juntaFinalizada ? 'La junta completó todos sus turnos.' : 'El grupo está completo.'}</p>
+                    <div
+                      className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"
+                      role="progressbar"
+                      aria-label={juntaActiva || juntaFinalizada ? 'Avance de la junta' : 'Integrantes de la junta'}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={juntaActiva || juntaFinalizada ? cycleProgressPercentage : Math.min(Math.round((memberCount / Math.max(junta.participantes_max, 1)) * 100), 100)}
+                    >
+                      <div
+                        className="h-full rounded-full bg-blue-600 transition-[width] duration-700 ease-out"
+                        style={{ width: `${juntaActiva || juntaFinalizada ? cycleProgressPercentage : Math.min((memberCount / Math.max(junta.participantes_max, 1)) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-slate-600">
+                      {juntaFinalizada
+                        ? 'La junta completó todos sus turnos.'
+                        : juntaActiva
+                          ? `${completedPayouts} de ${totalWeeks} turnos completados.`
+                          : isIncomplete
+                            ? `Faltan ${missingMembers} persona${missingMembers === 1 ? '' : 's'} para comenzar la junta.`
+                            : 'El grupo está completo.'}
+                    </p>
                     {isIncomplete && <div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={handleWhatsAppInvite}>Invitar por WhatsApp</Button><Button size="sm" variant="outline" onClick={handleCopyLink}><Share2 size={13} /> Compartir enlace</Button></div>}
                     {canActivateFromSummary && (
                       <div className="mt-3">
@@ -841,7 +876,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                     <p className="text-xs font-medium text-blue-100">Tu próximo cobro</p>
                     <div className="mt-3 flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-sm font-bold">{getInitial(currentUserName)}</div><div><p className="font-semibold">Tú</p><p className="text-xs text-blue-100">Turno #{personal.myTurnRow?.turno ?? '—'}</p></div></div>
                     <p className="mt-3 text-sm font-medium">{personal.myTurnRow?.turno === currentWeek ? 'Te toca recibir esta semana' : personal.myTurnRow ? `Recibes en la semana ${personal.myTurnRow.turno}` : 'Turno pendiente de asignación'}</p>
-                    <div className="mt-2 flex items-end justify-between gap-2"><p className="text-2xl font-bold">S/{(personal.myTurnRow?.montoRecibido ?? simulation.bolsaBase).toFixed(0)}</p><JuntaScoreBadge score={personal.myRow?.score ?? null} /></div>
+                    <div className="mt-2 flex items-end justify-between gap-2"><p className="text-2xl font-bold">{formatSoles(personal.myTurnRow?.montoRecibido ?? simulation.bolsaBase, 0)}</p><JuntaScoreBadge score={personal.myRow?.score ?? null} /></div>
                   </Card>
 
                   <Card
@@ -898,7 +933,6 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                     </div>
                   ))}
                   {validatingParticipants.length === 0 && <p className="py-3 text-center text-xs text-slate-500">No hay pagos por validar.</p>}
-                  {paymentInfo && <p className="text-xs text-rose-700">{paymentInfo}</p>}
                   </div>
                   <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
                     <p className="text-sm font-semibold">Pendientes ({pendingPayers.length}/{paymentTargetCount})</p>
@@ -907,13 +941,19 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                       <JuntaPaymentStatusRow row={row} showPayAction={!juntaFinalizada} onPay={() => router.push(`/juntas/${junta.id}/registrar-pago`)} />
                       {!juntaFinalizada && row.profileId !== currentUserProfileId && (
                         <div className="flex flex-wrap gap-2 pl-0 sm:pl-2">
-                          {(isOwner || isCurrentReceiver) && <Button size="sm" variant="ghost" disabled={remindingProfileId !== null} onClick={() => handleSendPaymentReminder(row)}>{remindingProfileId === row.profileId ? 'Enviando…' : 'Reenviar recordatorio'}</Button>}
                           <Button size="sm" variant="outline" onClick={() => openWhatsAppReminder(row)}>WhatsApp</Button>
+                          {(isOwner || isCurrentReceiver) && (
+                            <Button size="sm" variant="outline" disabled={remindingProfileId !== null} onClick={() => handleSendPaymentReminder(row)}>
+                              <Bell size={14} />
+                              {remindingProfileId === row.profileId ? 'Enviando…' : 'Enviar notificación'}
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
                   ))}
                   {pendingPayers.length === 0 && <p className="py-3 text-center text-xs text-emerald-600">No hay pagos pendientes.</p>}
+                  {paymentInfo && <p className="text-xs text-slate-600" role="status">{paymentInfo}</p>}
                   </div>
                 </div>
                 {canConfirmReceipt && <div className="flex justify-end border-t pt-3"><Button size="sm" onClick={handleConfirmPayout} disabled={isConfirmingReceipt}>{isConfirmingReceipt ? 'Confirmando…' : 'Confirmar recibo'}</Button></div>}
@@ -930,7 +970,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                       <td className="px-3 py-2">#{row.turno}</td>
                       <td className="px-3 py-2">{row.isUserTurn ? 'Tú' : (juntaMembers.find((m) => m.orden_turno === row.turno)?.nombre ?? `Integrante ${row.turno}`)}</td>
                       <td className="px-3 py-2">{row.fechaRonda}</td>
-                      <td className="px-3 py-2">S/{row.montoRecibido.toFixed(2)}</td>
+                      <td className="px-3 py-2">S/ {formatAmount(row.montoRecibido)}</td>
                       <td className="px-3 py-2"><span className={`rounded-full px-2 py-1 text-xs ${statusClass(row.weekStatus)}`}>{row.weekStatus}</span></td>
                     </tr>
                   ))}
@@ -1079,7 +1119,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           <Card className="space-y-3 border-0 bg-slate-900 p-5 text-white">
             <p className="text-xs uppercase tracking-wide text-slate-300">Tu turno</p>
             <p className="text-5xl font-bold">#{personal.myTurnRow?.turno ?? '-'}</p>
-            <p className="text-sm text-slate-200">{junta.nombre} · Recibes S/{(personal.myTurnRow?.montoRecibido ?? simulation.bolsaBase).toFixed(2)}</p>
+            <p className="text-sm text-slate-200">{junta.nombre} · Recibes {formatSoles(personal.myTurnRow?.montoRecibido ?? simulation.bolsaBase)}</p>
             <p className="text-sm text-slate-300">Fecha estimada: {personal.myTurnRow?.fechaRonda ?? 'Pendiente'} · {personal.myTurnRow ? `en ${Math.max(personal.myTurnRow.turno - currentWeek, 0)} semanas` : 'sin turno asignado'}</p>
             <div className="flex flex-wrap items-center gap-2"><JuntaScoreBadge score={personal.myRow?.score ?? null} /><span className="text-xs text-slate-300">Confianza visible para el grupo</span></div>
           </Card>
@@ -1096,14 +1136,14 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
           {juntaActiva && personal.myRow && personal.myRow.status !== 'Pagado' && personal.myRow.status !== 'Recibe' && (
             <Card className="border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              Esta semana debes pagar S/{personal.myRow.amount.toFixed(2)}{junta.tipo_junta === 'incentivo' ? ' (incluye ajustes por incentivos).' : '.'}
+              Esta semana debes pagar {formatSoles(personal.myRow.amount)}{junta.tipo_junta === 'incentivo' ? ' (incluye ajustes por incentivos).' : '.'}
             </Card>
           )}
 
           {isCurrentReceiver && !juntaFinalizada ? (
             <Card className="space-y-3 p-4">
               <h3 className="text-lg font-semibold">Esta semana · recibes el pozo</h3>
-              <p className="text-4xl font-bold text-emerald-600">S/{(personal.myTurnRow?.montoRecibido ?? (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length).toFixed(2)}</p>
+              <p className="text-4xl font-bold text-emerald-600">{formatSoles(personal.myTurnRow?.montoRecibido ?? (junta.cuota_base ?? junta.monto_cuota) * juntaMembers.length)}</p>
               <div className="text-sm text-slate-600">
                 <p>{summary.paid}/{juntaMembers.length - 1} pagos recibidos</p>
               </div>
@@ -1123,9 +1163,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
           ) : (
             <Card className="space-y-3 p-4">
               <h3 className="text-lg font-semibold">Esta semana · turno de {summary.receiver?.displayName ?? '—'}</h3>
-              <p className="text-4xl font-bold">S/{(personal.myRow?.amount ?? (junta.cuota_base ?? junta.monto_cuota)).toFixed(2)}</p>
+              <p className="text-4xl font-bold">{formatSoles(personal.myRow?.amount ?? (junta.cuota_base ?? junta.monto_cuota))}</p>
               <div className="text-sm text-slate-600">
-                <p>Base: S/{(junta.cuota_base ?? junta.monto_cuota).toFixed(2)}</p>
+                <p>Base: {formatSoles(junta.cuota_base ?? junta.monto_cuota)}</p>
                 <p>Ajuste: {junta.tipo_junta === 'incentivo' ? incentiveLabel : 'No aplica'}</p>
                 <p>{personal.progressLabel}</p>
               </div>
