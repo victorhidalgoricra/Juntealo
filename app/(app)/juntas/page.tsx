@@ -582,7 +582,7 @@ export default function JuntasDisponiblesPage() {
 
             return (
               <Card key={juntaId} className="flex h-full flex-col gap-3">
-                <div className="flex flex-1 flex-col gap-3">
+                <div className="flex flex-col gap-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 items-center gap-3">
                       <JuntaAvatar nombre={j.nombre} size="md" />
@@ -591,16 +591,18 @@ export default function JuntasDisponiblesPage() {
                         <p className="text-xs text-muted">{miembrosActuales}/{j.participantes_max} personas · {j.frecuencia_pago}</p>
                       </div>
                     </div>
-                    <Badge
-                      className={j.visibilidad === 'privada'
-                        ? 'shrink-0'
-                        : 'shrink-0 bg-[var(--green-bg)] text-[var(--green)]'}
-                    >
-                      {j.visibilidad === 'publica' && <span aria-hidden="true">●&nbsp;</span>}
-                      {j.visibilidad === 'publica' ? 'Pública' : 'Privada'}
-                    </Badge>
+                    <div className="flex shrink-0 flex-wrap gap-1.5 sm:max-w-[45%] sm:justify-end">
+                      <Badge
+                        className={j.visibilidad === 'privada'
+                          ? 'shrink-0'
+                          : 'shrink-0 bg-[var(--green-bg)] text-[var(--green)]'}
+                      >
+                        {j.visibilidad === 'publica' && <span aria-hidden="true">●&nbsp;</span>}
+                        {j.visibilidad === 'publica' ? 'Pública' : 'Privada'}
+                      </Badge>
+                      {isBlocked && <Badge>Bloqueada</Badge>}
+                    </div>
                   </div>
-                  {isBlocked && <Badge>Bloqueada</Badge>}
                   <p className="line-clamp-1 break-words text-sm text-muted">{description}</p>
 
                   {bolsa !== null && (
@@ -628,68 +630,72 @@ export default function JuntasDisponiblesPage() {
                       <p className="text-sm font-semibold text-fg">{cuposLibres}</p>
                     </div>
                   </div>
-
-                  {cupoCompleto && <div className="rounded-md bg-amber-50 p-2 text-xs text-amber-700">Cupo completo</div>}
-                  {isBlocked && (
-                    <div className="rounded-md bg-rose-50 p-2 text-xs text-rose-700">
-                      Junta bloqueada por no activarse antes de la fecha del primer pago ({APP_BUSINESS_TIMEZONE}).
-                    </div>
-                  )}
-                  {j.visibilidad === 'privada' && <div className="rounded-md bg-slate-100 p-2 text-xs text-slate-700">Requiere enlace o código de acceso.</div>}
-                  {roleState === 'owner' && <div className="rounded-md bg-indigo-50 p-2 text-xs text-indigo-700">Eres el creador de esta junta.</div>}
-                  {roleState === 'member' && <div className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-700">Participando</div>}
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-2">
-                    {roleState !== 'visitor' && (
-                      <Link href={`/juntas/${juntaId}`}><Button variant="outline">Ver detalle</Button></Link>
+                <div className="mt-auto space-y-3">
+                  <div className="space-y-2 md:min-h-[4.5rem]">
+                    {cupoCompleto && <div className="rounded-md bg-amber-50 p-2 text-xs text-amber-700">Cupo completo</div>}
+                    {isBlocked && (
+                      <div className="rounded-md bg-rose-50 p-2 text-xs text-rose-700">
+                        Junta bloqueada por no activarse antes de la fecha del primer pago ({APP_BUSINESS_TIMEZONE}).
+                      </div>
                     )}
-                    {roleState === 'owner' && (
-                      <Button
-                        disabled={!canActivate || activatingId === juntaId}
-                        onClick={() => handleActivate(juntaId)}
-                      >
-                        {activatingId === juntaId ? 'Activando...' : 'Activar junta'}
-                      </Button>
-                    )}
-                    {roleState === 'owner' && canDelete && (
-                      <Button
-                        variant="destructive"
-                        disabled={deletingId === juntaId}
-                        onClick={() => handleDelete(juntaId, j.admin_id)}
-                      >
-                        {deletingId === juntaId ? 'Eliminando...' : 'Eliminar junta'}
-                      </Button>
-                    )}
-                    {roleState === 'member' && (
-                      <Button
-                        variant="ghost"
-                        disabled={!canLeave || leavingId === juntaId}
-                        onClick={() => handleLeave(juntaId)}
-                      >
-                        {leavingId === juntaId ? 'Retirándome...' : 'Retirarme'}
-                      </Button>
-                    )}
-                    {roleState === 'visitor' && !isActive && !isBlocked && (
-                      j.visibilidad === 'privada'
-                        ? <Button disabled={!canAccessPrivate || joiningId === juntaId} onClick={() => handleAccessPrivate(juntaId)}>{joiningId === juntaId ? 'Validando...' : 'Acceder con código'}</Button>
-                        : <Button disabled={!canJoinPublic || joiningId === juntaId} onClick={() => handleJoin(juntaId)}>{joiningId === juntaId ? 'Uniéndome...' : 'Unirme'}</Button>
+                    {j.visibilidad === 'privada' && <div className="rounded-md bg-slate-100 p-2 text-xs text-slate-700">Requiere enlace o código de acceso.</div>}
+                    {roleState === 'owner' && <div className="rounded-md bg-indigo-50 p-2 text-xs text-indigo-700">Eres el creador de esta junta.</div>}
+                    {roleState === 'member' && <div className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-700">Participando</div>}
+                    {roleState === 'visitor' && !isActive && j.visibilidad === 'publica' && !cupoCompleto && !isBlocked && (
+                      <div className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-700">
+                        {cuposLibres} {cuposLibres === 1 ? 'cupo disponible' : 'cupos disponibles'}
+                      </div>
                     )}
                   </div>
-                  {isBlocked && <p className="text-xs text-rose-700">No se permiten nuevas uniones ni activación.</p>}
-                  {roleState === 'owner' && activationFeedbackByJunta[juntaId] && (
-                    <p className="text-xs text-amber-700">{activationFeedbackByJunta[juntaId]}</p>
-                  )}
-                  {roleState === 'visitor' && !isActive && j.visibilidad === 'privada' && (
-                    <p className="text-xs text-slate-600">Requiere enlace o código de acceso</p>
-                  )}
-                  {roleState === 'visitor' && !isActive && cupoCompleto && (
-                    <p className="text-xs text-slate-600">Cupo completo</p>
-                  )}
-                  {joinErrorByJunta[juntaId] && !(roleState === 'owner' && joinErrorByJunta[juntaId].includes('creador no puede retirarse')) && (
-                    <p className="text-xs text-red-600">{joinErrorByJunta[juntaId]}</p>
-                  )}
+
+                  <div className="space-y-2 md:min-h-[4.5rem]">
+                    <div className="flex flex-wrap gap-2">
+                      {roleState !== 'visitor' && (
+                        <Link href={`/juntas/${juntaId}`}><Button variant="outline">Ver detalle</Button></Link>
+                      )}
+                      {roleState === 'owner' && (
+                        <Button
+                          disabled={!canActivate || activatingId === juntaId}
+                          onClick={() => handleActivate(juntaId)}
+                        >
+                          {activatingId === juntaId ? 'Activando...' : 'Activar junta'}
+                        </Button>
+                      )}
+                      {roleState === 'owner' && canDelete && (
+                        <Button
+                          variant="destructive"
+                          disabled={deletingId === juntaId}
+                          onClick={() => handleDelete(juntaId, j.admin_id)}
+                        >
+                          {deletingId === juntaId ? 'Eliminando...' : 'Eliminar junta'}
+                        </Button>
+                      )}
+                      {roleState === 'member' && (
+                        <Button
+                          variant="ghost"
+                          disabled={!canLeave || leavingId === juntaId}
+                          onClick={() => handleLeave(juntaId)}
+                        >
+                          {leavingId === juntaId ? 'Retirándome...' : 'Retirarme'}
+                        </Button>
+                      )}
+                      {roleState === 'visitor' && !isActive && !isBlocked && (
+                        j.visibilidad === 'privada'
+                          ? <Button disabled={!canAccessPrivate || joiningId === juntaId} onClick={() => handleAccessPrivate(juntaId)}>{joiningId === juntaId ? 'Validando...' : 'Acceder con código'}</Button>
+                          : <Button disabled={!canJoinPublic || joiningId === juntaId} onClick={() => handleJoin(juntaId)}>{joiningId === juntaId ? 'Uniéndome...' : 'Unirme'}</Button>
+                      )}
+                    </div>
+                    {isBlocked && <p className="text-xs text-rose-700">No se permiten nuevas uniones ni activación.</p>}
+                    {roleState === 'owner' && activationFeedbackByJunta[juntaId] && (
+                      <p className="text-xs text-amber-700">{activationFeedbackByJunta[juntaId]}</p>
+                    )}
+                    {joinErrorByJunta[juntaId] && !(roleState === 'owner' && joinErrorByJunta[juntaId].includes('creador no puede retirarse')) && (
+                      <p className="text-xs text-red-600">{joinErrorByJunta[juntaId]}</p>
+                    )}
+                  </div>
+
                   <p className="text-center text-xs text-muted">{miembrosActuales} de {j.participantes_max} integrantes confirmados</p>
                 </div>
               </Card>
