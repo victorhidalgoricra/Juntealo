@@ -942,12 +942,10 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                       {!juntaFinalizada && row.profileId !== currentUserProfileId && (
                         <div className="flex flex-wrap gap-2 pl-0 sm:pl-2">
                           <Button size="sm" variant="outline" onClick={() => openWhatsAppReminder(row)}>WhatsApp</Button>
-                          {(isOwner || isCurrentReceiver) && (
-                            <Button size="sm" variant="outline" disabled={remindingProfileId !== null} onClick={() => handleSendPaymentReminder(row)}>
-                              <Bell size={14} />
-                              {remindingProfileId === row.profileId ? 'Enviando…' : 'Enviar notificación'}
-                            </Button>
-                          )}
+                          <Button size="sm" variant="outline" disabled={remindingProfileId !== null} onClick={() => handleSendPaymentReminder(row)}>
+                            <Bell size={14} />
+                            {remindingProfileId === row.profileId ? 'Enviando…' : 'Reenviar recordatorio'}
+                          </Button>
                         </div>
                       )}
                     </div>
