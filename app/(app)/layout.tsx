@@ -75,6 +75,15 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!sessionChecked || !user?.id) return;
 
+    // The catalog page loads a broader data set (public and private juntas) as
+    // well as the user's snapshot. Let it own that load so this layout does not
+    // overwrite the catalog with the smaller membership-only snapshot after a
+    // hard refresh.
+    if (pathname === '/juntas') {
+      setIsDataReady(true);
+      return;
+    }
+
     let cancelled = false;
     console.log('[dashboard] loading juntas start');
 
@@ -119,7 +128,7 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [sessionChecked, setData, setIsDataReady, user?.id]);
+  }, [pathname, sessionChecked, setData, setIsDataReady, user?.id]);
 
   if (!sessionChecked || !user) {
     return (
