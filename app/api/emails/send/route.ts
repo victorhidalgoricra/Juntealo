@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { emailService } from '@/services/email.service'
 import type { SendEmailResult } from '@/components/emails'
 import { z } from 'zod'
+import { createClient } from '@supabase/supabase-js'
+import { env } from '@/lib/env'
 
 // ─── Payload schemas ────────────────────────────────────────
 
@@ -53,6 +55,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Email service not configured' }, { status: 503 })
   }
 
+  if (!env.supabaseUrl || !env.supabaseAnonKey) {
+    return NextResponse.json({ error: 'Supabase no está configurado' }, { status: 503 })
+  }
+
+  const authorization = req.headers.get('authorization')
+  if (!authorization?.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+  const authClient = createClient(env.supabaseUrl, env.supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const { data: authData, error: authError } = await authClient.auth.getUser(authorization.slice('Bearer '.length))
+  if (authError || !authData.user?.email) {
+    return NextResponse.json({ error: 'La sesión no es válida' }, { status: 401 })
+  }
+
   const body = await req.json().catch(() => null)
   if (!body || typeof body.type !== 'string') {
     return NextResponse.json({ error: 'Missing required field: type' }, { status: 400 })
@@ -76,6 +94,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { to, ...props } = parsed.data
+  if (to.toLowerCase() !== authData.user.email.toLowerCase()) {
+    return NextResponse.json({ error: 'Solo puedes enviar este correo a tu propia cuenta' }, { status: 403 })
+  }
 
   const handlers: Record<EmailType, (to: string, props: never) => Promise<SendEmailResult>> = {
     junta_creada: emailService.juntaCreada as (to: string, props: never) => Promise<SendEmailResult>,

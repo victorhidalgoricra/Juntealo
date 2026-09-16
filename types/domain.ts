@@ -147,10 +147,14 @@ export interface Payout {
 export interface Notification {
   id: string;
   profile_id: string;
+  junta_id?: string | null;
   titulo: string;
   mensaje: string;
+  tipo?: string;
   leida: boolean;
   created_at: string;
+  email_status?: 'not_requested' | 'pending' | 'sent' | 'delivered' | 'delayed' | 'bounced' | 'complained' | 'failed';
+  email_sent_at?: string | null;
 }
 
 export type UserActivityEventType = 'payment_confirmed' | 'joined_junta' | 'cycle_completed';

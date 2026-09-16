@@ -22,6 +22,7 @@ import {
 import { getLevelCreationLimits } from '@/services/junta-engagement.service';
 import { buildJuntaScoreStatsFromDomain, getUserJuntaScore } from '@/services/junta-score.service';
 import { formatAmount, formatSoles } from '@/lib/number-format';
+import { supabase } from '@/lib/supabase';
 
 const steps = [
   { id: 1, title: 'Información básica' },
@@ -423,9 +424,13 @@ export default function NewJuntaPage() {
                   juntaUrl,
                 };
                 console.log('[email] sending junta_creada', { to: user.email, juntaName: payload.junta.nombre });
+                const accessToken = (await supabase?.auth.getSession())?.data.session?.access_token;
                 fetch('/api/emails/send', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                  },
                   body: JSON.stringify(emailPayload),
                 })
                   .then((res) => res.json())

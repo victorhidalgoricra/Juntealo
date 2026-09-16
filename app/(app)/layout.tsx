@@ -10,7 +10,7 @@ import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/ui/button';
 import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
-import { fetchUserJuntaSnapshot } from '@/services/juntas.repository';
+import { fetchNotifications, fetchUserJuntaSnapshot } from '@/services/juntas.repository';
 import { buildProfileFromAuthUser } from '@/services/auth.service';
 
 function getDisplayName(nombre?: string, email?: string) {
@@ -33,6 +33,7 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, setUser } = useAuthStore();
   const setData = useAppStore((s) => s.setData);
+  const notifications = useAppStore((s) => s.notifications);
   const setIsDataReady = useAppStore((s) => s.setIsDataReady);
   const [sessionChecked, setSessionChecked] = useState(false);
 
@@ -130,6 +131,30 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
     };
   }, [pathname, sessionChecked, setData, setIsDataReady, user?.id]);
 
+  useEffect(() => {
+    if (!sessionChecked || !user?.id || !hasSupabase || !supabase) return;
+    const realtimeClient = supabase;
+    let cancelled = false;
+
+    const refresh = async () => {
+      const result = await fetchNotifications(user.id);
+      if (!cancelled && result.ok) setData({ notifications: result.data });
+    };
+    void refresh();
+
+    const channel = realtimeClient
+      .channel(`notifications:${user.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'notifications', filter: `profile_id=eq.${user.id}`,
+      }, () => { void refresh(); })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      void realtimeClient.removeChannel(channel);
+    };
+  }, [sessionChecked, setData, user?.id]);
+
   if (!sessionChecked || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
@@ -153,8 +178,13 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
           <p className="truncate text-sm font-medium text-fg">Buenos días, {displayName}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Link href="/account?tab=notifications" aria-label="Ir a notificaciones" className={`inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-fg ${isDashboard ? 'lg:h-7 lg:w-7' : ''}`}>
+          <Link href="/account?tab=notifications" aria-label={`Ir a notificaciones${notifications.some((item) => !item.leida) ? `, ${notifications.filter((item) => !item.leida).length} sin leer` : ''}`} className={`relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-fg ${isDashboard ? 'lg:h-7 lg:w-7' : ''}`}>
             <Bell size={15} strokeWidth={1.8} />
+            {notifications.some((item) => !item.leida) && (
+              <span className="absolute -right-1.5 -top-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white">
+                {Math.min(notifications.filter((item) => !item.leida).length, 99)}
+              </span>
+            )}
           </Link>
           <Button
             variant="outline"

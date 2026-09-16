@@ -180,7 +180,7 @@ function getActiveJuntas(params: {
 function getJuntaHistory(params: { juntas: Junta[]; myJuntaIds: string[]; memberCountByJunta: Map<string, number> }): JuntaCardData[] {
   return params.juntas
     .filter((junta) => params.myJuntaIds.includes(junta.id))
-    .filter((junta) => ['cerrada', 'bloqueada'].includes(junta.estado) || Boolean(junta.bloqueada))
+    .filter((junta) => junta.estado === 'cerrada' && !junta.deleted_at && !junta.bloqueada)
     .map((junta) => ({
       id: junta.id,
       nombre: junta.nombre,

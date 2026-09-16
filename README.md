@@ -14,6 +14,20 @@ Opcionales:
 - `NEXT_PUBLIC_ENABLE_MOCKS=false`
 - `NEXT_PUBLIC_ADMIN_EMAILS=`
 
+Correos transaccionales:
+- `RESEND_API_KEY`: API key de Resend (solo servidor).
+- `RESEND_WEBHOOK_SECRET`: secreto del webhook de Resend.
+- `EMAIL_FROM`: remitente de un dominio verificado, por ejemplo `Juntealo <noreply@juntealo.com>`.
+- `NEXT_PUBLIC_APP_URL`: URL pública usada en los enlaces de los correos.
+- `SUPABASE_SERVICE_ROLE_KEY`: solo servidor; permite registrar eventos verificados de entrega/rebote.
+
+Los recordatorios de pago crean una notificación interna y luego intentan enviar correo.
+La migración `079_reliable_payment_reminder_delivery.sql` agrega auditoría de entrega y
+habilita las actualizaciones en tiempo real de la campana.
+Configura en Resend el webhook `https://TU_DOMINIO/api/webhooks/resend` para los eventos
+`email.sent`, `email.delivered`, `email.delivery_delayed`, `email.bounced`,
+`email.complained` y `email.failed`.
+
 ## Setup
 ```bash
 cp .env.example .env.local
