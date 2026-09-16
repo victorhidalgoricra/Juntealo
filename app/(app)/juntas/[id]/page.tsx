@@ -121,6 +121,12 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   const [removeMemberError, setRemoveMemberError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!paymentInfo) return;
+    const timeoutId = window.setTimeout(() => setPaymentInfo(null), 5000);
+    return () => window.clearTimeout(timeoutId);
+  }, [paymentInfo]);
+
+  useEffect(() => {
     const load = async () => {
       if (!user) {
         setLoadingJunta(false);
@@ -569,7 +575,8 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     setRemindingProfileId(row.profileId);
     setPaymentInfo(null);
     const result = await sendPaymentReminder({ juntaId: junta!.id, profileId: row.profileId });
-    setPaymentInfo(result.ok ? `${result.message} Destinatario: ${row.displayName}.` : result.message);
+    const recipientName = row.displayName.trim().replace(/[.]+$/, '');
+    setPaymentInfo(result.ok ? `${result.message} Destinatario: ${recipientName}.` : result.message);
     setRemindingProfileId(null);
   };
 
