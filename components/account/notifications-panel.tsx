@@ -17,6 +17,19 @@ function money(value: number) {
   return formatSoles(value);
 }
 
+function emailDeliveryLabel(status: ProfileNotificationEmailStatus) {
+  if (status === 'delivered') return 'Correo entregado';
+  if (status === 'bounced') return 'El correo rebotó';
+  if (status === 'complained') return 'Correo marcado como no deseado';
+  if (status === 'failed') return 'No se pudo enviar el correo';
+  if (status === 'delayed') return 'Correo demorado';
+  if (status === 'sent') return 'Correo enviado';
+  if (status === 'pending') return 'Correo pendiente';
+  return null;
+}
+
+type ProfileNotificationEmailStatus = NonNullable<ReturnType<typeof useAppStore.getState>['notifications'][number]['email_status']>;
+
 function pickActionablePerJunta(items: PaymentDebtItem[]): PaymentDebtItem[] {
   // For each junta pick the lowest cuota_numero that:
   //   • is not already paid
@@ -118,6 +131,9 @@ export function NotificationsPanel() {
           <div className="rounded border p-2" key={n.id}>
             <p className="font-medium">{n.titulo}</p>
             <p className="text-sm">{n.mensaje}</p>
+            {n.tipo === 'payment-reminder' && n.email_status && emailDeliveryLabel(n.email_status) && (
+              <p className="mt-1 text-xs text-slate-500">{emailDeliveryLabel(n.email_status)}</p>
+            )}
           </div>
         ))}
       </div>

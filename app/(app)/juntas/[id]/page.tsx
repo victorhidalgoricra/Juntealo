@@ -569,7 +569,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     setRemindingProfileId(row.profileId);
     setPaymentInfo(null);
     const result = await sendPaymentReminder({ juntaId: junta!.id, profileId: row.profileId });
-    setPaymentInfo(result.ok ? `Recordatorio enviado a ${row.displayName}.` : result.message);
+    setPaymentInfo(result.ok ? `${result.message} Destinatario: ${row.displayName}.` : result.message);
     setRemindingProfileId(null);
   };
 
@@ -944,7 +944,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
                           <Button size="sm" variant="outline" onClick={() => openWhatsAppReminder(row)}>WhatsApp</Button>
                           <Button size="sm" variant="outline" disabled={remindingProfileId !== null} onClick={() => handleSendPaymentReminder(row)}>
                             <Bell size={14} />
-                            {remindingProfileId === row.profileId ? 'Enviando…' : 'Reenviar recordatorio'}
+                            {remindingProfileId === row.profileId ? 'Enviando…' : 'Enviar recordatorio'}
                           </Button>
                         </div>
                       )}

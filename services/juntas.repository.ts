@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
-import { EstadoPago, Junta, JuntaMember, Payment, PaymentSchedule, Payout } from '@/types/domain';
+import { EstadoPago, Junta, JuntaMember, Notification, Payment, PaymentSchedule, Payout } from '@/types/domain';
 
 const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
 
@@ -1091,14 +1091,45 @@ export async function markNotificationsRead(profileId: string, ids?: string[]) {
   return { ok: true as const };
 }
 
-export async function sendPaymentReminder(params: { juntaId: string; profileId: string }) {
-  if (!hasSupabase || !supabase) return { ok: true as const };
-
-  const { error } = await supabase.schema('public').rpc('send_payment_reminder', {
-    p_junta_id: params.juntaId,
-    p_profile_id: params.profileId,
-  });
-
+export async function fetchNotifications(profileId: string) {
+  if (!hasSupabase || !supabase) return { ok: true as const, data: [] as Notification[] };
+  const { data, error } = await supabase
+    .schema('public')
+    .from('notifications')
+    .select('id,profile_id,junta_id,titulo,mensaje,tipo,leida,created_at,email_status,email_sent_at')
+    .eq('profile_id', profileId)
+    .order('created_at', { ascending: false })
+    .limit(100);
   if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
-  return { ok: true as const };
+  return { ok: true as const, data: (data ?? []) as Notification[] };
+}
+
+export async function sendPaymentReminder(params: { juntaId: string; profileId: string }) {
+  if (!hasSupabase || !supabase) {
+    return { ok: true as const, notificationCreated: true, emailSent: false, message: 'Notificación creada; correo no disponible en modo local.' };
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) return { ok: false as const, message: 'Tu sesión expiró. Vuelve a iniciar sesión.' };
+
+  try {
+    const response = await fetch('/api/reminders/payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ juntaId: params.juntaId, profileId: params.profileId }),
+    });
+    const result = await response.json().catch(() => null) as {
+      notificationCreated?: boolean; emailSent?: boolean; message?: string; error?: string;
+    } | null;
+    if (!response.ok) return { ok: false as const, message: result?.error ?? 'No se pudo enviar el recordatorio.' };
+    return {
+      ok: true as const,
+      notificationCreated: Boolean(result?.notificationCreated),
+      emailSent: Boolean(result?.emailSent),
+      message: result?.message ?? 'Recordatorio procesado.',
+    };
+  } catch {
+    return { ok: false as const, message: 'No se pudo conectar con el servicio de recordatorios.' };
+  }
 }
