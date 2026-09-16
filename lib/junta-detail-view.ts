@@ -229,13 +229,14 @@ export function getUserPersonalJuntaView(params: {
   const myRow = params.weeklyRows.find((row) => row.isCurrentUser) ?? null;
   const myTurnRow = params.myTurn ? params.simulationRows.find((row) => row.turno === params.myTurn) ?? null : null;
   const thisWeekRow = params.simulationRows.find((row) => row.turno === params.currentWeek) ?? null;
-  const paidCount = params.weeklyRows.filter((row) => row.status === 'Pagado').length;
+  const payerRows = params.weeklyRows.filter((row) => !row.isReceiver);
+  const paidCount = payerRows.filter((row) => row.status === 'Pagado').length;
   return {
     thisWeekReceiver,
     myRow,
     myTurnRow,
     thisWeekRow,
     paidCount,
-    progressLabel: `${paidCount}/${params.weeklyRows.length} ya pagaron`
+    progressLabel: `${paidCount}/${payerRows.length} ya pagaron`
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getCurrentWeekPaymentRows, getCurrentWeekSummary } from '@/lib/junta-detail-view';
+import { getCurrentWeekPaymentRows, getCurrentWeekSummary, getUserPersonalJuntaView, WeeklyMemberRow } from '@/lib/junta-detail-view';
 import { Junta, JuntaMember, Payment, PaymentSchedule } from '@/types/domain';
 
 const junta = { id: 'j1', admin_id: 'owner', cuota_base: 100, monto_cuota: 100 } as Junta;
@@ -30,5 +30,24 @@ describe('junta detail payment status', () => {
     const validatingPayment = payment('submitted', 'validating');
     const summary = getCurrentWeekSummary({ junta, members, payments: [validatingPayment], schedules: [schedule], currentWeek: 1, juntaActiva: true });
     expect(summary).toMatchObject({ paid: 0, validating: 1, pending: 0 });
+  });
+
+  it('excludes the receiver from the personal payment progress total', () => {
+    const weeklyRows = [
+      { profileId: 'receiver', isReceiver: true, status: 'Recibe' },
+      { profileId: 'payer-1', isReceiver: false, status: 'Pendiente' },
+      { profileId: 'payer-2', isReceiver: false, status: 'Pendiente' },
+      { profileId: 'payer-3', isReceiver: false, status: 'Pendiente' },
+    ] as WeeklyMemberRow[];
+
+    const personal = getUserPersonalJuntaView({
+      junta,
+      currentWeek: 1,
+      weeklyRows,
+      myTurn: null,
+      simulationRows: [],
+    });
+
+    expect(personal.progressLabel).toBe('0/3 ya pagaron');
   });
 });
