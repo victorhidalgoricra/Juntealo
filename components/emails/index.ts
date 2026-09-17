@@ -8,6 +8,7 @@ export { NuevoIntegrante } from './templates/NuevoIntegrante'
 export { RecordatorioPago } from './templates/RecordatorioPago'
 export { PagoConfirmado } from './templates/PagoConfirmado'
 export { JuntaDeshabilitada } from './templates/JuntaDeshabilitada'
+export { RecordatorioMedioPago } from './templates/RecordatorioMedioPago'
 
 export { sendTransactionalEmail } from './helpers/sendTransactionalEmail'
 
@@ -16,4 +17,5 @@ export type { NuevoIntegranteProps } from './templates/NuevoIntegrante'
 export type { RecordatorioPagoProps } from './templates/RecordatorioPago'
 export type { PagoConfirmadoProps } from './templates/PagoConfirmado'
 export type { JuntaDeshabilitadaProps } from './templates/JuntaDeshabilitada'
+export type { RecordatorioMedioPagoProps } from './templates/RecordatorioMedioPago'
 export type { SendEmailOptions, SendEmailResult } from './helpers/sendTransactionalEmail'

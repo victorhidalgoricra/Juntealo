@@ -131,7 +131,7 @@ export function NotificationsPanel() {
           <div className="rounded border p-2" key={n.id}>
             <p className="font-medium">{n.titulo}</p>
             <p className="text-sm">{n.mensaje}</p>
-            {n.tipo === 'payment-reminder' && n.email_status && emailDeliveryLabel(n.email_status) && (
+            {(n.tipo === 'payment-reminder' || n.tipo === 'payout-method-reminder') && n.email_status && emailDeliveryLabel(n.email_status) && (
               <p className="mt-1 text-xs text-slate-500">{emailDeliveryLabel(n.email_status)}</p>
             )}
           </div>

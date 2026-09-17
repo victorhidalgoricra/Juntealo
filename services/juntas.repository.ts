@@ -1162,3 +1162,33 @@ export async function sendPaymentReminder(params: { juntaId: string; profileId: 
     return { ok: false as const, message: 'No se pudo conectar con el servicio de recordatorios.' };
   }
 }
+
+export async function sendPayoutMethodReminder(params: { juntaId: string; scheduleId: string; profileId: string }) {
+  if (!hasSupabase || !supabase) {
+    return { ok: true as const, notificationCreated: true, emailSent: false, message: 'Notificación creada; correo no disponible en modo local.' };
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) return { ok: false as const, message: 'Tu sesión expiró. Vuelve a iniciar sesión.' };
+
+  try {
+    const response = await fetch('/api/reminders/payout-method', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(params),
+    });
+    const result = await response.json().catch(() => null) as {
+      notificationCreated?: boolean; emailSent?: boolean; message?: string; error?: string;
+    } | null;
+    if (!response.ok) return { ok: false as const, message: result?.error ?? 'No se pudo enviar el recordatorio.' };
+    return {
+      ok: true as const,
+      notificationCreated: Boolean(result?.notificationCreated),
+      emailSent: Boolean(result?.emailSent),
+      message: result?.message ?? 'Recordatorio procesado.',
+    };
+  } catch {
+    return { ok: false as const, message: 'No se pudo conectar con el servicio de recordatorios.' };
+  }
+}

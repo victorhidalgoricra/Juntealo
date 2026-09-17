@@ -12,7 +12,7 @@ import { isJuntaActive } from '@/lib/junta-status';
 import { hasSupabase } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { JuntaMember, Payment, Profile } from '@/types/domain';
-import { fetchExistingPaymentByMember, fetchJuntaActiveMembers, fetchJuntaById, fetchPaymentsByJuntaId, fetchSchedulesByJuntaId, submitPayment } from '@/services/juntas.repository';
+import { fetchExistingPaymentByMember, fetchJuntaActiveMembers, fetchJuntaById, fetchPaymentsByJuntaId, fetchSchedulesByJuntaId, sendPayoutMethodReminder, submitPayment } from '@/services/juntas.repository';
 import { fetchReceiverPayoutInfo } from '@/services/profile.service';
 import { getParticipantDisplayName, getReceiverPaymentDetails } from '@/lib/payment-instructions';
 import {
@@ -48,6 +48,8 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   const [activeMembers, setActiveMembers] = useState<JuntaMember[] | null>(null);
   const [loadingMembership, setLoadingMembership] = useState(true);
   const [receiverProfile, setReceiverProfile] = useState<Partial<Profile> | null>(null);
+  const [isLoadingReceiverProfile, setIsLoadingReceiverProfile] = useState(true);
+  const [receiverProfileError, setReceiverProfileError] = useState<string | null>(null);
   // dbPayment holds the payment fetched from DB when the store is empty (e.g. after re-login).
   const [dbPayment, setDbPayment] = useState<Payment | null | undefined>(undefined);
 
@@ -73,6 +75,9 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [sendingPayoutReminder, setSendingPayoutReminder] = useState(false);
+  const [payoutReminderSent, setPayoutReminderSent] = useState(false);
+  const [payoutReminderMessage, setPayoutReminderMessage] = useState<string | null>(null);
 
   const currentStatus = normalizePaymentStatus(existingPayment?.estado);
   const canSubmitPayment = !existingPayment || currentStatus === 'pending' || currentStatus === 'rejected' || currentStatus === 'overdue';
@@ -137,15 +142,25 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   }, [currentSchedule?.id, user?.id, storePayment]);
 
   useEffect(() => {
-    if (!currentReceiverMember?.profile_id) return;
+    setReceiverProfile(null);
+    setReceiverProfileError(null);
+    setPayoutReminderSent(false);
+    setPayoutReminderMessage(null);
+    if (!currentReceiverMember?.profile_id) {
+      setIsLoadingReceiverProfile(false);
+      return;
+    }
+    setIsLoadingReceiverProfile(true);
     fetchReceiverPayoutInfo({ juntaId: params.id, profileId: currentReceiverMember.profile_id }).then((result) => {
       if (!result.ok) {
         console.error('[Registrar pago] fetchReceiverPayoutInfo falló:', result.message, {
           juntaId: params.id,
           profileId: currentReceiverMember.profile_id
         });
+        setReceiverProfileError('No pudimos verificar los datos de pago del receptor. Inténtalo nuevamente.');
       }
       setReceiverProfile(result.ok ? result.data : null);
+      setIsLoadingReceiverProfile(false);
     });
   }, [currentReceiverMember?.profile_id, params.id]);
 
@@ -256,6 +271,10 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
 
   const submitVoucher = async (event: FormEvent) => {
     event.preventDefault();
+    if (isLoadingReceiverProfile || receiverProfileError || !receiverPaymentDetails.isConfigured) {
+      setMessage('El receptor debe configurar cómo recibir su pago antes de que puedas enviarlo a validación.');
+      return;
+    }
     if (!isJuntaActive(junta.estado)) {
       setMessage('La junta aún no está activa');
       return;
@@ -390,6 +409,22 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   const receiverProfileForName: Partial<Profile> | null =
     receiverProfile ?? (memberNombre ? { nombre: memberNombre } : null);
   const receiverDisplayName = getParticipantDisplayName(receiverProfileForName);
+  const paymentSubmissionBlocked = isLoadingReceiverProfile || Boolean(receiverProfileError) || !receiverPaymentDetails.isConfigured;
+
+  const handleSendPayoutMethodReminder = async () => {
+    if (!currentReceiverMember?.profile_id || !currentSchedule?.id || sendingPayoutReminder || payoutReminderSent) return;
+
+    setSendingPayoutReminder(true);
+    setPayoutReminderMessage(null);
+    const result = await sendPayoutMethodReminder({
+      juntaId: junta.id,
+      scheduleId: currentSchedule.id,
+      profileId: currentReceiverMember.profile_id,
+    });
+    setSendingPayoutReminder(false);
+    setPayoutReminderMessage(result.message);
+    if (result.ok) setPayoutReminderSent(true);
+  };
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -410,7 +445,11 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
           <p className="break-words font-semibold text-slate-800">Paga a: {receiverDisplayName}</p>
           <p className="text-sm text-slate-600">Turno: <span className="font-medium">#{currentSchedule.cuota_numero}</span></p>
           <p className="text-sm text-slate-600">Monto: <span className="font-medium">{formatSoles(currentSchedule.monto)}</span></p>
-          {receiverPaymentDetails.isConfigured ? (
+          {isLoadingReceiverProfile ? (
+            <p className="border-t border-blue-200 pt-2 text-sm text-slate-600">Verificando sus datos de pago…</p>
+          ) : receiverProfileError ? (
+            <p className="border-t border-blue-200 pt-2 text-sm text-red-700" role="alert">{receiverProfileError}</p>
+          ) : receiverPaymentDetails.isConfigured ? (
             <div className="space-y-1 border-t border-blue-200 pt-2">
               <p className="text-sm font-medium text-slate-700">Método sugerido: {receiverPaymentDetails.methodLabel}</p>
               {receiverPaymentDetails.destinationLabel && receiverPaymentDetails.destinationValue && (
@@ -425,7 +464,26 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
               <p className="pt-1 text-xs font-medium text-blue-700">Transfiere a este destinatario y luego registra tu pago abajo.</p>
             </div>
           ) : (
-            <p className="border-t border-blue-200 pt-2 text-sm text-amber-700">El receptor aún no configuró sus datos de pago. Coordina con él antes de registrar el pago.</p>
+            <div className="space-y-3 border-t border-blue-200 pt-3">
+              <div className="text-sm text-amber-800">
+                <p className="font-medium">{receiverDisplayName} aún no configuró cómo recibir su pago.</p>
+                <p className="mt-1">Le enviaremos un recordatorio para que complete sus datos.</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={sendingPayoutReminder || payoutReminderSent}
+                onClick={handleSendPayoutMethodReminder}
+              >
+                {sendingPayoutReminder ? 'Enviando…' : payoutReminderSent ? 'Recordatorio enviado' : 'Enviar recordatorio'}
+              </Button>
+              {payoutReminderMessage && (
+                <p className={`text-xs ${payoutReminderSent ? 'text-emerald-700' : 'text-red-700'}`} role="status">
+                  {payoutReminderMessage}
+                </p>
+              )}
+            </div>
           )}
         </Card>
       )}
@@ -480,7 +538,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         {message && <p className="text-sm text-blue-700">{message}</p>}
 
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={submitting || alreadyPaid || isUnderValidation}>{submitting ? 'Enviando...' : isFromDashboard ? 'Confirmar pago' : 'Enviar a validación'}</Button>
+          <Button type="submit" disabled={submitting || alreadyPaid || isUnderValidation || paymentSubmissionBlocked}>{submitting ? 'Enviando...' : isFromDashboard ? 'Confirmar pago' : 'Enviar a validación'}</Button>
           <Button type="button" variant="outline" onClick={() => router.push(`/juntas/${junta.id}?view=participante`)}>Volver</Button>
         </div>
       </form>
