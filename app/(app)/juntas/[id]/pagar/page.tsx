@@ -430,7 +430,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-3 sm:space-y-4">
+    <div className="mx-auto max-w-6xl space-y-3 sm:space-y-4">
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -443,7 +443,9 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         <h1 className="truncate text-xl font-semibold text-fg sm:text-2xl">Registrar pago</h1>
       </div>
 
-      <Card className="space-y-3 p-4 sm:p-5">
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-6">
+        <div className="space-y-3 sm:space-y-4">
+          <Card className="space-y-3 p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-bg text-accent">
@@ -471,10 +473,10 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         </div>
         {alreadyPaid && <p className="text-sm font-medium text-emerald-700">Pago ya registrado</p>}
         {isUnderValidation && <p className="text-sm font-medium text-blue-700">Tu pago está en validación</p>}
-      </Card>
+          </Card>
 
-      {currentReceiverMember && (
-        <Card className="space-y-3 border-blue-200 bg-blue-50/80 p-4 sm:p-5">
+          {currentReceiverMember && (
+            <Card className="space-y-3 border-blue-200 bg-blue-50/80 p-4 sm:p-5">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-blue-700">
             <UserRound size={14} aria-hidden="true" />
             Destinatario del pozo
@@ -536,11 +538,12 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
               )}
             </div>
           )}
-        </Card>
-      )}
+            </Card>
+          )}
+        </div>
 
-      <form onSubmit={submitVoucher}>
-        <Card className="space-y-4 p-4 sm:p-5">
+        <form onSubmit={submitVoucher}>
+          <Card className="space-y-4 p-4 sm:p-5">
           <div>
             <h2 className="text-lg font-semibold text-fg">Registrar tu pago</h2>
             <p className="mt-0.5 text-sm text-muted">Completa los datos de tu pago realizado.</p>
@@ -624,8 +627,9 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
             <Button className="w-full" type="submit" disabled={submitting || alreadyPaid || isUnderValidation || paymentSubmissionBlocked}>{submitting ? 'Enviando...' : isFromDashboard ? 'Confirmar pago' : 'Enviar a validación'}</Button>
             <Button className="w-full" type="button" variant="outline" onClick={() => router.push(`/juntas/${junta.id}?view=participante`)}>Volver</Button>
           </div>
-        </Card>
-      </form>
+          </Card>
+        </form>
+      </div>
     </div>
   );
 }
