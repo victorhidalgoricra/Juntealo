@@ -40,7 +40,15 @@ export function buildPaymentDebtItems(params: {
   now?: Date;
 }) {
   const now = params.now ?? new Date();
-  const myJuntaIds = getMyJuntaIdsForPayments(params.userId, params.juntas, params.members);
+  // A blocked/soft-deleted junta can still have memberships and schedules in
+  // the snapshot. Those historical rows must never become an actionable
+  // payment notification.
+  const activeJuntas = params.juntas.filter((junta) =>
+    junta.estado === 'activa'
+    && !junta.bloqueada
+    && !junta.deleted_at
+  );
+  const myJuntaIds = getMyJuntaIdsForPayments(params.userId, activeJuntas, params.members);
 
   // Derive the current cuota per junta from delivered payouts so we skip
   // historical schedules that were already handled in prior rounds.
@@ -61,9 +69,8 @@ export function buildPaymentDebtItems(params: {
       return currentCuota === undefined || schedule.cuota_numero >= currentCuota;
     })
     .map((schedule) => {
-      const junta = params.juntas.find((item) => item.id === schedule.junta_id);
+      const junta = activeJuntas.find((item) => item.id === schedule.junta_id);
       if (!junta) return null;
-      if (junta.estado === 'cerrada') return null;
 
       const juntaMembers = params.members.filter((member) => member.junta_id === junta.id);
       const receiver = getCurrentRoundReceiver({ schedule, members: juntaMembers });
