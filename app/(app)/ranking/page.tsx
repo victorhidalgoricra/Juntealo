@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Trophy } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth-store';
 import { fetchGlobalRanking, type GlobalRankingEntry } from '@/services/ranking.service';
 import { type JuntaScoreLevel } from '@/services/junta-score.service';
@@ -16,6 +17,7 @@ const LEVEL_BADGE: Record<JuntaScoreLevel, { bg: string; text: string }> = {
 };
 
 const TOP3_MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+const ITEMS_PER_PAGE = 10;
 
 const COL_HEADER = 'px-2 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted sm:px-4';
 
@@ -227,8 +229,28 @@ function EmptyState() {
 export default function RankingPage() {
   const user = useAuthStore((s) => s.user);
   const [ranking, setRanking] = useState<GlobalRankingEntry[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const totalPages = Math.ceil(ranking.length / ITEMS_PER_PAGE);
+  const paginatedRanking = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return ranking.slice(start, start + ITEMS_PER_PAGE);
+  }, [currentPage, ranking]);
+
+  const pageNumbers = useMemo((): (number | string)[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+
+    const pages: (number | string)[] = [1];
+    if (currentPage > 3) pages.push('ellipsis-start');
+    for (let page = Math.max(2, currentPage - 1); page <= Math.min(totalPages - 1, currentPage + 1); page += 1) {
+      pages.push(page);
+    }
+    if (currentPage < totalPages - 2) pages.push('ellipsis-end');
+    pages.push(totalPages);
+    return pages;
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -240,6 +262,7 @@ export default function RankingPage() {
           return;
         }
         setRanking(result.data);
+        setCurrentPage(1);
       })
       .finally(() => setIsLoading(false));
   }, [user?.id]);
@@ -264,7 +287,53 @@ export default function RankingPage() {
       ) : ranking.length === 0 ? (
         <EmptyState />
       ) : (
-        <LeaderboardTable ranking={ranking} />
+        <>
+          <LeaderboardTable ranking={paginatedRanking} />
+
+          {totalPages > 1 && (
+            <nav className="flex flex-wrap items-center justify-center gap-1" aria-label="Paginación del ranking">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              >
+                Anterior
+              </Button>
+
+              {pageNumbers.map((page) =>
+                typeof page === 'string' ? (
+                  <span key={page} className="select-none px-2 text-muted" aria-hidden="true">…</span>
+                ) : (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    aria-label={`Ir a la página ${page}`}
+                    aria-current={currentPage === page ? 'page' : undefined}
+                    className={cn(
+                      'min-w-[2rem] rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                      currentPage === page
+                        ? 'bg-fg text-surface'
+                        : 'border border-border text-fg hover:bg-muted/5'
+                    )}
+                  >
+                    {page}
+                  </button>
+                )
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              >
+                Siguiente
+              </Button>
+            </nav>
+          )}
+        </>
       )}
 
       {!isLoading && ranking.length > 0 && (

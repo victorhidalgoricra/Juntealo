@@ -22,6 +22,28 @@ export type PaymentDebtItem = {
   status: PaymentDebtStatus;
 };
 
+/**
+ * Returns the round that is currently relevant for each junta.
+ *
+ * Choosing the round before deciding whether it requires a payment is
+ * important: when the member is the receiver, skipping that round first
+ * would incorrectly expose the following (future) round as payable.
+ */
+export function selectCurrentPaymentNoticeItems(items: PaymentDebtItem[]): PaymentDebtItem[] {
+  const currentByJunta = new Map<string, PaymentDebtItem>();
+
+  for (const item of items) {
+    const current = currentByJunta.get(item.juntaId);
+    if (!current || item.cuotaNumero < current.cuotaNumero) {
+      currentByJunta.set(item.juntaId, item);
+    }
+  }
+
+  return Array.from(currentByJunta.values())
+    .filter((item) => item.status !== 'pagada')
+    .sort((a, b) => parseCalendarDate(a.dueDate).getTime() - parseCalendarDate(b.dueDate).getTime());
+}
+
 export function getMyJuntaIdsForPayments(userId: string, juntas: Junta[], members: JuntaMember[]) {
   const owned = juntas.filter((junta) => junta.admin_id === userId).map((junta) => junta.id);
   const memberOf = members.filter((member) => member.profile_id === userId).map((member) => member.junta_id);
@@ -40,7 +62,15 @@ export function buildPaymentDebtItems(params: {
   now?: Date;
 }) {
   const now = params.now ?? new Date();
-  const myJuntaIds = getMyJuntaIdsForPayments(params.userId, params.juntas, params.members);
+  // A blocked/soft-deleted junta can still have memberships and schedules in
+  // the snapshot. Those historical rows must never become an actionable
+  // payment notification.
+  const activeJuntas = params.juntas.filter((junta) =>
+    junta.estado === 'activa'
+    && !junta.bloqueada
+    && !junta.deleted_at
+  );
+  const myJuntaIds = getMyJuntaIdsForPayments(params.userId, activeJuntas, params.members);
 
   // Derive the current cuota per junta from delivered payouts so we skip
   // historical schedules that were already handled in prior rounds.
@@ -61,9 +91,8 @@ export function buildPaymentDebtItems(params: {
       return currentCuota === undefined || schedule.cuota_numero >= currentCuota;
     })
     .map((schedule) => {
-      const junta = params.juntas.find((item) => item.id === schedule.junta_id);
+      const junta = activeJuntas.find((item) => item.id === schedule.junta_id);
       if (!junta) return null;
-      if (junta.estado === 'cerrada') return null;
 
       const juntaMembers = params.members.filter((member) => member.junta_id === junta.id);
       const receiver = getCurrentRoundReceiver({ schedule, members: juntaMembers });

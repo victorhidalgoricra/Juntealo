@@ -5,12 +5,14 @@ import { NuevoIntegrante } from '@/components/emails/templates/NuevoIntegrante'
 import { RecordatorioPago } from '@/components/emails/templates/RecordatorioPago'
 import { PagoConfirmado } from '@/components/emails/templates/PagoConfirmado'
 import { JuntaDeshabilitada } from '@/components/emails/templates/JuntaDeshabilitada'
+import { RecordatorioMedioPago } from '@/components/emails/templates/RecordatorioMedioPago'
 import type {
   JuntaCreadaProps,
   NuevoIntegranteProps,
   RecordatorioPagoProps,
   PagoConfirmadoProps,
   JuntaDeshabilitadaProps,
+  RecordatorioMedioPagoProps,
 } from '@/components/emails'
 
 export const emailService = {
@@ -35,6 +37,14 @@ export const emailService = {
       to,
       subject: `Recordatorio: pago pendiente en "${props.juntaName}"`,
       template: React.createElement(RecordatorioPago, props),
+    })
+  },
+
+  async recordatorioMedioPago(to: string, props: RecordatorioMedioPagoProps) {
+    return sendTransactionalEmail({
+      to,
+      subject: `Configura cómo recibir tus aportes en "${props.juntaName}"`,
+      template: React.createElement(RecordatorioMedioPago, props),
     })
   },
 

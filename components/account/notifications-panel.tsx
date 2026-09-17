@@ -9,7 +9,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { fetchProfilesByIds } from '@/services/profile.service';
 import { markNotificationsRead } from '@/services/juntas.repository';
 import { Profile } from '@/types/domain';
-import { buildPaymentDebtItems, PaymentDebtItem } from '@/lib/payment-debts';
+import { buildPaymentDebtItems, selectCurrentPaymentNoticeItems } from '@/lib/payment-debts';
 import { formatCalendarDate } from '@/lib/calendar-date';
 import { formatSoles } from '@/lib/number-format';
 
@@ -29,30 +29,6 @@ function emailDeliveryLabel(status: ProfileNotificationEmailStatus) {
 }
 
 type ProfileNotificationEmailStatus = NonNullable<ReturnType<typeof useAppStore.getState>['notifications'][number]['email_status']>;
-
-function pickActionablePerJunta(items: PaymentDebtItem[]): PaymentDebtItem[] {
-  // For each junta pick the lowest cuota_numero that:
-  //   • is not already paid
-  //   • is not the user's own receiving turn
-  // Sort per-junta by cuotaNumero so we always get the real next pending cuota.
-  const byJunta = new Map<string, PaymentDebtItem[]>();
-  for (const item of items) {
-    if (item.status === 'pagada') continue;
-    if (item.isMyReceivingTurn) continue;
-    const list = byJunta.get(item.juntaId) ?? [];
-    list.push(item);
-    byJunta.set(item.juntaId, list);
-  }
-
-  const result: PaymentDebtItem[] = [];
-  for (const list of byJunta.values()) {
-    list.sort((a, b) => a.cuotaNumero - b.cuotaNumero);
-    result.push(list[0]!);
-  }
-
-  // Re-sort the final list by dueDate so the most urgent appears first.
-  return result.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-}
 
 export function NotificationsPanel() {
   const user = useAuthStore((s) => s.user);
@@ -84,7 +60,7 @@ export function NotificationsPanel() {
       profilesById,
       fallbackProfile: user,
     });
-    return pickActionablePerJunta(all);
+    return selectCurrentPaymentNoticeItems(all);
   }, [juntas, members, payments, payouts, profilesById, schedules, user]);
 
   const handleMarkAllRead = async () => {
@@ -110,19 +86,31 @@ export function NotificationsPanel() {
           ) : (
             debtNotifications.map((item) => (
               <div key={item.id} className="rounded-md border bg-white p-2">
-                <p className="text-sm font-medium">{item.juntaNombre} · Cuota {item.cuotaNumero}</p>
-                <p className="text-xs text-slate-600">
-                  Debes pagar a {item.receiverName} · {money(item.monto)} · vence {formatCalendarDate(item.dueDate)}
-                </p>
-                {item.status === 'en_validacion' ? (
-                  <p className="mt-1 text-xs font-medium text-amber-700">Pago enviado · en validación</p>
+                {item.isMyReceivingTurn ? (
+                  <>
+                    <p className="text-sm font-medium">{item.juntaNombre} · Ronda {item.cuotaNumero}</p>
+                    <p className="text-xs text-slate-600">
+                      Te toca recibir en esta ronda · inicia el {formatCalendarDate(item.dueDate)}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-blue-700">No necesitas registrar un pago en tu turno.</p>
+                  </>
                 ) : (
+                  <>
+                    <p className="text-sm font-medium">{item.juntaNombre} · Cuota {item.cuotaNumero}</p>
+                    <p className="text-xs text-slate-600">
+                      Debes pagar a {item.receiverName} · {money(item.monto)} · vence {formatCalendarDate(item.dueDate)}
+                    </p>
+                  </>
+                )}
+                {!item.isMyReceivingTurn && item.status === 'en_validacion' ? (
+                  <p className="mt-1 text-xs font-medium text-amber-700">Pago enviado · en validación</p>
+                ) : !item.isMyReceivingTurn ? (
                   <div className="mt-1">
                     <Link href={`/juntas/${item.juntaId}/registrar-pago?juntaId=${encodeURIComponent(item.juntaId)}&cuotaId=${encodeURIComponent(item.cuotaId)}&src=notifications`}>
                       <Button variant="outline">Pagar</Button>
                     </Link>
                   </div>
-                )}
+                ) : null}
               </div>
             ))
           )}
@@ -131,7 +119,7 @@ export function NotificationsPanel() {
           <div className="rounded border p-2" key={n.id}>
             <p className="font-medium">{n.titulo}</p>
             <p className="text-sm">{n.mensaje}</p>
-            {n.tipo === 'payment-reminder' && n.email_status && emailDeliveryLabel(n.email_status) && (
+            {(n.tipo === 'payment-reminder' || n.tipo === 'payout-method-reminder') && n.email_status && emailDeliveryLabel(n.email_status) && (
               <p className="mt-1 text-xs text-slate-500">{emailDeliveryLabel(n.email_status)}</p>
             )}
           </div>

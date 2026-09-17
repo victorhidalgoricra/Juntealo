@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { hasSupabase } from '@/lib/env';
+import { hideInactivePaymentReminders } from '@/lib/notification-visibility';
 import { EstadoPago, Junta, JuntaMember, Notification, Payment, PaymentSchedule, Payout } from '@/types/domain';
 
 const PRIVATE_TOKEN_STORAGE_KEY = 'jd-private-invite-tokens';
@@ -1101,7 +1102,35 @@ export async function fetchNotifications(profileId: string) {
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) return { ok: false as const, message: mapSupabaseErrorMessage(error.message) };
-  return { ok: true as const, data: (data ?? []) as Notification[] };
+
+  const notifications = (data ?? []) as Notification[];
+  const reminderJuntaIds = Array.from(new Set(
+    notifications
+      .filter((item) => item.tipo === 'payment-reminder' && item.junta_id)
+      .map((item) => item.junta_id as string),
+  ));
+
+  if (reminderJuntaIds.length === 0) {
+    return { ok: true as const, data: notifications };
+  }
+
+  const { data: activeJuntas, error: juntasError } = await supabase
+    .schema('public')
+    .from('juntas')
+    .select('id')
+    .in('id', reminderJuntaIds)
+    .eq('estado', 'activa')
+    .or('bloqueada.is.null,bloqueada.eq.false')
+    .is('deleted_at', null);
+
+  if (juntasError && process.env.NODE_ENV === 'development') {
+    console.error('[notifications] active juntas validation failed', juntasError);
+  }
+
+  return {
+    ok: true as const,
+    data: hideInactivePaymentReminders(notifications, (activeJuntas ?? []).map((junta) => junta.id)),
+  };
 }
 
 export async function sendPaymentReminder(params: { juntaId: string; profileId: string }) {
@@ -1118,6 +1147,36 @@ export async function sendPaymentReminder(params: { juntaId: string; profileId: 
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ juntaId: params.juntaId, profileId: params.profileId }),
+    });
+    const result = await response.json().catch(() => null) as {
+      notificationCreated?: boolean; emailSent?: boolean; message?: string; error?: string;
+    } | null;
+    if (!response.ok) return { ok: false as const, message: result?.error ?? 'No se pudo enviar el recordatorio.' };
+    return {
+      ok: true as const,
+      notificationCreated: Boolean(result?.notificationCreated),
+      emailSent: Boolean(result?.emailSent),
+      message: result?.message ?? 'Recordatorio procesado.',
+    };
+  } catch {
+    return { ok: false as const, message: 'No se pudo conectar con el servicio de recordatorios.' };
+  }
+}
+
+export async function sendPayoutMethodReminder(params: { juntaId: string; scheduleId: string; profileId: string }) {
+  if (!hasSupabase || !supabase) {
+    return { ok: true as const, notificationCreated: true, emailSent: false, message: 'Notificación creada; correo no disponible en modo local.' };
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) return { ok: false as const, message: 'Tu sesión expiró. Vuelve a iniciar sesión.' };
+
+  try {
+    const response = await fetch('/api/reminders/payout-method', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(params),
     });
     const result = await response.json().catch(() => null) as {
       notificationCreated?: boolean; emailSent?: boolean; message?: string; error?: string;

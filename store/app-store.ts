@@ -42,14 +42,16 @@ export const useAppStore = create<State>()(
       }))
     }),
     {
-      name: 'jd-app',
+      // Use a fresh cache key so previously persisted notifications cannot be
+      // rehydrated. Notifications are server-owned and are deliberately not
+      // included in partialize below.
+      name: 'jd-app-v2',
       partialize: (state) => ({
         juntas: state.juntas,
         members: state.members,
         schedules: state.schedules,
         payments: state.payments,
         payouts: state.payouts,
-        notifications: state.notifications,
       })
     }
   )
