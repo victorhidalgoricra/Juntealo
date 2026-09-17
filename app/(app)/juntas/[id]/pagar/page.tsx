@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, CalendarDays, Landmark, Upload, UserRound, WalletCards } from 'lucide-react';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
 import { normalizePaymentStatus, paymentStatusLabel } from '@/lib/payment-status';
@@ -427,31 +430,79 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
-      <Card className="space-y-2">
-        <h1 className="break-words text-2xl font-semibold">Registrar pago</h1>
-        <p className="break-words text-sm text-slate-600">{junta.nombre}</p>
-        <p className="text-sm text-slate-600">{scheduleLabel}</p>
-        <p className="text-sm text-slate-600">Monto esperado: <span className="font-semibold">{formatSoles(currentSchedule.monto)}</span></p>
-        <p className="text-sm text-slate-600">Fecha límite: <span className="font-semibold">{formatCalendarDate(currentSchedule.fecha_vencimiento)}</span></p>
-        <p className="text-sm text-slate-600">Estado actual: <span className="font-semibold">{paymentStatusLabel(currentStatus)}</span></p>
+    <div className="mx-auto max-w-2xl space-y-3 sm:space-y-4">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          aria-label="Volver a la junta"
+          onClick={() => router.push(`/juntas/${junta.id}?view=participante`)}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-slate-600 transition-colors hover:bg-accent-bg hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+        >
+          <ArrowLeft size={19} aria-hidden="true" />
+        </button>
+        <h1 className="truncate text-xl font-semibold text-fg sm:text-2xl">Registrar pago</h1>
+      </div>
+
+      <Card className="space-y-3 p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-bg text-accent">
+              <Landmark size={17} aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-fg">{junta.nombre}</p>
+              <p className="mt-0.5 text-xs text-muted sm:text-sm">{scheduleLabel}</p>
+            </div>
+          </div>
+          <Badge className="shrink-0">{paymentStatusLabel(currentStatus)}</Badge>
+        </div>
+        <div className="grid grid-cols-2 gap-3 border-t border-border pt-3">
+          <div>
+            <p className="text-xs text-muted">Monto esperado</p>
+            <p className="mt-0.5 font-semibold text-fg">{formatSoles(currentSchedule.monto)}</p>
+          </div>
+          <div>
+            <p className="flex items-center gap-1 text-xs text-muted">
+              <CalendarDays size={13} aria-hidden="true" />
+              Fecha límite
+            </p>
+            <p className="mt-0.5 font-semibold text-fg">{formatCalendarDate(currentSchedule.fecha_vencimiento)}</p>
+          </div>
+        </div>
         {alreadyPaid && <p className="text-sm font-medium text-emerald-700">Pago ya registrado</p>}
         {isUnderValidation && <p className="text-sm font-medium text-blue-700">Tu pago está en validación</p>}
       </Card>
 
       {currentReceiverMember && (
-        <Card className="space-y-2 border-blue-200 bg-blue-50">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Destinatario del pozo</p>
-          <p className="break-words font-semibold text-slate-800">Paga a: {receiverDisplayName}</p>
-          <p className="text-sm text-slate-600">Turno: <span className="font-medium">#{currentSchedule.cuota_numero}</span></p>
-          <p className="text-sm text-slate-600">Monto: <span className="font-medium">{formatSoles(currentSchedule.monto)}</span></p>
+        <Card className="space-y-3 border-blue-200 bg-blue-50/80 p-4 sm:p-5">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-blue-700">
+            <UserRound size={14} aria-hidden="true" />
+            Destinatario del pozo
+          </p>
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end sm:gap-5">
+            <div>
+              <p className="text-xs text-slate-500">Paga a</p>
+              <p className="break-words font-semibold text-slate-800">{receiverDisplayName}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Turno</p>
+              <p className="text-sm font-semibold text-slate-800">#{currentSchedule.cuota_numero}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Monto</p>
+              <p className="text-sm font-semibold text-slate-800">{formatSoles(currentSchedule.monto)}</p>
+            </div>
+          </div>
           {isLoadingReceiverProfile ? (
-            <p className="border-t border-blue-200 pt-2 text-sm text-slate-600">Verificando sus datos de pago…</p>
+            <p className="border-t border-blue-200 pt-3 text-sm text-slate-600">Verificando sus datos de pago…</p>
           ) : receiverProfileError ? (
-            <p className="border-t border-blue-200 pt-2 text-sm text-red-700" role="alert">{receiverProfileError}</p>
+            <p className="border-t border-blue-200 pt-3 text-sm text-red-700" role="alert">{receiverProfileError}</p>
           ) : receiverPaymentDetails.isConfigured ? (
-            <div className="space-y-1 border-t border-blue-200 pt-2">
-              <p className="text-sm font-medium text-slate-700">Método sugerido: {receiverPaymentDetails.methodLabel}</p>
+            <div className="space-y-1.5 border-t border-blue-200 pt-3">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                <WalletCards size={15} className="text-blue-600" aria-hidden="true" />
+                Método sugerido: {receiverPaymentDetails.methodLabel}
+              </p>
               {receiverPaymentDetails.destinationLabel && receiverPaymentDetails.destinationValue && (
                 <p className="break-all text-sm text-slate-600">{receiverPaymentDetails.destinationLabel}: <span className="font-medium">{receiverPaymentDetails.destinationValue}</span></p>
               )}
@@ -461,7 +512,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
               {receiverPaymentDetails.notes && (
                 <p className="text-sm text-slate-500">Nota: {receiverPaymentDetails.notes}</p>
               )}
-              <p className="pt-1 text-xs font-medium text-blue-700">Transfiere a este destinatario y luego registra tu pago abajo.</p>
+              <p className="pt-1.5 text-xs font-medium text-blue-700">Transfiere a este destinatario y luego registra tu pago abajo.</p>
             </div>
           ) : (
             <div className="space-y-3 border-t border-blue-200 pt-3">
@@ -488,59 +539,88 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
         </Card>
       )}
 
-      <form onSubmit={submitVoucher} className="space-y-3">
-        <Card className="space-y-3">
-          <label className="text-sm font-medium">Monto de la cuota (fijo)</label>
-          <Input type="number" value={monto} readOnly />
+      <form onSubmit={submitVoucher}>
+        <Card className="space-y-4 p-4 sm:p-5">
+          <div>
+            <h2 className="text-lg font-semibold text-fg">Registrar tu pago</h2>
+            <p className="mt-0.5 text-sm text-muted">Completa los datos de tu pago realizado.</p>
+          </div>
 
-          <label className="text-sm font-medium">Método de pago</label>
-          <select className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" value={method} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setMethod(event.target.value as 'yape' | 'plin' | 'transferencia' | 'efectivo' | 'otro')}>
-            <option value="yape">Yape</option>
-            <option value="plin">Plin</option>
-            <option value="transferencia">Transferencia</option>
-            <option value="efectivo">Efectivo</option>
-            <option value="otro">Otro</option>
-          </select>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="payment-amount" className="block text-sm font-medium">Monto de la cuota (fijo)</label>
+              <div className="relative">
+                <Input id="payment-amount" type="number" value={monto} readOnly className="pr-11" />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-semibold text-muted">S/</span>
+              </div>
+            </div>
 
-          <label className="text-sm font-medium">Número de operación (opcional)</label>
-          <Input value={operationNumber} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setOperationNumber(event.target.value)} />
+            <div className="space-y-1.5">
+              <label htmlFor="payment-method" className="block text-sm font-medium">Método de pago</label>
+              <Select id="payment-method" value={method} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setMethod(event.target.value as 'yape' | 'plin' | 'transferencia' | 'efectivo' | 'otro')}>
+                <option value="yape">Yape</option>
+                <option value="plin">Plin</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="otro">Otro</option>
+              </Select>
+            </div>
+          </div>
 
-          <label className="text-sm font-medium">Voucher / comprobante (opcional · JPG, PNG o PDF)</label>
-          <Input
-            type="file"
-            accept={PAYMENT_RECEIPT_ACCEPT}
-            disabled={isUnderValidation || alreadyPaid}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (!file) return;
-              const validationError = validatePaymentReceiptFile(file);
-              if (validationError) {
-                if (process.env.NODE_ENV === 'development') {
-                  console.error(validationError.technicalMessage);
+          <div className="space-y-1.5">
+            <label htmlFor="operation-number" className="block text-sm font-medium">Número de operación (opcional)</label>
+            <Input id="operation-number" placeholder="Ej. 12345678" value={operationNumber} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setOperationNumber(event.target.value)} />
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="payment-receipt" className="block text-sm font-medium">Voucher / comprobante <span className="font-normal text-muted">(opcional · JPG, PNG o PDF)</span></label>
+            <label
+              htmlFor="payment-receipt"
+              className={`flex min-h-24 flex-col items-center justify-center rounded-[var(--r-sm)] border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-center transition-colors ${isUnderValidation || alreadyPaid ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-accent hover:bg-accent-bg'}`}
+            >
+              <Upload size={20} className="mb-1.5 text-accent" aria-hidden="true" />
+              <span className="text-sm font-semibold text-fg">Seleccionar archivo</span>
+              <span className="mt-0.5 max-w-full break-all text-xs text-muted">{fileName || 'Sin archivos seleccionados'}</span>
+            </label>
+            <Input
+              id="payment-receipt"
+              type="file"
+              accept={PAYMENT_RECEIPT_ACCEPT}
+              disabled={isUnderValidation || alreadyPaid}
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                const validationError = validatePaymentReceiptFile(file);
+                if (validationError) {
+                  if (process.env.NODE_ENV === 'development') {
+                    console.error(validationError.technicalMessage);
+                  }
+                  setMessage(validationError.userMessage);
+                  return;
                 }
-                setMessage(validationError.userMessage);
-                return;
-              }
-              setReceiptFile(file);
-              setFileName(file.name);
-              setMessage(null);
-            }}
-          />
-          {fileName && <p className="break-all text-xs text-slate-500">Archivo seleccionado: {fileName}</p>}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {previewUrl && <img src={previewUrl} alt="Preview del comprobante" className="max-h-60 w-full rounded-md border object-contain" />}
-          {!previewUrl && receiptFile?.type === 'application/pdf' && <p className="text-xs text-blue-700">PDF cargado correctamente. Se enviará como comprobante.</p>}
+                setReceiptFile(file);
+                setFileName(file.name);
+                setMessage(null);
+              }}
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {previewUrl && <img src={previewUrl} alt="Preview del comprobante" className="max-h-48 w-full rounded-md border object-contain" />}
+            {!previewUrl && receiptFile?.type === 'application/pdf' && <p className="text-xs text-blue-700">PDF cargado correctamente. Se enviará como comprobante.</p>}
+          </div>
 
-          <label className="text-sm font-medium">Observación (opcional)</label>
-          <textarea className="min-h-24 w-full rounded-md border border-slate-300 p-3 text-sm" value={note} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setNote(event.target.value)} />
+          <div className="space-y-1.5">
+            <label htmlFor="payment-note" className="block text-sm font-medium">Observación (opcional)</label>
+            <textarea id="payment-note" rows={3} placeholder="Escribe un comentario…" className="min-h-20 w-full resize-y rounded-[var(--r-sm)] border border-border bg-surface p-3 text-sm text-fg outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-bg)] disabled:cursor-not-allowed disabled:opacity-50" value={note} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setNote(event.target.value)} />
+          </div>
+
+          {message && <p className="text-sm text-blue-700" role="status">{message}</p>}
+
+          <div className="space-y-2 pt-1">
+            <Button className="w-full" type="submit" disabled={submitting || alreadyPaid || isUnderValidation || paymentSubmissionBlocked}>{submitting ? 'Enviando...' : isFromDashboard ? 'Confirmar pago' : 'Enviar a validación'}</Button>
+            <Button className="w-full" type="button" variant="outline" onClick={() => router.push(`/juntas/${junta.id}?view=participante`)}>Volver</Button>
+          </div>
         </Card>
-
-        {message && <p className="text-sm text-blue-700">{message}</p>}
-
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={submitting || alreadyPaid || isUnderValidation || paymentSubmissionBlocked}>{submitting ? 'Enviando...' : isFromDashboard ? 'Confirmar pago' : 'Enviar a validación'}</Button>
-          <Button type="button" variant="outline" onClick={() => router.push(`/juntas/${junta.id}?view=participante`)}>Volver</Button>
-        </div>
       </form>
     </div>
   );
