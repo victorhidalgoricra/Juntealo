@@ -546,72 +546,76 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
             <p className="mt-0.5 text-sm text-muted">Completa los datos de tu pago realizado.</p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label htmlFor="payment-amount" className="block text-sm font-medium">Monto de la cuota (fijo)</label>
-              <div className="relative">
-                <Input id="payment-amount" type="number" value={monto} readOnly className="pr-11" />
-                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-semibold text-muted">S/</span>
+          <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label htmlFor="payment-amount" className="block text-sm font-medium">Monto de la cuota (fijo)</label>
+                <div className="relative">
+                  <Input id="payment-amount" type="number" value={monto} readOnly className="pr-11" />
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-semibold text-muted">S/</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="payment-method" className="block text-sm font-medium">Método de pago</label>
+                <Select id="payment-method" value={method} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setMethod(event.target.value as 'yape' | 'plin' | 'transferencia' | 'efectivo' | 'otro')}>
+                  <option value="yape">Yape</option>
+                  <option value="plin">Plin</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="otro">Otro</option>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="operation-number" className="block text-sm font-medium">Número de operación (opcional)</label>
+                <Input id="operation-number" placeholder="Ej. 12345678" value={operationNumber} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setOperationNumber(event.target.value)} />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label htmlFor="payment-method" className="block text-sm font-medium">Método de pago</label>
-              <Select id="payment-method" value={method} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setMethod(event.target.value as 'yape' | 'plin' | 'transferencia' | 'efectivo' | 'otro')}>
-                <option value="yape">Yape</option>
-                <option value="plin">Plin</option>
-                <option value="transferencia">Transferencia</option>
-                <option value="efectivo">Efectivo</option>
-                <option value="otro">Otro</option>
-              </Select>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label htmlFor="payment-receipt" className="block text-sm font-medium">Voucher / comprobante <span className="font-normal text-muted">(opcional · JPG, PNG o PDF)</span></label>
+                <label
+                  htmlFor="payment-receipt"
+                  className={`flex min-h-24 flex-col items-center justify-center rounded-[var(--r-sm)] border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-center transition-colors ${isUnderValidation || alreadyPaid ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-accent hover:bg-accent-bg'}`}
+                >
+                  <Upload size={20} className="mb-1.5 text-accent" aria-hidden="true" />
+                  <span className="text-sm font-semibold text-fg">Seleccionar archivo</span>
+                  <span className="mt-0.5 max-w-full break-all text-xs text-muted">{fileName || 'Sin archivos seleccionados'}</span>
+                </label>
+                <Input
+                  id="payment-receipt"
+                  type="file"
+                  accept={PAYMENT_RECEIPT_ACCEPT}
+                  disabled={isUnderValidation || alreadyPaid}
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    const validationError = validatePaymentReceiptFile(file);
+                    if (validationError) {
+                      if (process.env.NODE_ENV === 'development') {
+                        console.error(validationError.technicalMessage);
+                      }
+                      setMessage(validationError.userMessage);
+                      return;
+                    }
+                    setReceiptFile(file);
+                    setFileName(file.name);
+                    setMessage(null);
+                  }}
+                />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {previewUrl && <img src={previewUrl} alt="Preview del comprobante" className="max-h-48 w-full rounded-md border object-contain" />}
+                {!previewUrl && receiptFile?.type === 'application/pdf' && <p className="text-xs text-blue-700">PDF cargado correctamente. Se enviará como comprobante.</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="payment-note" className="block text-sm font-medium">Observación (opcional)</label>
+                <textarea id="payment-note" rows={3} placeholder="Escribe un comentario…" className="min-h-20 w-full resize-y rounded-[var(--r-sm)] border border-border bg-surface p-3 text-sm text-fg outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-bg)] disabled:cursor-not-allowed disabled:opacity-50" value={note} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setNote(event.target.value)} />
+              </div>
             </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="operation-number" className="block text-sm font-medium">Número de operación (opcional)</label>
-            <Input id="operation-number" placeholder="Ej. 12345678" value={operationNumber} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setOperationNumber(event.target.value)} />
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="payment-receipt" className="block text-sm font-medium">Voucher / comprobante <span className="font-normal text-muted">(opcional · JPG, PNG o PDF)</span></label>
-            <label
-              htmlFor="payment-receipt"
-              className={`flex min-h-24 flex-col items-center justify-center rounded-[var(--r-sm)] border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-center transition-colors ${isUnderValidation || alreadyPaid ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-accent hover:bg-accent-bg'}`}
-            >
-              <Upload size={20} className="mb-1.5 text-accent" aria-hidden="true" />
-              <span className="text-sm font-semibold text-fg">Seleccionar archivo</span>
-              <span className="mt-0.5 max-w-full break-all text-xs text-muted">{fileName || 'Sin archivos seleccionados'}</span>
-            </label>
-            <Input
-              id="payment-receipt"
-              type="file"
-              accept={PAYMENT_RECEIPT_ACCEPT}
-              disabled={isUnderValidation || alreadyPaid}
-              className="sr-only"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (!file) return;
-                const validationError = validatePaymentReceiptFile(file);
-                if (validationError) {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.error(validationError.technicalMessage);
-                  }
-                  setMessage(validationError.userMessage);
-                  return;
-                }
-                setReceiptFile(file);
-                setFileName(file.name);
-                setMessage(null);
-              }}
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {previewUrl && <img src={previewUrl} alt="Preview del comprobante" className="max-h-48 w-full rounded-md border object-contain" />}
-            {!previewUrl && receiptFile?.type === 'application/pdf' && <p className="text-xs text-blue-700">PDF cargado correctamente. Se enviará como comprobante.</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="payment-note" className="block text-sm font-medium">Observación (opcional)</label>
-            <textarea id="payment-note" rows={3} placeholder="Escribe un comentario…" className="min-h-20 w-full resize-y rounded-[var(--r-sm)] border border-border bg-surface p-3 text-sm text-fg outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-bg)] disabled:cursor-not-allowed disabled:opacity-50" value={note} disabled={isUnderValidation || alreadyPaid} onChange={(event) => setNote(event.target.value)} />
           </div>
 
           {message && <p className="text-sm text-blue-700" role="status">{message}</p>}
