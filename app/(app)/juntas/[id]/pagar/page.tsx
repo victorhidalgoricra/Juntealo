@@ -14,7 +14,7 @@ import { supabase } from '@/lib/supabase';
 import type { JuntaMember, Payment, Profile } from '@/types/domain';
 import { fetchExistingPaymentByMember, fetchJuntaActiveMembers, fetchJuntaById, fetchPaymentsByJuntaId, fetchSchedulesByJuntaId, sendPayoutMethodReminder, submitPayment } from '@/services/juntas.repository';
 import { fetchReceiverPayoutInfo } from '@/services/profile.service';
-import { getParticipantDisplayName, getReceiverPaymentDetails } from '@/lib/payment-instructions';
+import { getCurrentRoundReceiver, getParticipantDisplayName, getReceiverPaymentDetails } from '@/lib/payment-instructions';
 import {
   PAYMENT_RECEIPT_ACCEPT,
   PaymentReceiptUploadError,
@@ -55,7 +55,7 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
 
   const isMember = isCreator || Boolean(activeMembers?.some((m) => m.profile_id === user?.id && m.estado === 'activo'));
   const currentReceiverMember = activeMembers && currentSchedule
-    ? (activeMembers.find((m) => m.orden_turno === currentSchedule.cuota_numero) ?? null)
+    ? getCurrentRoundReceiver({ schedule: currentSchedule, members: activeMembers })
     : null;
   const isCurrentReceiver = Boolean(user?.id && currentReceiverMember?.profile_id && user.id === currentReceiverMember.profile_id);
 

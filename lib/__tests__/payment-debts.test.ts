@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPaymentDebtItems } from '@/lib/payment-debts';
+import { buildPaymentDebtItems, selectCurrentPaymentNoticeItems } from '@/lib/payment-debts';
 import type { Junta, JuntaMember, PaymentSchedule } from '@/types/domain';
 
 const userId = 'profile-1';
@@ -69,5 +69,41 @@ describe('buildPaymentDebtItems', () => {
 
   it('keeps payments from an active junta', () => {
     expect(debts(junta())).toHaveLength(1);
+  });
+});
+
+describe('selectCurrentPaymentNoticeItems', () => {
+  it('keeps the receiver round instead of exposing the next round as payable', () => {
+    const items = [
+      {
+        id: 'junta-1:schedule-1', juntaId: 'junta-1', juntaNombre: 'Junta de prueba',
+        cuotaId: 'schedule-1', cuotaNumero: 1, dueDate: '2026-09-20', monto: 100,
+        receiverName: 'Yo', receiverId: userId, receiverMethod: 'Yape',
+        receiverMethodConfigured: true, myPayoutConfigured: true,
+        isMyReceivingTurn: true, status: 'pendiente' as const,
+      },
+      {
+        id: 'junta-1:schedule-2', juntaId: 'junta-1', juntaNombre: 'Junta de prueba',
+        cuotaId: 'schedule-2', cuotaNumero: 2, dueDate: '2026-09-27', monto: 100,
+        receiverName: 'Otra persona', receiverId: 'profile-2', receiverMethod: 'Yape',
+        receiverMethodConfigured: true, myPayoutConfigured: true,
+        isMyReceivingTurn: false, status: 'pendiente' as const,
+      },
+    ];
+
+    expect(selectCurrentPaymentNoticeItems(items)).toEqual([items[0]]);
+  });
+
+  it('does not advance to a future round when the current payment is already approved', () => {
+    const current = {
+      id: 'junta-1:schedule-1', juntaId: 'junta-1', juntaNombre: 'Junta de prueba',
+      cuotaId: 'schedule-1', cuotaNumero: 1, dueDate: '2026-09-20', monto: 100,
+      receiverName: 'Otra persona', receiverId: 'profile-2', receiverMethod: 'Yape',
+      receiverMethodConfigured: true, myPayoutConfigured: true,
+      isMyReceivingTurn: false, status: 'pagada' as const,
+    };
+    const future = { ...current, id: 'junta-1:schedule-2', cuotaId: 'schedule-2', cuotaNumero: 2, dueDate: '2026-09-27', status: 'pendiente' as const };
+
+    expect(selectCurrentPaymentNoticeItems([current, future])).toEqual([]);
   });
 });

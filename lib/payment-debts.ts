@@ -22,6 +22,28 @@ export type PaymentDebtItem = {
   status: PaymentDebtStatus;
 };
 
+/**
+ * Returns the round that is currently relevant for each junta.
+ *
+ * Choosing the round before deciding whether it requires a payment is
+ * important: when the member is the receiver, skipping that round first
+ * would incorrectly expose the following (future) round as payable.
+ */
+export function selectCurrentPaymentNoticeItems(items: PaymentDebtItem[]): PaymentDebtItem[] {
+  const currentByJunta = new Map<string, PaymentDebtItem>();
+
+  for (const item of items) {
+    const current = currentByJunta.get(item.juntaId);
+    if (!current || item.cuotaNumero < current.cuotaNumero) {
+      currentByJunta.set(item.juntaId, item);
+    }
+  }
+
+  return Array.from(currentByJunta.values())
+    .filter((item) => item.status !== 'pagada')
+    .sort((a, b) => parseCalendarDate(a.dueDate).getTime() - parseCalendarDate(b.dueDate).getTime());
+}
+
 export function getMyJuntaIdsForPayments(userId: string, juntas: Junta[], members: JuntaMember[]) {
   const owned = juntas.filter((junta) => junta.admin_id === userId).map((junta) => junta.id);
   const memberOf = members.filter((member) => member.profile_id === userId).map((member) => member.junta_id);
