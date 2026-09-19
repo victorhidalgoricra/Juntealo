@@ -11,25 +11,141 @@ alter table public.user_activity_events
   add column if not exists invite_id uuid references public.invitations(id) on delete set null,
   add column if not exists notification_id uuid references public.notifications(id) on delete set null;
 
--- Normalize the three legacy feed events before validating the expanded catalog.
--- Old cycle_completed rows represented a junta closing (one row per member), not a cycle.
-delete from public.user_activity_events where event_type = 'cycle_completed';
-update public.user_activity_events
-set event_type = 'junta_joined',
-    event_key = 'junta_joined:' || junta_id || ':' || profile_id,
-    description = '',
-    metadata = metadata - 'junta_name',
-    source = 'database_trigger'
-where event_type = 'joined_junta';
-update public.user_activity_events
-set event_key = 'payment_confirmed:' || payment_id,
-    description = '',
-    metadata = metadata - 'junta_name',
-    source = 'database_trigger'
-where event_type = 'payment_confirmed' and payment_id is not null;
-
+-- The legacy CHECK must be removed before joined_junta can be renamed.
 alter table public.user_activity_events
   drop constraint if exists user_activity_events_event_type_check;
+
+-- Normalize and canonicalize the legacy feed without deleting feed rows.  The
+-- canonical row gets the unique analytics key; conceptual duplicates remain
+-- readable in the historical feed with a null event_key.
+--
+-- A junta member's created_at and a payment's validation/payment timestamp are
+-- preferred over event timestamps.  Ties are resolved by occurred_at,
+-- created_at and id, in that order.
+with ranked as (
+  select e.id,
+    row_number() over (
+      partition by e.junta_id, e.profile_id
+      order by
+        exists (
+          select 1 from public.junta_members jm
+          where jm.junta_id = e.junta_id and jm.profile_id = e.profile_id
+            and jm.created_at = e.occurred_at
+        ) desc,
+        e.occurred_at, e.created_at, e.id
+    ) as canonical_rank
+  from public.user_activity_events e
+  where e.event_type in ('joined_junta', 'junta_joined')
+    and e.junta_id is not null and e.profile_id is not null
+)
+update public.user_activity_events e
+set event_type = 'junta_joined',
+    event_key = case when r.canonical_rank = 1
+      then 'junta_joined:' || e.junta_id || ':' || e.profile_id end,
+    metadata = e.metadata - 'junta_name',
+    source = 'database_trigger'
+from ranked r where r.id = e.id;
+
+-- Rows lacking either identity cannot safely claim a junta_joined key, but the
+-- valid historical feed record is retained and its legacy type is normalized.
+update public.user_activity_events
+set event_type = 'junta_joined', event_key = null,
+    metadata = metadata - 'junta_name', source = 'database_trigger'
+where event_type = 'joined_junta';
+
+with ranked as (
+  select e.id,
+    row_number() over (
+      partition by e.payment_id
+      order by
+        (coalesce(p.validated_at, p.pagado_en, p.created_at) is not null
+          and e.occurred_at = coalesce(p.validated_at, p.pagado_en, p.created_at)) desc,
+        e.occurred_at, e.created_at, e.id
+    ) as canonical_rank
+  from public.user_activity_events e
+  join public.payments p on p.id = e.payment_id
+  where e.event_type = 'payment_confirmed' and e.payment_id is not null
+)
+update public.user_activity_events e
+set event_key = case when r.canonical_rank = 1
+      then 'payment_confirmed:' || e.payment_id end,
+    metadata = e.metadata - 'junta_name',
+    source = 'database_trigger'
+from ranked r where r.id = e.id;
+
+-- The old junta trigger emitted one cycle_completed feed row per participant
+-- when the junta closed.  They are junta-completion feed entries, not payment
+-- cycle facts.  Preserve every row, but give only one deterministic row the
+-- operational junta_completed key.
+with ranked as (
+  select e.id,
+    row_number() over (
+      partition by e.junta_id
+      order by (e.profile_id = j.admin_id) desc,
+        e.occurred_at, e.created_at, e.id
+    ) as canonical_rank
+  from public.user_activity_events e
+  join public.juntas j on j.id = e.junta_id
+  where e.event_type = 'cycle_completed' and e.cycle_id is null
+)
+update public.user_activity_events e
+set event_type = 'junta_completed',
+    event_key = case when r.canonical_rank = 1
+      then 'junta_completed:' || e.junta_id end,
+    metadata = e.metadata - 'junta_name',
+    source = 'database_trigger'
+from ranked r where r.id = e.id;
+
+-- A deleted junta may have nulled junta_id through the legacy foreign key.
+-- Such a pre-analytics row is still known to be the old mislabeled feed event,
+-- but it cannot safely receive an operational key.
+update public.user_activity_events
+set event_type = 'junta_completed', event_key = null,
+    metadata = metadata - 'junta_name', source = 'database_trigger'
+where event_type = 'cycle_completed' and cycle_id is null;
+
+-- Be defensive about a prior partial run (or pre-existing client keys): retain
+-- one deterministic owner for every key so the partial unique index can be
+-- installed without discarding any historical event.
+with ranked as (
+  select id, row_number() over (
+    partition by event_key order by occurred_at, created_at, id
+  ) as canonical_rank
+  from public.user_activity_events where event_key is not null
+)
+update public.user_activity_events e set event_key = null
+from ranked r where r.id = e.id and r.canonical_rank > 1;
+
+-- Fail closed on an unknown type.  Unknown history must be investigated, not
+-- silently coerced merely to make the CHECK pass.
+do $$
+declare v_invalid_types text;
+begin
+  select string_agg(event_type, ', ' order by event_type)
+  into v_invalid_types
+  from (
+    select distinct event_type from public.user_activity_events
+    where event_type not in (
+      'user_registered',
+      'junta_creation_started', 'junta_created',
+      'junta_invite_created', 'junta_invite_link_opened', 'junta_invite_accepted',
+      'junta_join_requested', 'junta_joined', 'junta_member_removed', 'junta_member_left',
+      'junta_first_member_joined', 'junta_filled',
+      'junta_activation_started', 'junta_activated',
+      'cycle_started', 'cycle_completed',
+      'payment_started', 'payment_submitted', 'payment_pending_validation',
+      'payment_confirmed', 'payment_rejected', 'payment_overdue',
+      'payout_started', 'payout_completed',
+      'junta_completed', 'junta_cancelled',
+      'explore_viewed', 'junta_viewed', 'create_junta_cta_clicked', 'join_junta_cta_clicked',
+      'notification_created', 'notification_sent', 'notification_read', 'reminder_sent',
+      'payment_reminder_sent'
+    )
+  ) invalid;
+  if v_invalid_types is not null then
+    raise exception 'Unknown user_activity_events event_type(s): %', v_invalid_types;
+  end if;
+end $$;
 
 alter table public.user_activity_events
   add constraint user_activity_events_event_type_check check (event_type in (
@@ -443,14 +559,16 @@ begin
     p_metadata := jsonb_build_object('expected_amount', v_expected, 'actual_amount', new.monto_pozo),
     p_occurred_at := new.entregado_en
   );
-  perform public.record_product_event(
-    'cycle_completed', 'cycle_completed:' || v_cycle, new.profile_id, new.junta_id,
-    p_cycle_id := v_cycle, p_source := 'database_trigger',
-    p_metadata := jsonb_build_object(
-      'cycle_number', new.ronda_numero, 'expected_payments', v_expected_payments,
-      'confirmed_payments', v_confirmed_payments, 'total_confirmed_amount', v_confirmed_amount
-    ), p_occurred_at := new.entregado_en
-  );
+  if v_cycle is not null then
+    perform public.record_product_event(
+      'cycle_completed', 'cycle_completed:' || v_cycle, new.profile_id, new.junta_id,
+      p_cycle_id := v_cycle, p_source := 'database_trigger',
+      p_metadata := jsonb_build_object(
+        'cycle_number', new.ronda_numero, 'expected_payments', v_expected_payments,
+        'confirmed_payments', v_confirmed_payments, 'total_confirmed_amount', v_confirmed_amount
+      ), p_occurred_at := new.entregado_en
+    );
+  end if;
   return new;
 end;
 $$;
