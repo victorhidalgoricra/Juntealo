@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { DM_Mono, DM_Sans } from 'next/font/google';
 import { ReactNode } from 'react';
 import Script from 'next/script';
+import { AcquisitionCapture } from '@/components/acquisition-capture';
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es" className={`${dmSans.variable} ${dmMono.variable}`}>
       <body>
+        <AcquisitionCapture />
         {children}
         <Analytics />
         <Script

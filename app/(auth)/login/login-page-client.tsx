@@ -17,6 +17,7 @@ import { buildProfileFromAuthUser, mapAuthErrorMessage } from '@/services/auth.s
 import { ensureProfileExists, fetchProfileById } from '@/services/profile.service';
 import { clearExploreJoinIntent, readExploreJoinIntent } from '@/lib/explore-join-intent';
 import { fetchMyActiveMembership } from '@/services/juntas.repository';
+import { claimStoredInviteAttribution } from '@/lib/acquisition-attribution';
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
@@ -78,6 +79,9 @@ export function LoginPageClient() {
         if (error) throw error;
         const user = data.user;
         if (!user) throw new Error('No se pudo obtener sesión.');
+
+        // Best effort: authentication must not depend on analytics attribution.
+        void claimStoredInviteAttribution();
 
         const profileResult = await fetchProfileById(user.id);
         if (!profileResult.ok) {

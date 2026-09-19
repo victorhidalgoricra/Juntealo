@@ -8,6 +8,7 @@ export async function fetchRecentUserActivity(limit = 5) {
     .schema('public')
     .from('user_activity_events')
     .select('id,profile_id,event_type,junta_id,payment_id,description,metadata,occurred_at')
+    .in('event_type', ['payment_confirmed', 'junta_joined', 'cycle_completed'])
     .order('occurred_at', { ascending: false })
     .limit(Math.min(Math.max(limit, 1), 5));
   if (error) return { ok: false as const, message: error.message };
