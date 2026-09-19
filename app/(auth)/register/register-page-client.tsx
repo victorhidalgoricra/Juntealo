@@ -15,6 +15,7 @@ import { useState, useRef, useCallback } from 'react';
 import { checkProfileConflicts, ensureProfileExists } from '@/services/profile.service';
 import { validateReferralCode, useReferralCode as redeemReferralCode } from '@/services/referral.service';
 import { LEGAL_DOCUMENTS } from '@/lib/legal-documents';
+import { resolveFirstTouchAttribution } from '@/lib/acquisition-attribution';
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
@@ -96,6 +97,7 @@ export function RegisterPageClient() {
               }
 
               const emailRedirectTo = `${window.location.origin}/login?confirmed=1`;
+              const acquisition = resolveFirstTouchAttribution({ referralPresent: referralStatus === 'valid' });
               const { data, error } = await supabase.auth.signUp({
                 email: normalized.email,
                 password: normalized.password,
@@ -108,7 +110,13 @@ export function RegisterPageClient() {
                     terms_version: LEGAL_DOCUMENTS.terms.version,
                     privacy_accepted: normalized.acceptsTerms,
                     privacy_version: LEGAL_DOCUMENTS.privacy.version,
-                    marketing_consent: normalized.marketingConsent
+                    marketing_consent: normalized.marketingConsent,
+                    acquisition_source: acquisition.source,
+                    acquisition_utm_source: acquisition.utmSource,
+                    acquisition_medium: acquisition.medium,
+                    acquisition_campaign: acquisition.campaign,
+                    invite_attribution_id: acquisition.attributionId,
+                    anonymous_visitor_id: acquisition.visitorId
                   },
                   emailRedirectTo
                 }

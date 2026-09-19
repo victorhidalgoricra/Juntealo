@@ -23,6 +23,7 @@ import { getLevelCreationLimits } from '@/services/junta-engagement.service';
 import { buildJuntaScoreStatsFromDomain, getUserJuntaScore } from '@/services/junta-score.service';
 import { formatAmount, formatSoles } from '@/lib/number-format';
 import { supabase } from '@/lib/supabase';
+import { trackProductEvent } from '@/services/product-analytics.service';
 
 const steps = [
   { id: 1, title: 'Información básica' },
@@ -37,6 +38,8 @@ type SuccessState = {
   juntaId: string;
   nombre: string;
   accessCode?: string;
+  slug: string;
+  inviteToken: string;
 };
 
 function hasValidIncentiveConfig(totalParticipants: number, firstHalfIncentives: number[]) {
@@ -123,6 +126,7 @@ export default function NewJuntaPage() {
   const levelLimits = getLevelCreationLimits(userLevel);
 
   const conversionFiredRef = useRef(false);
+  const analyticsAttemptRef = useRef<string | null>(null);
 
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
@@ -206,6 +210,16 @@ export default function NewJuntaPage() {
   useEffect(() => {
     if (!user) router.replace('/login?redirect=/juntas/new');
   }, [user, router]);
+
+  useEffect(() => {
+    if (!user || analyticsAttemptRef.current) return;
+    analyticsAttemptRef.current = crypto.randomUUID();
+    void trackProductEvent({
+      eventName: 'junta_creation_started',
+      eventKey: `junta_creation_started:${user.id}:${analyticsAttemptRef.current}`,
+      metadata: { entry_point: 'create_page' }
+    });
+  }, [user]);
 
   const cycleLabel = useMemo(() => {
     if (!previewParticipantes || previewParticipantes < 1) return '—';
@@ -362,7 +376,7 @@ export default function NewJuntaPage() {
             {successState.accessCode ? (
               <p className="rounded-md bg-white p-3 text-sm">Código de acceso: <span className="font-semibold">{successState.accessCode}</span></p>
             ) : (
-              <p className="rounded-md bg-white p-3 text-sm break-all">Link de invitación: {`${typeof window !== 'undefined' ? window.location.origin : ''}/juntas/${successState.juntaId}`}</p>
+              <p className="rounded-md bg-white p-3 text-sm break-all">Link de invitación: {`${typeof window !== 'undefined' ? window.location.origin : ''}/junta/${successState.slug}?invite=${successState.inviteToken}`}</p>
             )}
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={() => router.push(`/juntas/${successState.juntaId}`)}>Ver detalle</Button>
@@ -451,7 +465,13 @@ export default function NewJuntaPage() {
                   members: [...allMembers, { id: crypto.randomUUID(), junta_id: payload.juntaId, profile_id: user.id, estado: 'activo', rol: 'admin', orden_turno: 1 }]
                 });
 
-                setSuccessState({ juntaId: payload.juntaId, nombre: payload.junta.nombre, accessCode: payload.accessCode });
+                setSuccessState({
+                  juntaId: payload.juntaId,
+                  nombre: payload.junta.nombre,
+                  accessCode: payload.accessCode,
+                  slug: payload.junta.slug,
+                  inviteToken: payload.junta.invite_token
+                });
               } catch (error) {
                 setErrorMsg(error instanceof Error ? error.message : 'No se pudo crear la junta.');
               } finally {

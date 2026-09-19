@@ -24,6 +24,11 @@ export interface Profile {
   dni?: string;
   foto_url?: string;
   referral_code?: string;
+  acquisition_source?: 'direct' | 'invite' | 'organic_search' | 'paid' | 'referral' | 'unknown';
+  acquisition_utm_source?: string;
+  acquisition_medium?: string;
+  acquisition_campaign?: string;
+  acquisition_invite_id?: string;
   preferred_payout_method?: 'yape' | 'plin' | 'bank_account' | 'cash' | 'other';
   payout_account_name?: string;
   payout_phone_number?: string;
@@ -157,7 +162,7 @@ export interface Notification {
   email_sent_at?: string | null;
 }
 
-export type UserActivityEventType = 'payment_confirmed' | 'joined_junta' | 'cycle_completed';
+export type UserActivityEventType = 'payment_confirmed' | 'junta_joined' | 'cycle_completed';
 
 export interface UserActivityEvent {
   id: string;
@@ -166,6 +171,6 @@ export interface UserActivityEvent {
   junta_id?: string | null;
   payment_id?: string | null;
   description: string;
-  metadata: { junta_name?: string };
+  metadata: Record<string, string | number | boolean | null>;
   occurred_at: string;
 }

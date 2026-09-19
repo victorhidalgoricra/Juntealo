@@ -9,9 +9,9 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test": "vitest run --configLoader runner",
+    "test:watch": "vitest --configLoader runner",
+    "test:coverage": "vitest run --configLoader runner --coverage"
   },
   "dependencies": {
     "@react-email/components": "^0.5.7",

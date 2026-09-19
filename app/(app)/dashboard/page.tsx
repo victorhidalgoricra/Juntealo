@@ -469,7 +469,7 @@ function WeeklyGoalsCard({ goals }: { goals: WeeklyGoal[] }) {
 
 const ACTIVITY_ICON = {
   payment_confirmed: CreditCard,
-  joined_junta: UserPlus,
+  junta_joined: UserPlus,
   cycle_completed: PartyPopper,
 } as const;
 

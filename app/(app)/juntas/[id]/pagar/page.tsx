@@ -26,6 +26,7 @@ import {
 } from '@/services/payment-receipt-upload.service';
 import { formatCalendarDate } from '@/lib/calendar-date';
 import { formatSoles } from '@/lib/number-format';
+import { trackProductEvent } from '@/services/product-analytics.service';
 
 export default function JuntaPayPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -297,6 +298,15 @@ export default function JuntaPayPage({ params }: { params: { id: string } }) {
       const paymentId = existingPayment?.id ?? crypto.randomUUID();
       const now = new Date().toISOString();
       const nextStatus = 'submitted' as const;
+
+      void trackProductEvent({
+        eventName: 'payment_started',
+        juntaId: junta.id,
+        paymentId,
+        cycleId: currentSchedule.id,
+        eventKey: `payment_started:${paymentId}`,
+        metadata: { entry_point: 'payment_form' }
+      });
 
       const dbResult = await submitPayment({
         id: paymentId,

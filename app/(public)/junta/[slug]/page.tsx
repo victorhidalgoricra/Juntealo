@@ -2,17 +2,31 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { fetchPublicJuntas } from '@/services/juntas.repository';
 import { Junta } from '@/types/domain';
 import { useAuthStore } from '@/store/auth-store';
+import { captureInviteOpen } from '@/lib/acquisition-attribution';
 
 export default function JuntaPublicPage({ params }: { params: { slug: string } }) {
+  const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [junta, setJunta] = useState<Junta | null>(null);
+
+  useEffect(() => {
+    const inviteToken = searchParams.get('invite');
+    if (!inviteToken) return;
+    void captureInviteOpen({
+      token: inviteToken,
+      utmSource: searchParams.get('utm_source') ?? undefined,
+      medium: searchParams.get('utm_medium') ?? undefined,
+      campaign: searchParams.get('utm_campaign') ?? undefined
+    });
+  }, [searchParams]);
 
   useEffect(() => {
     let mounted = true;
