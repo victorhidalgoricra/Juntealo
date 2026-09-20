@@ -2,32 +2,35 @@
 -- Run numbered blocks individually; do not apply this file with db push.
 
 -- 01_activation_funnel_v2.csv
-with events as (
-  select event_type, profile_id, junta_id, occurred_at
+-- Creation cohort: every later stage is evaluated only for juntas created in that month.
+with cohort as (
+  select junta_id, min(occurred_at) created_at
   from public.user_activity_events
-  where event_type in (
-    'user_registered','junta_created','junta_joined','junta_first_member_joined',
-    'junta_filled','junta_activated','payment_confirmed','cycle_completed','junta_completed'
-  )
+  where event_type='junta_created' and junta_id is not null
+  group by junta_id
+), progress as (
+  select c.*,
+    exists(select 1 from public.user_activity_events e where e.junta_id=c.junta_id and e.event_type='junta_first_member_joined' and e.occurred_at>=c.created_at) has_first_member,
+    exists(select 1 from public.user_activity_events e where e.junta_id=c.junta_id and e.event_type='junta_filled' and e.occurred_at>=c.created_at) has_filled,
+    exists(select 1 from public.user_activity_events e where e.junta_id=c.junta_id and e.event_type='junta_activated' and e.occurred_at>=c.created_at) has_activated,
+    exists(select 1 from public.user_activity_events e where e.junta_id=c.junta_id and e.event_type='payment_confirmed' and e.occurred_at>=c.created_at) has_payment,
+    exists(select 1 from public.user_activity_events e where e.junta_id=c.junta_id and e.event_type='junta_completed' and e.occurred_at>=c.created_at) has_completed
+  from cohort c
 ), monthly as (
-  select date_trunc('month', occurred_at)::date period_month,
-    count(distinct profile_id) filter(where event_type='user_registered') registered_users,
-    count(distinct profile_id) filter(where event_type='junta_joined') users_who_joined,
-    count(distinct junta_id) filter(where event_type='junta_created') juntas_created,
-    count(distinct junta_id) filter(where event_type='junta_first_member_joined') juntas_with_first_member,
-    count(distinct junta_id) filter(where event_type='junta_filled') juntas_filled,
-    count(distinct junta_id) filter(where event_type='junta_activated') juntas_activated,
-    count(distinct junta_id) filter(where event_type='payment_confirmed') juntas_with_payment,
-    count(distinct junta_id) filter(where event_type='cycle_completed') juntas_with_cycle,
-    count(distinct junta_id) filter(where event_type='junta_completed') juntas_completed
-  from events group by 1
+  select date_trunc('month',created_at)::date period_month, count(*) juntas_created,
+    count(*) filter(where has_first_member) juntas_with_first_member,
+    count(*) filter(where has_filled) juntas_filled,
+    count(*) filter(where has_activated) juntas_activated,
+    count(*) filter(where has_payment) juntas_with_payment,
+    count(*) filter(where has_completed) juntas_completed
+  from progress group by 1
 )
 select *,
-  round(100.0*users_who_joined/nullif(registered_users,0),2) registration_to_join_rate,
-  round(100.0*juntas_filled/nullif(juntas_created,0),2) fill_conversion_rate,
-  round(100.0*juntas_activated/nullif(juntas_filled,0),2) filled_to_activation_rate,
-  round(100.0*juntas_with_payment/nullif(juntas_activated,0),2) activation_to_payment_rate,
-  round(100.0*juntas_completed/nullif(juntas_activated,0),2) completion_rate
+  round(100.0*juntas_with_first_member/nullif(juntas_created,0),2) first_member_rate,
+  round(100.0*juntas_filled/nullif(juntas_created,0),2) fill_rate,
+  round(100.0*juntas_activated/nullif(juntas_created,0),2) activation_rate,
+  round(100.0*juntas_with_payment/nullif(juntas_created,0),2) first_payment_rate,
+  round(100.0*juntas_completed/nullif(juntas_created,0),2) completion_rate
 from monthly order by period_month;
 
 -- 02_junta_liquidity_v2.csv
@@ -44,25 +47,24 @@ from public.juntas j left join public.junta_members jm on jm.junta_id=j.id
 group by j.id order by j.created_at;
 
 -- 03_repeat_and_retention_v2.csv
-with core as (
-  select profile_id user_id, junta_id, occurred_at,
-    row_number() over(partition by profile_id order by occurred_at,junta_id) participation_number
-  from public.user_activity_events where event_type='junta_joined' and profile_id is not null
-), completed as (
+-- Sequential repeat: a different junta joined strictly after a completed junta.
+with completed as (
   select jm.profile_id user_id, e.junta_id, e.occurred_at completed_at
   from public.user_activity_events e join public.junta_members jm on jm.junta_id=e.junta_id
-  where e.event_type='junta_completed'
-), per_user as (
-  select c.user_id, min(c.occurred_at) first_junta_at,
-    min(c.occurred_at) filter(where participation_number=2) second_junta_at,
-    min(done.completed_at) first_completed_at
-  from core c left join completed done on done.user_id=c.user_id group by c.user_id
+  where e.event_type='junta_completed' and jm.estado::text in ('activo','moroso')
+), eligible as (
+  select distinct on (user_id) user_id, junta_id completed_junta_id, completed_at
+  from completed order by user_id, completed_at, junta_id
 )
-select p.*,
-  (select min(c.occurred_at) from core c
-    where c.user_id=p.user_id and c.occurred_at>p.first_completed_at) next_junta_after_completion,
-  extract(epoch from (p.second_junta_at-p.first_junta_at))/86400.0 days_to_second_junta
-from per_user p order by first_junta_at;
+select e.*,
+  n.next_junta_after_completion,
+  extract(epoch from (n.next_junta_after_completion-e.completed_at))/86400.0 days_to_next_junta
+from eligible e left join lateral (
+  select min(j.occurred_at) next_junta_after_completion
+  from public.user_activity_events j
+  where j.event_type='junta_joined' and j.profile_id=e.user_id
+    and j.junta_id<>e.completed_junta_id and j.occurred_at>e.completed_at
+) n on true order by e.completed_at;
 
 -- 04_virality_v2.csv
 -- Cohort is the month the invite link was created. One open is one unique
@@ -137,7 +139,7 @@ with confirmed as (
   select date_trunc('month',confirmed_at)::date,currency,receiver_id from confirmed where receiver_id is not null
 ), monthly as (
   select date_trunc('month',confirmed_at)::date period_month,currency,
-    count(distinct junta_id) active_juntas, count(distinct payer_id) unique_payers,
+    count(distinct junta_id) juntas_with_movement, count(distinct payer_id) unique_payers,
     count(distinct receiver_id) unique_receivers, count(distinct payment_id) confirmed_payments,
     sum(amount) confirmed_volume
   from confirmed group by 1,2
@@ -145,6 +147,6 @@ with confirmed as (
   select period_month,currency,count(distinct user_id) monthly_active_savers
   from savers group by 1,2
 )
-select m.period_month,m.currency,m.active_juntas,m.unique_payers,m.unique_receivers,
+select m.period_month,m.currency,m.juntas_with_movement,m.unique_payers,m.unique_receivers,
   mas.monthly_active_savers,m.confirmed_payments,m.confirmed_volume
 from monthly m join mas using(period_month,currency) order by 1,2;

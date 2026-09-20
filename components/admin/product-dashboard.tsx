@@ -10,16 +10,17 @@ import { formatAmount, formatSoles } from '@/lib/number-format';
 import {
   DashboardMetric,
   DashboardPeriodDays,
+  calculateFunnelRate,
   fetchProductDashboard,
   ProductDashboardData
 } from '@/services/product-analytics.service';
 
-type SeriesKey = 'activeSavers' | 'volume' | 'activeJuntas';
+type SeriesKey = 'activeSavers' | 'volume' | 'juntasWithMovement';
 
 const SERIES: Array<{ key: SeriesKey; label: string }> = [
   { key: 'activeSavers', label: 'Active Savers' },
   { key: 'volume', label: 'Volumen' },
-  { key: 'activeJuntas', label: 'Juntas activas' }
+  { key: 'juntasWithMovement', label: 'Juntas con movimiento' }
 ];
 
 function safeNumber(value: number | null | undefined) {
@@ -35,6 +36,10 @@ function formatDuration(hours: number | null | undefined) {
   const number = safeNumber(hours);
   if (number === null) return 'Sin datos suficientes';
   return number < 24 ? `${formatAmount(number, 1)} h` : `${formatAmount(number / 24, 1)} días`;
+}
+
+function maturityRateText(rate: number | null | undefined, eligible: number) {
+  return eligible === 0 || safeNumber(rate) === null ? 'Sin cohorte madura' : formatPercent(rate);
 }
 
 function Comparison({ metric, percentagePoints = false }: { metric: DashboardMetric; percentagePoints?: boolean }) {
@@ -72,6 +77,22 @@ function MetricCard({ label, value, metric, tooltip, percentagePoints }: {
       <p className={`font-semibold tracking-tight text-slate-950 ${value.length > 16 ? 'text-lg' : 'text-3xl'}`}>{value}</p>
       <Comparison metric={metric} percentagePoints={percentagePoints} />
     </Card>
+  );
+}
+
+function MaturityValue({ label, current, previous, unit = 'juntas', description }: {
+  label: string;
+  current: { eligible: number; achieved: number; rate: number | null };
+  previous: { eligible: number; achieved: number; rate: number | null };
+  unit?: string;
+  description: string;
+}) {
+  return (
+    <div className="min-w-0" title={`${description} ${current.achieved} de ${current.eligible} ${unit} elegibles.`}>
+      <p className={`font-semibold text-slate-950 ${current.eligible === 0 ? 'text-sm' : 'text-2xl'}`}>{maturityRateText(current.rate, current.eligible)}</p>
+      <p className="mt-1 text-xs text-slate-500">{label} · {current.achieved} de {current.eligible}</p>
+      <Comparison metric={{ current: current.rate, previous: previous.rate }} percentagePoints />
+    </div>
   );
 }
 
@@ -135,9 +156,9 @@ export function ProductDashboard() {
         <>
           <div className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-5 ${loading ? 'opacity-60' : ''}`}>
             <MetricCard label="Usuarios activos ahorrando" value={formatAmount(data.kpis.activeSavers.current ?? 0, 0)} metric={data.kpis.activeSavers} tooltip="Usuarios únicos que pagaron o recibieron al menos un pago confirmado en una junta válida durante el período." />
-            <MetricCard label="Juntas activas" value={formatAmount(data.kpis.activeJuntas.current ?? 0, 0)} metric={data.kpis.activeJuntas} tooltip="Juntas distintas con al menos un pago confirmado durante el período." />
-            <MetricCard label="Volumen confirmado" value={formatSoles(data.kpis.confirmedVolume.current ?? 0, 0)} metric={data.kpis.confirmedVolume} tooltip="Suma de pagos aprobados y confirmados durante el período." />
-            <MetricCard label="Junta Activation Rate" value={formatPercent(data.kpis.activationRate.current)} metric={data.kpis.activationRate} percentagePoints tooltip="Juntas activadas dividido entre juntas creadas en el período." />
+            <MetricCard label="Juntas con movimiento" value={formatAmount(data.kpis.juntasWithMovement.current ?? 0, 0)} metric={data.kpis.juntasWithMovement} tooltip="Juntas distintas con al menos un pago confirmado durante el período seleccionado." />
+            <MetricCard label="Volumen confirmado" value={formatSoles(data.kpis.confirmedVolume.current ?? 0, 0)} metric={data.kpis.confirmedVolume} tooltip="Suma únicamente pagos aprobados y confirmados en PEN durante el período. No se convierten ni mezclan otras monedas." />
+            <MetricCard label="Junta Activation Rate" value={formatPercent(data.kpis.activationRate.current)} metric={data.kpis.activationRate} percentagePoints tooltip="Porcentaje acumulado de juntas de la cohorte que llegaron a activarse." />
             <MetricCard label="On-time Payment Rate" value={formatPercent(data.kpis.onTimePaymentRate.current)} metric={data.kpis.onTimePaymentRate} percentagePoints tooltip="Pagos confirmados dentro del deadline operacional dividido entre pagos confirmados." />
           </div>
 
@@ -145,7 +166,7 @@ export function ProductDashboard() {
             <Card className="xl:col-span-3">
               <div className="mb-5">
                 <h3 className="font-semibold text-slate-950">Funnel de juntas</h3>
-                <p className="text-xs text-slate-500">Eventos ocurridos durante los últimos {days} días.</p>
+                <p className="text-xs text-slate-500">Cohorte de juntas creadas durante los últimos {days} días; se observa su avance hasta hoy.</p>
               </div>
               <div className="space-y-1">
                 {([
@@ -154,7 +175,6 @@ export function ProductDashboard() {
                   ['Primer pago confirmado', data.funnel.first_payment], ['Completadas', data.funnel.completed]
                 ] as Array<[string, number]>).map(([label, count], index, rows) => {
                   const created = rows[0][1];
-                  const prior = index > 0 ? rows[index - 1][1] : null;
                   return (
                     <div key={label}>
                       {index > 0 && <ArrowDown className="ml-4 h-4 w-4 text-slate-300" aria-hidden="true" />}
@@ -162,18 +182,19 @@ export function ProductDashboard() {
                         <span className="text-sm font-medium text-slate-700">{label}</span>
                         <span className="text-lg font-semibold tabular-nums text-slate-950">{count}</span>
                         <span className="w-28 text-right text-xs text-slate-500">
-                          {created > 0 ? `${formatAmount((count / created) * 100, 0)}% total` : 'Sin datos'}
-                          {prior !== null && prior > 0 ? ` · ${formatAmount((count / prior) * 100, 0)}% etapa` : ''}
+                          {calculateFunnelRate(count, created) !== null ? `${formatAmount(calculateFunnelRate(count, created)!, 0)}% total` : 'Sin datos'}
                         </span>
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <div className="mt-5 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-3">
+                <MaturityValue label="Activation ≤7d" current={data.kpis.activationWithin7d.current} previous={data.kpis.activationWithin7d.previous} description="Porcentaje de juntas que se activaron dentro de sus primeros 7 días. Solo incluye juntas con al menos 7 días de observación." />
                 <HealthValue value={formatDuration(data.funnel.median_hours_to_fill)} label="Median Time to Fill" />
                 <HealthValue value={formatDuration(data.funnel.median_hours_to_activation)} label="Median Time to Activation" />
               </div>
+              <p className="mt-4 text-xs text-slate-500">El funnel es acumulado. Las métricas ≤7d usan únicamente cohortes con suficiente tiempo de observación. {data.funnel.open_in_progress} juntas siguen abiertas o en progreso{safeNumber(data.funnel.median_age_days) === null ? '.' : `; la antigüedad mediana es ${formatAmount(data.funnel.median_age_days!, 1)} días.`}</p>
             </Card>
 
             <Card className="xl:col-span-2">
@@ -199,9 +220,9 @@ export function ProductDashboard() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <Card><h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Retención</h3><div className="mt-4 grid grid-cols-3 gap-3"><HealthValue value={formatPercent(data.health.repeatJuntaRate)} label="Repeat Junta" title="Usuarios que se unieron en el período y han participado en al menos dos juntas." /><HealthValue value={formatPercent(data.health.retentionRate)} label={`Retención ${days}d`} title="Usuarios activos ahorrando en ambos períodos, sobre los activos del período anterior." /><HealthValue value={data.health.medianDaysToNextJunta === null ? 'Sin datos suficientes' : `${formatAmount(data.health.medianDaysToNextJunta, 1)} días`} label="Hasta próxima junta" /></div></Card>
-            <Card><h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Liquidez</h3><div className="mt-4 grid grid-cols-3 gap-3"><HealthValue value={formatPercent(data.health.fillRate)} label="Fill Rate" /><HealthValue value={formatDuration(data.health.medianHoursToFill)} label="Time to Fill" /><HealthValue value={formatAmount(data.health.uncompletedJuntas, 0)} label="Sin completar" /></div></Card>
-            <Card><div className="flex items-center gap-2"><h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Viralidad</h3><span title="K = links técnicos creados por inviter × usuarios nuevos atribuidos por link; equivale a registros atribuidos por inviter." className="cursor-help text-slate-400"><Info className="h-3.5 w-3.5" /></span></div><div className="mt-4 grid grid-cols-3 gap-3"><HealthValue value={formatPercent(data.health.inviteConversion)} label="Invite Conversion" title="Registros atribuidos dividido entre aperturas únicas." /><HealthValue value={safeNumber(data.health.invitesPerInviter) === null ? 'Sin datos suficientes' : formatAmount(data.health.invitesPerInviter!, 2)} label="Links / inviter" /><HealthValue value={safeNumber(data.health.kFactor) === null ? 'Sin datos suficientes' : formatAmount(data.health.kFactor!, 2)} label="K-factor" /></div></Card>
+            <Card><h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Retención</h3><div className="mt-4 grid grid-cols-2 gap-4"><HealthValue value={formatPercent(data.health.repeatJuntaRate)} label="Repeat Junta acumulado" title="Usuarios de juntas completadas en el período que luego ingresaron a otra junta distinta, sobre todos los usuarios elegibles." /><MaturityValue label="Repeat ≤30d" unit="usuarios" description="Porcentaje de usuarios que ingresaron a otra junta dentro de los 30 días posteriores a completar una junta. Para garantizar una ventana completa de observación, la cohorte se desplaza 30 días hacia atrás." current={{ eligible: data.health.repeatWithin30d.current.eligibleUsers, achieved: data.health.repeatWithin30d.current.repeatedUsers, rate: data.health.repeatWithin30d.current.rate }} previous={{ eligible: data.health.repeatWithin30d.previous.eligibleUsers, achieved: data.health.repeatWithin30d.previous.repeatedUsers, rate: data.health.repeatWithin30d.previous.rate }} /><HealthValue value={data.health.medianDaysToNextJunta === null ? 'Sin datos suficientes' : `${formatAmount(data.health.medianDaysToNextJunta, 1)} días`} label="Hasta próxima junta" title="Mediana desde la finalización de la junta elegible hasta el ingreso posterior a otra junta distinta." /><HealthValue value={formatPercent(data.health.retentionRate)} label={`Retención de Active Savers ${days}d`} title="Active Savers presentes en ambos períodos, sobre los Active Savers del período anterior." /></div></Card>
+            <Card><h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Liquidez</h3><div className="mt-4 grid grid-cols-3 gap-3"><HealthValue value={formatPercent(data.health.fillRate)} label="Fill Rate acumulado" /><MaturityValue label="Fill ≤7d" current={data.health.fillWithin7d.current} previous={data.health.fillWithin7d.previous} description="Porcentaje de juntas que se llenaron dentro de sus primeros 7 días. Solo incluye juntas con al menos 7 días de observación." /><HealthValue value={formatDuration(data.health.medianHoursToFill)} label="Time to Fill" /></div></Card>
+            <Card><div className="flex items-center gap-2"><h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Viralidad</h3><span title="K-factor interno = registros atribuidos / invitadores activos. Cada invitación es un link técnico y un mismo link puede generar más de un registro; no es un coeficiente viral universal." className="cursor-help text-slate-400"><Info className="h-3.5 w-3.5" /></span></div><div className="mt-4 grid grid-cols-3 gap-3"><HealthValue value={formatPercent(data.health.inviteConversion)} label="Invite Conversion" title="Registros atribuidos dividido entre aperturas únicas." /><HealthValue value={safeNumber(data.health.invitesPerInviter) === null ? 'Sin datos suficientes' : formatAmount(data.health.invitesPerInviter!, 2)} label="Links / inviter" /><HealthValue value={safeNumber(data.health.kFactor) === null ? 'Sin datos suficientes' : formatAmount(data.health.kFactor!, 2)} label="K-factor" /></div></Card>
           </div>
 
           <Card>
@@ -211,7 +232,7 @@ export function ProductDashboard() {
             ) : <div className="divide-y divide-slate-100">{
               [
                 { count: data.attention.pending_validation, text: 'pagos pendientes de validación', href: '/admin/pagos', cta: 'Validar pagos' },
-                { count: data.attention.stale_unfilled, text: 'juntas sin completar después de 3 días', href: '/admin/juntas', cta: 'Gestionar' },
+                { count: data.attention.stale_unfilled, text: `juntas sin completar después de ${data.config.staleJuntaDays} días`, href: '/admin/juntas', cta: 'Gestionar' },
                 { count: data.attention.overdue_payments, text: 'obligaciones de pago vencidas sin confirmar', href: '/admin/juntas', cta: 'Revisar juntas' }
               ].filter((item) => item.count > 0).map((item) => (
                 <div key={item.text} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
@@ -221,6 +242,7 @@ export function ProductDashboard() {
                 </div>
               ))}</div>}
           </Card>
+          <p className="text-right text-xs text-slate-400">{data.period.analyticsCompleteSince ? `Lifecycle analytics completos desde: ${new Date(data.period.analyticsCompleteSince).toLocaleDateString('es-PE')}` : 'El histórico previo a Product Analytics puede ser incompleto.'}</p>
         </>
       )}
     </div>

@@ -55,6 +55,20 @@ The V2 viral coefficient is intentionally defined as:
 
 This simplifies to attributed new registered users per active inviter. A link can be shared with multiple people, so the second factor may exceed 1. “Invite open rate” is the percentage of created links with at least one unique open; registration and join conversions use unique invite/browser opens as their denominator.
 
+## Backoffice dashboard metric definitions
+
+- **Juntas con movimiento** counts distinct juntas with at least one confirmed payment in the selected period. It is intentionally not called “Juntas activas”; operationally active juntas are those whose current `juntas.estado` is `activa`.
+- **Junta funnel** is based on the creation cohort. The denominator is the distinct juntas whose `junta_created` event falls inside the selected period. Every later stage checks those same junta IDs from creation through the dashboard observation time. All total conversion rates therefore use the creation cohort as denominator and cannot exceed 100%. Recent cohorts may not have had enough time to mature; the dashboard exposes how many remain open or in progress.
+- **Fill ≤7d** uses juntas in the selected creation cohort whose `juntas.created_at <= now() - interval '7 days'`. Success means `first_filled_at` is not null and is no later than `created_at + interval '7 days'`. Its denominator excludes juntas without seven complete observation days.
+- **Activation ≤7d** uses the same mature creation cohort. Success means `activated_at` is not null and is no later than `created_at + interval '7 days'`.
+- **Repeat Junta Rate (acumulado)** uses completion as its eligibility milestone because `junta_completed` is an idempotent, reconcilable lifecycle fact. Eligible users are active/non-retired members of a junta completed in the selected period. A repeat requires a `junta_joined` event for a different junta at a timestamp strictly later than completion. The rate is repeat users divided by eligible users; the median time uses only those valid subsequent joins. Simultaneous or pre-completion memberships do not count.
+- **Repeat ≤30d** uses a maturity-shifted completion cohort rather than completions from the latest selected period. For a selector of `N` days, current is `[now()-(N+30)d, now()-30d)` and previous is `[now()-(2N+30)d, now()-(N+30)d)`. Both cohorts therefore have `N` days of completions and a full 30-day observation window. Success requires a join to a different junta strictly after completion and no later than `completion_at + interval '30 days'`. The rate is unique users with a valid repeat divided by unique eligible users.
+- **Retención de Active Savers** is the share of Active Savers from the previous period who are also Active Savers in the current period. This is period-over-period activity retention, not classic signup-cohort retention.
+- **Volumen confirmado** includes approved, confirmed payments denominated in PEN only. Other currencies are neither added nor automatically converted.
+- **K-factor** is the internal, explicitly scoped ratio of attributed registrations to active inviters. Invitations are technical links and one link can produce multiple attributed registrations; this metric must not be interpreted as a universal viral coefficient.
+
+There is no defensible single date at which every lifecycle metric became complete: migrations 084–088 introduced tracking, backfills, reconciliation, and invite attribution in stages. Until an environment-specific verified date is configured, the dashboard states that history before Product Analytics may be incomplete instead of presenting an arbitrary date.
+
 Acquisition is first-touch. Priority is: first valid invite; otherwise a valid signup referral; otherwise paid, organic search, direct, or unknown based on normalized UTM/referrer evidence. External referrers that cannot be classified remain `unknown`. Full URLs are never stored.
 
 ## Materialized lifecycle timestamps
