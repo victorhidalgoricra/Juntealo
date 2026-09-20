@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ArrowUpRight, CreditCard, UsersRound } from 'lucide-react';
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -88,23 +89,26 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="break-words text-3xl font-bold">Backoffice</h1>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/admin/juntas"><Button variant="outline">Gestionar juntas</Button></Link>
-          <Link href="/admin/pagos"><Button variant="outline">Validar pagos</Button></Link>
-          <Link href="/dashboard"><Button variant="outline">Ir al producto</Button></Link>
+    <main className="mx-auto max-w-[1560px] space-y-7 pb-8 text-slate-900">
+      <header className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h1 className="text-[32px] font-bold tracking-tight text-slate-950 sm:text-4xl">Backoffice</h1>
+          <p className="mt-1 text-sm text-slate-500">Gestión y análisis de tu producto en un solo lugar.</p>
         </div>
-      </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/juntas"><Button variant="outline" className="h-10 gap-2 rounded-xl border-slate-200 px-3.5 text-slate-700 hover:border-blue-200 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><UsersRound className="h-4 w-4" aria-hidden="true" />Gestionar juntas</Button></Link>
+          <Link href="/admin/pagos"><Button variant="outline" className="h-10 gap-2 rounded-xl border-slate-200 px-3.5 text-slate-700 hover:border-blue-200 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><CreditCard className="h-4 w-4" aria-hidden="true" />Validar pagos</Button></Link>
+          <Link href="/dashboard"><Button variant="outline" className="h-10 gap-2 rounded-xl border-slate-200 px-3.5 text-slate-700 hover:border-blue-200 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><ArrowUpRight className="h-4 w-4" aria-hidden="true" />Ir al producto</Button></Link>
+        </div>
+      </header>
 
-      <div className="flex flex-wrap gap-2">
+      <nav className="flex flex-wrap gap-2" aria-label="Secciones del backoffice">
         {(['resumen', 'producto', 'pagos', 'usuarios', 'calidad'] as AdminTab[]).map((item) => (
-          <button key={item} type="button" onClick={() => setTab(item)} className={`rounded-xl border px-4 py-1.5 text-sm ${tab === item ? 'border-blue-600 text-blue-700' : 'border-slate-300 text-slate-600'}`}>
+          <button key={item} type="button" onClick={() => setTab(item)} aria-current={tab === item ? 'page' : undefined} className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${tab === item ? 'border-blue-600 bg-blue-600 text-white shadow-[0_3px_10px_rgba(37,99,235,0.14)]' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700'}`}>
             {item[0].toUpperCase() + item.slice(1)}
           </button>
         ))}
-      </div>
+      </nav>
 
       {tab === 'resumen' && (
         <ProductDashboard />
@@ -162,6 +166,6 @@ export default function AdminPage() {
           <p className="text-sm text-slate-500">El indicador resumido está disponible en Resumen. El detalle de incidencias se incorporará posteriormente.</p>
         </Card>
       )}
-    </div>
+    </main>
   );
 }
