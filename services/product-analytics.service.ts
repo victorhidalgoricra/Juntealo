@@ -63,3 +63,76 @@ export async function trackProductEvent(params: {
   return { ok: true as const };
 }
 
+export type DashboardPeriodDays = 7 | 30 | 90;
+
+export type DashboardMetric = {
+  current: number | null;
+  previous: number | null;
+};
+
+export type ProductDashboardData = {
+  period: {
+    days: DashboardPeriodDays;
+    start: string;
+    end: string;
+    previousStart: string;
+    granularity: 'day' | 'week';
+  };
+  kpis: {
+    activeSavers: DashboardMetric;
+    activeJuntas: DashboardMetric;
+    confirmedVolume: DashboardMetric;
+    activationRate: DashboardMetric;
+    onTimePaymentRate: DashboardMetric;
+  };
+  funnel: {
+    created: number;
+    first_member: number;
+    filled: number;
+    activated: number;
+    first_payment: number;
+    completed: number;
+    median_hours_to_fill: number | null;
+    median_hours_to_activation: number | null;
+  };
+  evolution: Array<{
+    date: string;
+    activeSavers: number;
+    volume: number;
+    activeJuntas: number;
+  }>;
+  health: {
+    repeatJuntaRate: number | null;
+    retentionRate: number | null;
+    medianDaysToNextJunta: number | null;
+    fillRate: number | null;
+    medianHoursToFill: number | null;
+    uncompletedJuntas: number;
+    inviteConversion: number | null;
+    invitesPerInviter: number | null;
+    kFactor: number | null;
+  };
+  attention: {
+    pending_validation: number;
+    stale_unfilled: number;
+    overdue_payments: number;
+  };
+  dataQualityIssues: number;
+};
+
+export async function fetchProductDashboard(days: DashboardPeriodDays) {
+  if (!hasSupabase || !supabase) {
+    return { ok: false as const, message: 'Supabase no está configurado.' };
+  }
+
+  const { data, error } = await supabase.schema('public').rpc('admin_product_dashboard', {
+    p_days: days
+  });
+
+  if (error) return { ok: false as const, message: error.message };
+  if (!data || typeof data !== 'object') {
+    return { ok: false as const, message: 'El dashboard no devolvió datos.' };
+  }
+
+  return { ok: true as const, data: data as unknown as ProductDashboardData };
+}

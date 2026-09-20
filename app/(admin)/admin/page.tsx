@@ -9,17 +9,15 @@ import { useAuthStore } from '@/store/auth-store';
 import { normalizePaymentStatus, paymentStatusLabel } from '@/lib/payment-status';
 import { isBackofficeAdmin } from '@/services/auth-role.service';
 import { formatSoles } from '@/lib/number-format';
+import { ProductDashboard } from '@/components/admin/product-dashboard';
 
-type AdminTab = 'resumen' | 'pagos' | 'usuarios' | 'validaciones';
-type ValidationStatus = 'pendiente' | 'aprobado' | 'rechazado';
+type AdminTab = 'resumen' | 'producto' | 'pagos' | 'usuarios' | 'calidad';
 
 export default function AdminPage() {
   const { juntas, members, payments, schedules, setData } = useAppStore();
   const authUser = useAuthStore((s) => s.user);
   const [tab, setTab] = useState<AdminTab>('resumen');
   const [notesByPayment, setNotesByPayment] = useState<Record<string, string>>({});
-  const [notesByUser, setNotesByUser] = useState<Record<string, string>>({});
-  const [userValidation, setUserValidation] = useState<Record<string, ValidationStatus>>({});
 
   if (!isBackofficeAdmin(authUser)) {
     return <Card><p className="text-sm text-slate-600">No tienes permisos para acceder al backoffice.</p></Card>;
@@ -46,7 +44,6 @@ export default function AdminPage() {
   const userRows = (() => {
     const ids = Array.from(new Set(members.map((m) => m.profile_id)));
     return ids.map((id) => {
-      const state = userValidation[id] ?? 'pendiente';
       const isCurrentUser = id === authUser?.id;
       return {
         id,
@@ -54,25 +51,11 @@ export default function AdminPage() {
         email: isCurrentUser ? authUser?.email ?? 'sin-correo' : 'sin-correo',
         celular: isCurrentUser ? authUser?.celular ?? 'sin-celular' : 'sin-celular',
         dni: isCurrentUser ? authUser?.dni ?? 'sin-dni' : 'sin-dni',
-        estado: state,
-        observacion: notesByUser[id] ?? '',
+        estado: 'pendiente',
         juntas: members.filter((m) => m.profile_id === id).length,
         registradoEn: new Date().toISOString()
       };
     });
-  })();
-
-  const kpis = (() => {
-    const pending = paymentRows.filter((r) => r.status === 'submitted' || r.status === 'validating').length;
-    const approved = paymentRows.filter((r) => r.status === 'approved').length;
-    const rejected = paymentRows.filter((r) => r.status === 'rejected').length;
-    const activeJuntas = juntas.filter((j) => j.estado === 'activa').length;
-    const activeUsers = userRows.filter((u) => u.estado === 'aprobado').length;
-    const usersPending = userRows.filter((u) => u.estado === 'pendiente').length;
-    const amountPending = paymentRows.filter((r) => r.status === 'submitted' || r.status === 'validating').reduce((acc, row) => acc + row.submittedAmount, 0);
-    const amountCollected = paymentRows.filter((r) => r.status === 'approved').reduce((acc, row) => acc + row.submittedAmount, 0);
-
-    return { pending, approved, rejected, activeJuntas, activeUsers, usersPending, amountPending, amountCollected };
   })();
 
   const updatePaymentStatus = (paymentId: string, next: 'approved' | 'rejected' | 'validating') => {
@@ -116,7 +99,7 @@ export default function AdminPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(['resumen', 'pagos', 'usuarios', 'validaciones'] as AdminTab[]).map((item) => (
+        {(['resumen', 'producto', 'pagos', 'usuarios', 'calidad'] as AdminTab[]).map((item) => (
           <button key={item} type="button" onClick={() => setTab(item)} className={`rounded-xl border px-4 py-1.5 text-sm ${tab === item ? 'border-blue-600 text-blue-700' : 'border-slate-300 text-slate-600'}`}>
             {item[0].toUpperCase() + item.slice(1)}
           </button>
@@ -124,17 +107,10 @@ export default function AdminPage() {
       </div>
 
       {tab === 'resumen' && (
-        <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
-          <Card><p className="text-xs text-slate-500">Pagos pendientes</p><p className="text-2xl font-bold">{kpis.pending}</p></Card>
-          <Card><p className="text-xs text-slate-500">Pagos aprobados</p><p className="text-2xl font-bold">{kpis.approved}</p></Card>
-          <Card><p className="text-xs text-slate-500">Pagos rechazados</p><p className="text-2xl font-bold">{kpis.rejected}</p></Card>
-          <Card><p className="text-xs text-slate-500">Juntas activas</p><p className="text-2xl font-bold">{kpis.activeJuntas}</p></Card>
-          <Card><p className="text-xs text-slate-500">Usuarios activos</p><p className="text-2xl font-bold">{kpis.activeUsers}</p></Card>
-          <Card><p className="text-xs text-slate-500">Usuarios pendientes</p><p className="text-2xl font-bold">{kpis.usersPending}</p></Card>
-          <Card><p className="text-xs text-slate-500">Monto pendiente</p><p className="text-2xl font-bold">{formatSoles(kpis.amountPending, 0)}</p></Card>
-          <Card><p className="text-xs text-slate-500">Monto recaudado</p><p className="text-2xl font-bold">{formatSoles(kpis.amountCollected, 0)}</p></Card>
-        </div>
+        <ProductDashboard />
       )}
+
+      {tab === 'producto' && <Card><p className="text-sm text-slate-500">El detalle de producto se incorporará en una siguiente iteración. El Resumen ya concentra las métricas principales.</p></Card>}
 
       {tab === 'pagos' && (
         <Card className="space-y-3">
@@ -180,24 +156,10 @@ export default function AdminPage() {
         </Card>
       )}
 
-      {tab === 'validaciones' && (
+      {tab === 'calidad' && (
         <Card className="space-y-3">
-          <h2 className="font-semibold">Validación de datos de usuario</h2>
-          {userRows.length === 0 ? <p className="text-sm text-slate-500">No hay usuarios para validar.</p> : userRows.map((userRow) => (
-            <div key={`validation-${userRow.id}`} className="grid gap-2 rounded border p-3 text-sm md:grid-cols-[1.4fr_1fr_auto]">
-              <div className="min-w-0">
-                <p className="break-words font-medium">{userRow.nombre}</p>
-                <p className="break-all text-xs text-slate-500">{userRow.email} · {userRow.celular}</p>
-                <p className="text-xs text-slate-500">DNI: {userRow.dni}</p>
-                <p className="text-xs text-slate-600">Estado: {userRow.estado}</p>
-              </div>
-              <textarea className="min-h-16 w-full rounded border px-2 py-1 text-xs" placeholder="Observación interna" value={notesByUser[userRow.id] ?? ''} onChange={(event) => setNotesByUser((prev) => ({ ...prev, [userRow.id]: event.target.value }))} />
-              <div className="flex flex-wrap gap-1">
-                <Button variant="outline" onClick={() => setUserValidation((prev) => ({ ...prev, [userRow.id]: 'aprobado' }))}>Aprobar</Button>
-                <Button variant="destructive" onClick={() => setUserValidation((prev) => ({ ...prev, [userRow.id]: 'rechazado' }))}>Rechazar</Button>
-              </div>
-            </div>
-          ))}
+          <h2 className="font-semibold">Calidad de datos</h2>
+          <p className="text-sm text-slate-500">El indicador resumido está disponible en Resumen. El detalle de incidencias se incorporará posteriormente.</p>
         </Card>
       )}
     </div>
