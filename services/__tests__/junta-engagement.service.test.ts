@@ -194,3 +194,12 @@ describe('getJuntaEngagementLayer', () => {
     expect(layer.causeAndEffect.lossIfLateToday).toContain('retrasas');
   });
 });
+
+it('keeps the one-time streak mission completed after a later break', () => {
+  const stats = { ...emptyStats, activeStreakWeeks: 0, streakRewardPoints: 6 };
+  const score = getUserJuntaScore('user1', stats);
+  const mission = getJuntaEngagementLayer({ userId: 'user1', score, stats }).missions.find(m => m.id === 'on_time_streak_4_rounds');
+  expect(mission?.status).toBe('completed');
+  expect(mission?.progressCurrent).toBe(4);
+  expect(score.breakdown.missionBonus).toBe(6);
+});

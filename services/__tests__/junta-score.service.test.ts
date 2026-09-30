@@ -603,3 +603,23 @@ describe('payment obligations for score', () => {
     expect(result.defaultPaymentsLifetime).toBe(1);
   });
 });
+
+it('uses the installment streak for consistency and grants only confirmed milestone points', () => {
+  const dates = ['2026-01-01', '2026-02-01', '2026-03-01', '2026-04-01'];
+  const params = {
+    userId: 'user1', now: new Date('2026-04-03'),
+    juntas: [{ id: 'j1', admin_id: 'user1', estado: 'activa' }] as never,
+    members: [],
+    schedules: dates.map((date, i) => ({ id: `s${i}`, junta_id: 'j1', cuota_numero: i + 1, fecha_vencimiento: date })) as never,
+    payments: dates.map((date, i) => ({ id: `p${i}`, junta_id: 'j1', profile_id: 'user1', schedule_id: `s${i}`, payment_status: i === 3 ? 'submitted' : 'approved', submitted_at: `${date}T20:00:00Z` }))
+  };
+  const pending = buildJuntaScoreStatsFromDomain({ ...params, payments: params.payments as never });
+  expect(pending.activeStreakWeeks).toBe(3);
+  expect(pending.streakRewardPoints).toBe(0);
+  params.payments[3].payment_status = 'approved';
+  const approved = buildJuntaScoreStatsFromDomain({ ...params, payments: params.payments as never });
+  expect(approved.activeStreakWeeks).toBe(4);
+  expect(approved.streakRewardPoints).toBe(6);
+  expect(getUserJuntaScore('user1', approved).breakdown.consistency).toBe(5);
+  expect(getUserJuntaScore('user1', approved).breakdown.missionBonus).toBe(6);
+});

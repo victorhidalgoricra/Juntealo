@@ -148,12 +148,12 @@ function getMissions(stats: JuntaScoreStats): JuntaMission[] {
     },
     {
       id: 'on_time_streak_4_rounds',
-      title: 'Mantén 4 rondas puntuales',
-      description: 'Sostén pagos puntuales en 4 rondas consecutivas.',
+      title: 'Completa 4 cuotas puntuales',
+      description: 'Completa 4 cuotas consecutivas a tiempo. +6 puntos una sola vez, al aprobarse los pagos.',
       rewardPoints: MISSION_REWARDS.keepOnTimeStreak,
-      progressCurrent: Math.min(stats.activeStreakWeeks, 4),
+      progressCurrent: (stats.streakRewardPoints ? 4 : Math.min(stats.activeStreakWeeks, 4)),
       progressTarget: 4,
-      status: getMissionStatus(Math.min(stats.activeStreakWeeks, 4), 4)
+      status: getMissionStatus((stats.streakRewardPoints ? 4 : Math.min(stats.activeStreakWeeks, 4)), 4)
     }
   ];
 
