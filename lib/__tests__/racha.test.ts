@@ -248,3 +248,23 @@ describe('computeGlobalRacha', () => {
     expect(result?.estado).toBe('en_riesgo');
   });
 });
+
+
+it('preserves the streak through a receiving turn without inventing a payment', () => {
+  const result = computeJuntaRacha({
+    juntaId: JUNTA_ID,
+    userId: 'user1',
+    members: [
+      { id: 'm1', junta_id: JUNTA_ID, profile_id: 'user2', estado: 'activo', orden_turno: 1 },
+      { id: 'm2', junta_id: JUNTA_ID, profile_id: 'user1', estado: 'activo', orden_turno: 2 },
+    ],
+    schedules: [
+      makeSchedule(JUNTA_ID, 1, '2026-09-20'),
+      makeSchedule(JUNTA_ID, 2, '2026-09-27'),
+    ] as never,
+    payments: [makePayment(JUNTA_ID, 'schedule-1', '2026-09-19')] as never,
+    now: new Date('2026-09-29T12:00:00Z'),
+  });
+  expect(result.estado).toBe('activa');
+  expect(result.semanasActual).toBe(1);
+});

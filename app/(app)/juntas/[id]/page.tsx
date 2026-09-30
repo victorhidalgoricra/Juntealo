@@ -285,9 +285,9 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
   }, [detailMembers, junta]);
   const currentUserName = useMemo(() => user?.nombre?.split(' ')[0] ?? 'Tú', [user?.nombre]);
   const juntaRacha = useMemo(() => {
-    if (!user) return null;
-    return computeJuntaRacha({ juntaId: params.id, userId: user.id, payments: detailPayments, schedules: detailSchedules });
-  }, [params.id, user, detailPayments, detailSchedules]);
+    if (!user || !junta || junta.estado !== 'activa' || junta.bloqueada || junta.deleted_at) return null;
+    return computeJuntaRacha({ juntaId: params.id, userId: user.id, payments: detailPayments, schedules: detailSchedules, members: detailMembers });
+  }, [params.id, user, junta, detailPayments, detailSchedules, detailMembers]);
 
   const simulation = useMemo(() => {
     if (!junta) return null;
@@ -1131,6 +1131,7 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
 
           {juntaRacha && (
             <RachaCard
+              href={`/juntas/${params.id}/payments`}
               semanasActual={juntaRacha.semanasActual}
               recordPersonal={juntaRacha.recordPersonal}
               proximoHito={juntaRacha.proximoHito}

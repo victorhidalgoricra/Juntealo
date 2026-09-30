@@ -1,4 +1,5 @@
-import type { Payment, PaymentSchedule } from '@/types/domain';
+import type { JuntaMember, Payment, PaymentSchedule } from '@/types/domain';
+import { getCurrentRoundReceiver } from '@/lib/payment-instructions';
 import { normalizePaymentStatus } from '@/lib/payment-status';
 
 export type EstadoRacha = 'activa' | 'en_riesgo' | 'rota';
@@ -25,6 +26,7 @@ export function computeJuntaRacha(params: {
   userId: string;
   payments: Payment[];
   schedules: PaymentSchedule[];
+  members?: JuntaMember[];
   now?: Date;
 }): RachaResult {
   const { juntaId, userId, payments, schedules } = params;
@@ -32,6 +34,10 @@ export function computeJuntaRacha(params: {
 
   const juntaSchedules = schedules
     .filter((s) => s.junta_id === juntaId)
+    .filter((schedule) => getCurrentRoundReceiver({
+      schedule,
+      members: (params.members ?? []).filter((member) => member.junta_id === juntaId),
+    })?.profile_id !== userId)
     .sort((a, b) => a.cuota_numero - b.cuota_numero);
 
   const userPayments = payments.filter(
@@ -126,6 +132,7 @@ export function computeGlobalRacha(params: {
   userId: string;
   payments: Payment[];
   schedules: PaymentSchedule[];
+  members?: JuntaMember[];
   juntaIds: string[];
   now?: Date;
 }): RachaResult | null {

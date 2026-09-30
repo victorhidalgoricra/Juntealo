@@ -576,3 +576,30 @@ describe('buildJuntaScoreStatsFromDomain', () => {
     expect(result.onTimePaymentsLifetime).toBe(1);
   });
 });
+
+
+describe('payment obligations for score', () => {
+  it.each(['borrador', 'activa'])('excludes receiving turns and non-operating juntas (%s)', (estado) => {
+    const result = buildJuntaScoreStatsFromDomain({
+      userId: 'user1',
+      juntas: [
+        { id: 'j1', admin_id: 'user1', estado: 'activa' },
+        { id: 'j2', admin_id: 'user1', estado, bloqueada: estado === 'activa' },
+      ] as never,
+      members: [
+        { id: 'm1', junta_id: 'j1', profile_id: 'user1', estado: 'activo', orden_turno: 1 },
+        { id: 'm2', junta_id: 'j1', profile_id: 'user2', estado: 'activo', orden_turno: 2 },
+      ] as never,
+      payments: [],
+      schedules: [
+        { id: 's1', junta_id: 'j1', cuota_numero: 1, fecha_vencimiento: '2026-09-20', estado: 'vencida' },
+        { id: 's2', junta_id: 'j2', cuota_numero: 1, fecha_vencimiento: '2026-09-20', estado: 'vencida' },
+        { id: 's3', junta_id: 'j1', cuota_numero: 2, fecha_vencimiento: '2026-09-27', estado: 'vencida' },
+      ] as never,
+      now: new Date('2026-09-29T12:00:00Z'),
+    });
+    // Only the unpaid contribution to the other participant is a default.
+    expect(result.defaultPaymentsRecent).toBe(1);
+    expect(result.defaultPaymentsLifetime).toBe(1);
+  });
+});

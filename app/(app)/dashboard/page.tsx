@@ -588,8 +588,8 @@ export default function DashboardPage() {
     [safeJuntas, safeMembers, user]
   );
   const globalRacha = useMemo(
-    () => (user ? computeGlobalRacha({ userId: user.id, payments: safePayments, schedules: safeSchedules, juntaIds: myJuntaIds }) : null),
-    [user, safePayments, safeSchedules, myJuntaIds]
+    () => (user ? computeGlobalRacha({ userId: user.id, payments: safePayments, schedules: safeSchedules, members: safeMembers, juntaIds: safeJuntas.filter((junta) => myJuntaIds.includes(junta.id) && junta.estado === 'activa' && !junta.bloqueada && !junta.deleted_at).map((junta) => junta.id) }) : null),
+    [user, safePayments, safeSchedules, safeMembers, safeJuntas, myJuntaIds]
   );
   // Fresh fetch for payment notifications — never relies on stale Zustand data.
   // Queries from junta_members (not admin_id) so both creators and participants are covered.

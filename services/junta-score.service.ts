@@ -1,4 +1,5 @@
 import { Junta, JuntaMember, Payment, PaymentSchedule } from '@/types/domain';
+import { getCurrentRoundReceiver } from '@/lib/payment-instructions';
 import { normalizePaymentStatus } from '@/lib/payment-status';
 
 export type JuntaScoreLevel = 'Nuevo' | 'Bronce' | 'Plata' | 'Oro' | 'Élite';
@@ -298,7 +299,7 @@ export function buildJuntaScoreStatsFromDomain(params: {
   // For incumplimiento counting: only currently active juntas where user is a member
   const activeParticipationIds = new Set(
     params.juntas
-      .filter((j) => j.estado === 'activa' && (activeMemberJuntaIds.has(j.id) || j.admin_id === params.userId))
+      .filter((j) => j.estado === 'activa' && !j.bloqueada && !j.deleted_at && (activeMemberJuntaIds.has(j.id) || j.admin_id === params.userId))
       .map((j) => j.id)
   );
 
@@ -348,6 +349,12 @@ export function buildJuntaScoreStatsFromDomain(params: {
     if (!activeParticipationIds.has(schedule.junta_id)) {
       return;
     }
+
+    const receiver = getCurrentRoundReceiver({
+      schedule,
+      members: params.members.filter((member) => member.junta_id === schedule.junta_id),
+    });
+    if (receiver?.profile_id === params.userId) return;
 
     const isDefault = schedule.estado === 'vencida' || dueDate < now;
     if (isDefault) {

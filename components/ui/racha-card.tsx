@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import type { EstadoRacha } from '@/lib/racha';
 
@@ -10,10 +10,10 @@ export type RachaCardProps = {
   proximoHito: number;
   estado: EstadoRacha;
   horasRestantes?: number;
+  href?: string;
 };
 
-export function RachaCard({ semanasActual, recordPersonal, proximoHito, estado, horasRestantes }: RachaCardProps) {
-  const router = useRouter();
+export function RachaCard({ semanasActual, recordPersonal, proximoHito, estado, horasRestantes, href = '/pagar' }: RachaCardProps) {
 
   if (semanasActual === 0 && estado !== 'rota') return null;
 
@@ -45,9 +45,9 @@ export function RachaCard({ semanasActual, recordPersonal, proximoHito, estado, 
   };
 
   return (
-    <div
+    <Link
       style={containerStyle}
-      onClick={() => router.push('/mi-racha')}
+      href={href}
       onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
       onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
     >
@@ -93,6 +93,6 @@ export function RachaCard({ semanasActual, recordPersonal, proximoHito, estado, 
         {estado === 'en_riesgo' && `⚠ ${horasRestantes}h`}
         {estado === 'rota' && 'Empezar →'}
       </span>
-    </div>
+    </Link>
   );
 }
