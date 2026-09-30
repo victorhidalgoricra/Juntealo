@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPaymentDebtItems, selectCurrentPaymentNoticeItems } from '@/lib/payment-debts';
+import { buildPaymentDebtItems, getNextPaymentHref, selectCurrentPaymentNoticeItems } from '@/lib/payment-debts';
 import type { Junta, JuntaMember, PaymentSchedule } from '@/types/domain';
 
 const userId = 'profile-1';
@@ -105,5 +105,30 @@ describe('selectCurrentPaymentNoticeItems', () => {
     const future = { ...current, id: 'junta-1:schedule-2', cuotaId: 'schedule-2', cuotaNumero: 2, dueDate: '2026-09-27', status: 'pendiente' as const };
 
     expect(selectCurrentPaymentNoticeItems([current, future])).toEqual([]);
+  });
+});
+
+describe('getNextPaymentHref', () => {
+  const base = { ...debts(junta())[0], isMyReceivingTurn: false };
+
+  it('opens the earliest unpaid junta, including overdue payments', () => {
+    const later = { ...base, juntaId: 'later', dueDate: '2026-09-25' };
+    const overdue = { ...base, juntaId: 'overdue', dueDate: '2026-09-10', status: 'vencida' as const };
+    expect(getNextPaymentHref([later, base, overdue])).toBe('/juntas/overdue?tab=pagos');
+  });
+
+  it('skips paid, validating and receiving rounds without advancing them', () => {
+    const excluded = [
+      { ...base, juntaId: 'paid', status: 'pagada' as const },
+      { ...base, juntaId: 'validating', status: 'en_validacion' as const },
+      { ...base, juntaId: 'receiving', isMyReceivingTurn: true },
+    ];
+    const future = excluded.map((item) => ({ ...item, cuotaNumero: 2, status: 'pendiente' as const, isMyReceivingTurn: false }));
+    expect(getNextPaymentHref([...excluded, ...future, { ...base, juntaId: 'payable', dueDate: '2026-09-25' }])).toBe('/juntas/payable?tab=pagos');
+    expect(getNextPaymentHref([...excluded, ...future])).toBe('/juntas');
+  });
+
+  it('falls back to juntas when there are no debts', () => {
+    expect(getNextPaymentHref([])).toBe('/juntas');
   });
 });

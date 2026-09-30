@@ -10,10 +10,10 @@ export type RachaCardProps = {
   proximoHito: number;
   estado: EstadoRacha;
   horasRestantes?: number;
-  href?: string;
+  href: string;
 };
 
-export function RachaCard({ semanasActual, recordPersonal, proximoHito, estado, horasRestantes, href = '/pagar' }: RachaCardProps) {
+export function RachaCard({ semanasActual, recordPersonal, proximoHito, estado, horasRestantes, href }: RachaCardProps) {
 
   if (semanasActual === 0 && estado !== 'rota') return null;
 

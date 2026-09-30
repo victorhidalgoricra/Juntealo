@@ -28,6 +28,7 @@ import { JuntaAvatar } from '@/components/junta-avatar';
 import { Circle, CheckCircle2, Copy, MessageCircle, Trophy } from 'lucide-react';
 import { RachaCard } from '@/components/ui/racha-card';
 import { computeGlobalRacha } from '@/lib/racha';
+import { buildPaymentDebtItems, getNextPaymentHref } from '@/lib/payment-debts';
 import { fetchRecentUserActivity } from '@/services/activity.service';
 import { fetchGlobalRanking, type GlobalRankingEntry } from '@/services/ranking.service';
 import type { UserActivityEvent } from '@/types/domain';
@@ -591,6 +592,15 @@ export default function DashboardPage() {
     () => (user ? computeGlobalRacha({ userId: user.id, payments: safePayments, schedules: safeSchedules, members: safeMembers, juntaIds: safeJuntas.filter((junta) => myJuntaIds.includes(junta.id) && junta.estado === 'activa' && !junta.bloqueada && !junta.deleted_at).map((junta) => junta.id) }) : null),
     [user, safePayments, safeSchedules, safeMembers, safeJuntas, myJuntaIds]
   );
+  const rachaPaymentHref = useMemo(() => getNextPaymentHref(buildPaymentDebtItems({
+    userId,
+    juntas: safeJuntas.filter((junta) => myJuntaIds.includes(junta.id)),
+    members: safeMembers,
+    schedules: safeSchedules,
+    payments: safePayments,
+    payouts: safePayouts,
+    profilesById: {},
+  })), [userId, safeJuntas, myJuntaIds, safeMembers, safeSchedules, safePayments, safePayouts]);
   // Fresh fetch for payment notifications — never relies on stale Zustand data.
   // Queries from junta_members (not admin_id) so both creators and participants are covered.
   useEffect(() => {
@@ -847,6 +857,7 @@ export default function DashboardPage() {
           {globalRacha && (
             <div className="contents lg:order-4 lg:block">
               <RachaCard
+                href={rachaPaymentHref}
                 semanasActual={globalRacha.semanasActual}
                 recordPersonal={globalRacha.recordPersonal}
                 proximoHito={globalRacha.proximoHito}
