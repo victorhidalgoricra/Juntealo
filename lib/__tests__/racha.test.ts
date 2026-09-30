@@ -223,7 +223,7 @@ describe('computeGlobalRacha', () => {
     expect(result?.semanasActual).toBe(2); // junta2 has streak of 2
   });
 
-  it('prioritizes en_riesgo over active streaks', () => {
+  it('shows the best confirmed streak used by the score', () => {
     const junta2 = 'junta2';
     const now = new Date('2024-01-07T10:00:00');
     // junta2 has an upcoming payment within 48h and streak of 0
@@ -245,6 +245,66 @@ describe('computeGlobalRacha', () => {
       now
     });
 
-    expect(result?.estado).toBe('en_riesgo');
+    expect(result?.estado).toBe('activa');
+    expect(result?.semanasActual).toBe(2);
+  });
+});
+
+
+it('preserves the streak through a receiving turn without inventing a payment', () => {
+  const result = computeJuntaRacha({
+    juntaId: JUNTA_ID,
+    userId: 'user1',
+    members: [
+      { id: 'm1', junta_id: JUNTA_ID, profile_id: 'user2', estado: 'activo', orden_turno: 1 },
+      { id: 'm2', junta_id: JUNTA_ID, profile_id: 'user1', estado: 'activo', orden_turno: 2 },
+    ],
+    schedules: [
+      makeSchedule(JUNTA_ID, 1, '2026-09-20'),
+      makeSchedule(JUNTA_ID, 2, '2026-09-27'),
+    ] as never,
+    payments: [makePayment(JUNTA_ID, 'schedule-1', '2026-09-19')] as never,
+    now: new Date('2026-09-29T12:00:00Z'),
+  });
+  expect(result.estado).toBe('activa');
+  expect(result.semanasActual).toBe(1);
+});
+
+describe('confirmed installment rules', () => {
+  const run = (payments: Payment[], dates = ['2026-08-01', '2026-09-01'], now = '2026-09-02T12:00:00Z') => computeJuntaRacha({
+    juntaId: JUNTA_ID, userId: 'user1',
+    schedules: dates.map((d, i) => makeSchedule(JUNTA_ID, i + 1, d)) as never,
+    payments: payments as never, now: new Date(now),
+  });
+  it('counts monthly installments and includes the full due day in Peru', () => {
+    const result = run([makePayment(JUNTA_ID, 'schedule-1', '2026-08-02T04:59:59Z'), makePayment(JUNTA_ID, 'schedule-2', '2026-09-02T04:59:59Z')]);
+    expect(result.semanasActual).toBe(2);
+  });
+  it('breaks at midnight after the due day and does not restore a late payment', () => {
+    const result = run([makePayment(JUNTA_ID, 'schedule-1', '2026-08-01'), makePayment(JUNTA_ID, 'schedule-2', '2026-09-02T05:00:00Z')]);
+    expect(result).toMatchObject({ estado: 'rota', semanasActual: 0, recordPersonal: 1, cuotaInterrumpida: 2, tieneDeuda: false });
+  });
+  it('holds a timely submitted payment without awarding points until approval', () => {
+    const payment = { ...makePayment(JUNTA_ID, 'schedule-2', '2026-09-01'), estado: 'submitted' };
+    const first = makePayment(JUNTA_ID, 'schedule-1', '2026-08-01');
+    expect(run([first, payment])).toMatchObject({ estado: 'en_revision', semanasActual: 1, pendientesRevision: 1, recordPersonal: 1 });
+    expect(run([first, { ...payment, estado: 'approved' }]).semanasActual).toBe(2);
+    expect(run([first, { ...payment, estado: 'rejected' }])).toMatchObject({ estado: 'rota', semanasActual: 0 });
+  });
+  it('does not grant a milestone across an unresolved payment', () => {
+    const dates = ['2026-06-01', '2026-07-01', '2026-08-01', '2026-09-01'];
+    const payments = dates.map((d, i) => makePayment(JUNTA_ID, `schedule-${i + 1}`, d));
+    payments[1].estado = 'submitted';
+    expect(run(payments, dates)).toMatchObject({ semanasActual: 1, recordPersonal: 1, estado: 'en_revision' });
+    payments[1].estado = 'approved';
+    expect(run(payments, dates)).toMatchObject({ semanasActual: 4, recordPersonal: 4 });
+  });
+  it('does not count pending placeholders or duplicate approved rows', () => {
+    const payment = makePayment(JUNTA_ID, 'schedule-1', '2026-08-01');
+    expect(run([payment, payment, { ...makePayment(JUNTA_ID, 'schedule-2', '2026-09-01'), estado: 'pending' }])).toMatchObject({ semanasActual: 0, recordPersonal: 1 });
+  });
+  it('does not expire during the due day or combine different juntas', () => {
+    expect(run([], ['2026-09-01'], '2026-09-02T04:00:00Z').estado).toBe('en_riesgo');
+    expect(run([makePayment('another-junta', 'schedule-1', '2026-08-01')]).semanasActual).toBe(0);
   });
 });

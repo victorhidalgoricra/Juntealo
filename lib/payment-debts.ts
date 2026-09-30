@@ -50,6 +50,13 @@ export function getMyJuntaIdsForPayments(userId: string, juntas: Junta[], member
   return Array.from(new Set([...owned, ...memberOf]));
 }
 
+export function getNextPaymentHref(items: PaymentDebtItem[]): string {
+  const next = selectCurrentPaymentNoticeItems(items).find((item) =>
+    item.status !== 'en_validacion' && !item.isMyReceivingTurn
+  );
+  return next ? `/juntas/${next.juntaId}?tab=pagos` : '/juntas';
+}
+
 export function buildPaymentDebtItems(params: {
   userId: string;
   juntas: Junta[];

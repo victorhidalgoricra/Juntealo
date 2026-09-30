@@ -29,6 +29,7 @@ import {
 import { RachaCard } from '@/components/ui/racha-card';
 import { JuntaAvatar } from '@/components/junta-avatar';
 import { computeJuntaRacha } from '@/lib/racha';
+import { usePersistedStreaks } from '@/hooks/use-persisted-streaks';
 import { Bell, CalendarClock, CheckCircle2, Clock3, Copy, Crown, Landmark, Plus, Share2, Sparkles, WalletCards, X } from 'lucide-react';
 
 type MainView = 'general' | 'personal';
@@ -284,10 +285,14 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
     return getActiveMembersForJunta(junta, detailMembers);
   }, [detailMembers, junta]);
   const currentUserName = useMemo(() => user?.nombre?.split(' ')[0] ?? 'Tú', [user?.nombre]);
-  const juntaRacha = useMemo(() => {
-    if (!user) return null;
-    return computeJuntaRacha({ juntaId: params.id, userId: user.id, payments: detailPayments, schedules: detailSchedules });
-  }, [params.id, user, detailPayments, detailSchedules]);
+  const localJuntaRacha = useMemo(() => {
+    if (!user || !junta || junta.estado !== 'activa' || junta.bloqueada || junta.deleted_at) return null;
+    return computeJuntaRacha({ juntaId: params.id, userId: user.id, payments: detailPayments, schedules: detailSchedules, members: detailMembers });
+  }, [params.id, user, junta, detailPayments, detailSchedules, detailMembers]);
+
+  const persistedStreaks = usePersistedStreaks(user?.id, JSON.stringify([detailPayments, detailSchedules, detailMembers, junta]));
+  const juntaRacha = persistedStreaks.connected
+    ? persistedStreaks.snapshot?.streaks.find(r => r.juntaId === params.id) : localJuntaRacha;
 
   const simulation = useMemo(() => {
     if (!junta) return null;
@@ -1129,13 +1134,14 @@ export default function JuntaDetailPage({ params }: { params: { id: string } }) 
             <div className="flex flex-wrap items-center gap-2"><JuntaScoreBadge score={personal.myRow?.score ?? null} /><span className="text-xs text-slate-300">Confianza visible para el grupo</span></div>
           </Card>
 
+          {persistedStreaks.error && <p role="status" className="text-sm text-slate-500">{persistedStreaks.error}</p>}
           {juntaRacha && (
             <RachaCard
-              semanasActual={juntaRacha.semanasActual}
-              recordPersonal={juntaRacha.recordPersonal}
-              proximoHito={juntaRacha.proximoHito}
-              estado={juntaRacha.estado}
-              horasRestantes={juntaRacha.horasRestantes}
+              href={`/juntas/${params.id}/payments`}
+              {...juntaRacha}
+              juntaCerrada={junta.estado === 'cerrada'}
+              juntaNombre={junta.nombre}
+              rewardEarned={persistedStreaks.snapshot ? persistedStreaks.snapshot.rewardPoints > 0 : juntaRacha.recordPersonal >= 4}
             />
           )}
 

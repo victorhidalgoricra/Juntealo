@@ -1,4 +1,6 @@
+import { computeJuntaRacha, rachaDeadline } from '@/lib/racha';
 import { Junta, JuntaMember, Payment, PaymentSchedule } from '@/types/domain';
+import { getCurrentRoundReceiver } from '@/lib/payment-instructions';
 import { normalizePaymentStatus } from '@/lib/payment-status';
 
 export type JuntaScoreLevel = 'Nuevo' | 'Bronce' | 'Plata' | 'Oro' | 'Élite';
@@ -13,7 +15,9 @@ export type JuntaScoreStats = {
   latePaymentsLifetime: number;
   defaultPaymentsLifetime: number;
   completedCycles: number;
+  /** Compatibility name: consecutive confirmed installments. */
   activeStreakWeeks: number;
+  streakRewardPoints?: number;
   successfulReferrals: number;
   validatedReferences: number;
   healthyActions: number;
@@ -205,7 +209,7 @@ export function getUserJuntaScore(userId: string, stats: JuntaScoreStats, missio
   // Cap total penalties to avoid permanent score trapping when history is old.
   const penaltyPoints = Math.min(rawPenaltyPoints, JUNTA_SCORE_CONFIG.caps.totalPenalties);
 
-  const safeMissionBonus = Math.max(0, missionBonusPoints);
+  const safeMissionBonus = Math.max(0, missionBonusPoints) + (stats.streakRewardPoints ?? 0);
   const rawScore = punctualityScore + completedCyclesScore + consistencyScore + referralsScore + healthyBehaviorBase - penaltyPoints + safeMissionBonus;
   const score = toScore(rawScore);
   const level = getScoreLevel(score);
@@ -222,14 +226,14 @@ export function getUserJuntaScore(userId: string, stats: JuntaScoreStats, missio
     reasons.push(`${stats.completedCycles} ciclo(s) completado(s) aumentan tu confianza en la plataforma.`);
   }
   if (stats.activeStreakWeeks >= 2) {
-    reasons.push(`Racha activa de ${stats.activeStreakWeeks} semana(s) con participación consistente.`);
+    reasons.push(`Racha activa de ${stats.activeStreakWeeks} cuota(s) consecutivas a tiempo.`);
   }
   if (referralUnits > 0) {
     reasons.push('Tus referencias validadas y referidos exitosos suman puntos (con tope anti-abuso).');
   }
 
   if (safeMissionBonus > 0) {
-    reasons.push(`+${safeMissionBonus} punto(s) por misiones completadas esta semana.`);
+    reasons.push(`+${safeMissionBonus} punto(s) por misiones completadas.`);
   }
 
   if (stats.latePaymentsRecent > 0) {
@@ -298,7 +302,7 @@ export function buildJuntaScoreStatsFromDomain(params: {
   // For incumplimiento counting: only currently active juntas where user is a member
   const activeParticipationIds = new Set(
     params.juntas
-      .filter((j) => j.estado === 'activa' && (activeMemberJuntaIds.has(j.id) || j.admin_id === params.userId))
+      .filter((j) => j.estado === 'activa' && !j.bloqueada && !j.deleted_at && (activeMemberJuntaIds.has(j.id) || j.admin_id === params.userId))
       .map((j) => j.id)
   );
 
@@ -316,7 +320,7 @@ export function buildJuntaScoreStatsFromDomain(params: {
   let defaultPaymentsLifetime = 0;
 
   relevantSchedules.forEach((schedule) => {
-    const dueDate = new Date(schedule.fecha_vencimiento);
+    const dueDate = rachaDeadline(schedule.fecha_vencimiento);
     const key = `${schedule.junta_id}-${schedule.id}`;
     const payment = paymentBySchedule.get(key);
     const isRecent = dueDate >= recentFrom && dueDate <= now;
@@ -349,6 +353,12 @@ export function buildJuntaScoreStatsFromDomain(params: {
       return;
     }
 
+    const receiver = getCurrentRoundReceiver({
+      schedule,
+      members: params.members.filter((member) => member.junta_id === schedule.junta_id),
+    });
+    if (receiver?.profile_id === params.userId) return;
+
     const isDefault = schedule.estado === 'vencida' || dueDate < now;
     if (isDefault) {
       defaultPaymentsLifetime += 1;
@@ -359,24 +369,11 @@ export function buildJuntaScoreStatsFromDomain(params: {
 
   const completedCycles = params.juntas.filter((junta) => myJuntaIds.has(junta.id) && junta.estado === 'cerrada').length;
 
-  const approvedDates = myPayments
-    .filter((payment) => getPaymentStatus(payment) === 'approved')
-    .map(getPaymentRegisteredAt)
-    .filter((registeredAt): registeredAt is string => Boolean(registeredAt))
-    .map((registeredAt) => new Date(registeredAt).getTime())
-    .filter(Number.isFinite)
-    .sort((a, b) => a - b);
-
-  let activeStreakWeeks = 0;
-  for (let i = approvedDates.length - 1; i >= 0; i -= 1) {
-    if (i === approvedDates.length - 1) {
-      activeStreakWeeks = 1;
-      continue;
-    }
-    const deltaDays = (approvedDates[i + 1] - approvedDates[i]) / (1000 * 60 * 60 * 24);
-    if (deltaDays <= 10) activeStreakWeeks += 1;
-    else break;
-  }
+  const streaks = params.juntas
+    .filter(j => myJuntaIds.has(j.id) && ['activa', 'cerrada'].includes(j.estado) && !j.bloqueada && !j.deleted_at)
+    .map(j => computeJuntaRacha({ ...params, juntaId: j.id, now }));
+  const activeStreakWeeks = Math.max(0, ...streaks.map(r => r.semanasActual));
+  const streakRewardPoints = streaks.some(r => r.recordPersonal >= 4) ? 6 : 0;
 
   const abandonedMidCycleCount = params.members.filter(
     (member) => member.profile_id === params.userId && member.estado === 'retirado'
@@ -398,6 +395,7 @@ export function buildJuntaScoreStatsFromDomain(params: {
     defaultPaymentsLifetime,
     completedCycles,
     activeStreakWeeks,
+    streakRewardPoints,
     successfulReferrals: params.successfulReferrals ?? 0,
     validatedReferences: params.validatedReferences ?? 0,
     // healthyActions is a separate positive signal (e.g. profile verification, dispute resolutions).

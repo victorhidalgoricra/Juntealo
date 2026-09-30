@@ -16,7 +16,7 @@ import {
   type UserJuntaScoreResult,
   getUserJuntaScore
 } from '@/services/junta-score.service';
-import { fetchClaimedMissions, recordRachaMilestone, type ClaimedMission } from '@/services/missions.repository';
+import { fetchClaimedMissions, type ClaimedMission } from '@/services/missions.repository';
 import { fetchReferralStats, type ReferralStats } from '@/services/referral.service';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
@@ -27,7 +27,8 @@ import { normalizePaymentStatus } from '@/lib/payment-status';
 import { JuntaAvatar } from '@/components/junta-avatar';
 import { Circle, CheckCircle2, Copy, MessageCircle, Trophy } from 'lucide-react';
 import { RachaCard } from '@/components/ui/racha-card';
-import { computeGlobalRacha } from '@/lib/racha';
+import { computeGlobalRacha, selectGlobalRacha } from '@/lib/racha';
+import { usePersistedStreaks } from '@/hooks/use-persisted-streaks';
 import { fetchRecentUserActivity } from '@/services/activity.service';
 import { fetchGlobalRanking, type GlobalRankingEntry } from '@/services/ranking.service';
 import type { UserActivityEvent } from '@/types/domain';
@@ -587,10 +588,13 @@ export default function DashboardPage() {
     () => (user ? getMyJuntaIds(user.id, safeJuntas, safeMembers) : []),
     [safeJuntas, safeMembers, user]
   );
-  const globalRacha = useMemo(
-    () => (user ? computeGlobalRacha({ userId: user.id, payments: safePayments, schedules: safeSchedules, juntaIds: myJuntaIds }) : null),
-    [user, safePayments, safeSchedules, myJuntaIds]
+  const localRacha = useMemo(
+    () => (user ? computeGlobalRacha({ userId: user.id, payments: safePayments, schedules: safeSchedules, members: safeMembers, juntaIds: safeJuntas.filter((junta) => myJuntaIds.includes(junta.id) && ['activa', 'cerrada'].includes(junta.estado) && !junta.bloqueada && !junta.deleted_at).map((junta) => junta.id) }) : null),
+    [user, safePayments, safeSchedules, safeMembers, safeJuntas, myJuntaIds]
   );
+  const persistedStreaks = usePersistedStreaks(user?.id, JSON.stringify([safePayments, safeSchedules, safeMembers, safeJuntas]));
+  const globalRacha = persistedStreaks.connected
+    ? selectGlobalRacha(persistedStreaks.snapshot?.streaks ?? []) : localRacha;
   // Fresh fetch for payment notifications — never relies on stale Zustand data.
   // Queries from junta_members (not admin_id) so both creators and participants are covered.
   useEffect(() => {
@@ -620,16 +624,6 @@ export default function DashboardPage() {
       else setRankingLoadError(true);
     });
   }, [userId]);
-
-  useEffect(() => {
-    if (!globalRacha || !userId) return;
-    const milestones = [4, 8, 12] as const;
-    for (const hito of milestones) {
-      if (globalRacha.semanasActual >= hito) {
-        recordRachaMilestone({ profileId: userId, juntaId: null, hitoSemanas: hito });
-      }
-    }
-  }, [globalRacha, globalRacha?.semanasActual, userId]);
 
   // Fetch propio del dashboard — independiente del layout y del store global.
   // Garantiza que "Mis juntas activas" se cargue al entrar directamente al dashboard
@@ -768,9 +762,13 @@ export default function DashboardPage() {
 
   const currentWeekKey = getWeekKey();
   const missionBonusThisWeek = claimedMissions
-    .filter((m) => m.week_key === currentWeekKey)
+    .filter((m) => m.week_key === currentWeekKey && m.mission_id !== 'on_time_streak_4_rounds')
     .reduce((sum, m) => sum + m.bonus_points, 0);
 
+  if (persistedStreaks.snapshot) {
+    scoreStats.activeStreakWeeks = Math.max(0, ...persistedStreaks.snapshot.streaks.map(r => r.semanasActual));
+    scoreStats.streakRewardPoints = persistedStreaks.snapshot.rewardPoints;
+  }
   const score = getUserJuntaScore(user.id, scoreStats, missionBonusThisWeek);
 
   const upcomingPayout = getUpcomingPayout({
@@ -844,14 +842,15 @@ export default function DashboardPage() {
             />
           </div>
 
+          {persistedStreaks.error && <p role="status" className="text-sm text-slate-500">{persistedStreaks.error}</p>}
           {globalRacha && (
             <div className="contents lg:order-4 lg:block">
               <RachaCard
-                semanasActual={globalRacha.semanasActual}
-                recordPersonal={globalRacha.recordPersonal}
-                proximoHito={globalRacha.proximoHito}
-                estado={globalRacha.estado}
-                horasRestantes={globalRacha.horasRestantes}
+                {...globalRacha}
+                juntaCerrada={safeJuntas.find(j => j.id === globalRacha.juntaId)?.estado === 'cerrada'}
+                href={`/juntas/${globalRacha.juntaId}/payments`}
+                juntaNombre={safeJuntas.find(j => j.id === globalRacha.juntaId)?.nombre}
+                rewardEarned={(persistedStreaks.snapshot?.rewardPoints ?? scoreStats.streakRewardPoints ?? 0) > 0}
               />
             </div>
           )}

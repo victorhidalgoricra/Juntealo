@@ -53,22 +53,3 @@ export async function claimMission(params: {
   }
   return { ok: true };
 }
-
-export async function recordRachaMilestone(params: {
-  profileId: string;
-  juntaId: string | null;
-  hitoSemanas: 4 | 8 | 12;
-}): Promise<void> {
-  if (!supabase) return;
-  await supabase
-    .schema('public')
-    .from('racha_hitos')
-    .upsert(
-      {
-        profile_id: params.profileId,
-        junta_id: params.juntaId,
-        hito_semanas: params.hitoSemanas
-      },
-      { onConflict: 'profile_id,junta_id,hito_semanas', ignoreDuplicates: true }
-    );
-}

@@ -1,98 +1,36 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import type { CSSProperties } from 'react';
-import type { EstadoRacha } from '@/lib/racha';
+import React from 'react';
+import Link from 'next/link';
+import type { RachaResult } from '@/lib/racha';
 
-export type RachaCardProps = {
-  semanasActual: number;
-  recordPersonal: number;
-  proximoHito: number;
-  estado: EstadoRacha;
-  horasRestantes?: number;
-};
+export type RachaCardProps = RachaResult & { href: string; juntaNombre?: string; rewardEarned?: boolean; juntaCerrada?: boolean };
 
-export function RachaCard({ semanasActual, recordPersonal, proximoHito, estado, horasRestantes }: RachaCardProps) {
-  const router = useRouter();
-
-  if (semanasActual === 0 && estado !== 'rota') return null;
-
-  const isRota = estado === 'rota';
-  const isEnRiesgo = estado === 'en_riesgo';
-
-  const containerStyle: CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '12px 14px',
-    borderRadius: 12,
-    cursor: 'pointer',
-    transition: 'opacity 0.15s',
-    marginBottom: 12,
-    background: isRota ? '#fafafa' : '#fff8e6',
-    border: isRota ? '1px solid #ebebeb' : '1.5px solid #f0a500',
-  };
-
-  const badgeStyle: CSSProperties = {
-    background: isEnRiesgo ? '#e07000' : isRota ? '#f0f0ec' : '#f0a500',
-    color: isRota ? '#666' : '#fff',
-    borderRadius: 20,
-    padding: '3px 10px',
-    fontSize: 12,
-    fontWeight: 600,
-    flexShrink: 0,
-    whiteSpace: 'nowrap',
-  };
-
+export function RachaCard({ semanasActual, recordPersonal, proximoHito, estado, horasRestantes,
+  cuotaInterrumpida, fechaInterrupcion, pendientesRevision, tieneDeuda, href, juntaNombre, rewardEarned, juntaCerrada }: RachaCardProps) {
+  const broken = estado === 'rota';
+  const title = estado === 'en_revision' ? 'Pago en revisión'
+    : broken ? (recordPersonal > 0 ? 'Tu racha se interrumpió' : 'Empieza tu primera racha')
+    : semanasActual === 0 ? 'Empieza tu primera racha'
+    : `${semanasActual} cuota${semanasActual === 1 ? '' : 's'} seguidas a tiempo`;
+  const date = fechaInterrupcion ? new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })
+    .format(new Date(fechaInterrupcion.length === 10 ? `${fechaInterrupcion}T12:00:00-05:00` : fechaInterrupcion)) : '';
+  const detail = estado === 'en_revision'
+    ? `${pendientesRevision} pago(s) registrado(s) a tiempo pendiente(s) de aprobación. Llevas ${semanasActual} cuotas confirmadas; sumarán al aprobarse.`
+    : broken ? `La cuota ${cuotaInterrumpida ?? ''}${date ? ` del ${date}` : ''} venció sin un pago puntual aprobado. Tu récord es de ${recordPersonal} cuotas.`
+    : estado === 'en_riesgo' ? `Te quedan ${horasRestantes} h para registrar tu próxima cuota a tiempo.`
+    : 'Cada cuota puntual aprobada suma. El turno en que recibes no interrumpe tu racha.';
+  const benefit = rewardEarned
+    ? 'Misión de 4 cuotas completada: +6 puntos otorgados una sola vez.'
+    : `${Math.min(semanasActual, 4)} de 4 cuotas para ganar +6 puntos una sola vez.`;
   return (
-    <div
-      style={containerStyle}
-      onClick={() => router.push('/mi-racha')}
-      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
-    >
-      <span style={{ fontSize: 22, flexShrink: 0 }}>
-        {isRota ? <span style={{ color: '#bbb' }}>—</span> : '🔥'}
-      </span>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {estado === 'activa' && (
-          <>
-            <p style={{ fontWeight: 700, color: '#111', margin: 0, lineHeight: '1.3' }}>
-              {semanasActual} semana{semanasActual !== 1 ? 's' : ''} pagando a tiempo
-            </p>
-            <p style={{ fontSize: 11, color: '#b37800', margin: '2px 0 0' }}>
-              Faltan {proximoHito - semanasActual} para el hito de {proximoHito} semanas
-            </p>
-          </>
-        )}
-        {estado === 'en_riesgo' && (
-          <>
-            <p style={{ fontWeight: 700, color: '#111', margin: 0, lineHeight: '1.3' }}>
-              {semanasActual} semana{semanasActual !== 1 ? 's' : ''} — te quedan {horasRestantes}h
-            </p>
-            <p style={{ fontSize: 11, color: '#b37800', margin: '2px 0 0' }}>
-              Paga ahora para no perder tu racha
-            </p>
-          </>
-        )}
-        {estado === 'rota' && (
-          <>
-            <p style={{ fontWeight: 700, color: '#999', margin: 0, lineHeight: '1.3' }}>
-              Racha perdida esta semana
-            </p>
-            <p style={{ fontSize: 11, color: '#888', margin: '2px 0 0' }}>
-              Tu récord de {recordPersonal} semanas queda guardado — empieza una nueva hoy
-            </p>
-          </>
-        )}
-      </div>
-
-      <span style={badgeStyle}>
-        {estado === 'activa' && `${proximoHito} sem →`}
-        {estado === 'en_riesgo' && `⚠ ${horasRestantes}h`}
-        {estado === 'rota' && 'Empezar →'}
-      </span>
-    </div>
+    <Link href={href} className={`mb-3 block rounded-xl border p-4 transition-opacity hover:opacity-85 ${broken ? 'border-slate-200 bg-slate-50' : 'border-amber-300 bg-amber-50'}`}>
+      {juntaNombre && <p className="mb-1 text-xs font-medium text-slate-600">{juntaNombre}</p>}
+      <p className="font-bold text-slate-900">{broken ? '↻' : '🔥'} {title}</p>
+      <p className="mt-1 text-sm text-slate-600">{detail}</p>
+      <p className="mt-2 text-xs text-amber-800">{benefit}</p>
+      <p className="mt-1 text-xs text-slate-500">{juntaCerrada ? 'Esta junta finalizó. Conservas tu historial de puntualidad.' : semanasActual >= 12 ? 'Hitos de 4, 8 y 12 cuotas alcanzados.' : `Próximo hito: ${proximoHito} cuotas.`} Los hitos de 8 y 12 son reconocimientos sin puntos extra.</p>
+      <span className="mt-3 inline-block text-sm font-semibold text-slate-800">{juntaCerrada ? 'Ver historial de cuotas' : tieneDeuda ? 'Ver cuota pendiente' : estado === 'en_revision' ? 'Ver pago en revisión' : broken ? 'Ver próxima cuota' : 'Ver cuotas'} →</span>
+    </Link>
   );
 }
